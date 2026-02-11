@@ -1,0 +1,8 @@
+{
+  "name": "Vinea AI Beverage Intelligence & Training",
+  "description": "A comprehensive AI-guided restaurant management platform specializing in beverage intelligence, predictive inventory, and staff training. Built to surpass traditional hospitality systems with deep generative AI integration.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

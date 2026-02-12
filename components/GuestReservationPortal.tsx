@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { GuestJourney, GuestProfile } from '../types';
 import { supabaseSync } from '../services/supabaseClient';
@@ -40,7 +39,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
     };
 
     // Attempt Production Sync
-    const synced = await supabaseSync.pushJourney(newJourneyData);
+    await supabaseSync.pushJourney(newJourneyData);
 
     // Local Fallback for Demo/Persistence
     const localJourney: GuestJourney = {
@@ -50,14 +49,17 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
       tableNumber: '??',
       specialOccasion: booking.specialOccasion || undefined,
       profile: {
-        ...newJourneyData.profile,
+        name: booking.name,
+        favoriteBeverages: booking.preferences,
+        dietaryRestrictions: booking.dietaryRestrictions || 'None',
+        pairingStyle: booking.pairingStyle,
         location: isPublic ? 'Public Web Portal' : 'Internal Management',
         pastOrders: 'New Guest'
       }
     };
 
     const saved = localStorage.getItem('vinea_journeys');
-    const journeys = saved ? JSON.parse(saved) : [];
+    const journeys = saved ? (JSON.parse(saved) as GuestJourney[]) : [];
     localStorage.setItem('vinea_journeys', JSON.stringify([...journeys, localJourney]));
     
     window.dispatchEvent(new Event('storage'));
@@ -91,15 +93,6 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
                <i className="fas fa-arrow-left"></i> Exit Portal
              </button>
            )}
-           {isPublic && (
-             <div className="space-y-2">
-                <p className="text-[9px] font-black uppercase text-stone-700 tracking-widest">Authorized Facility</p>
-                <div className="flex items-center gap-2 text-stone-500">
-                   <i className="fas fa-check-circle text-emerald-500"></i>
-                   <span className="text-[10px] font-bold">Vinea Verified Node</span>
-                </div>
-             </div>
-           )}
         </div>
 
         {/* Right Form Panel */}
@@ -131,17 +124,6 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
                         {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n} className="bg-stone-900">{n} Guests</option>)}
                      </select>
                   </div>
-               </div>
-
-               <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-stone-500 tracking-widest ml-1">Special Occasion</label>
-                  <input 
-                    type="text" 
-                    value={booking.specialOccasion}
-                    onChange={e => setBooking({...booking, specialOccasion: e.target.value})}
-                    placeholder="Birthday, Anniversary, Business Dinner..."
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-amber-500 outline-none transition-all" 
-                  />
                </div>
 
                <div className="space-y-2">
@@ -186,17 +168,6 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
                          onChange={e => setBooking({...booking, name: e.target.value})}
                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-amber-500 outline-none" 
                          placeholder="e.g. Elena Rossi"
-                       />
-                    </div>
-                    <div className="space-y-2">
-                       <label className="text-[10px] font-black uppercase text-stone-500 tracking-widest ml-1">Email Node</label>
-                       <input 
-                         type="email" 
-                         required
-                         value={booking.email}
-                         onChange={e => setBooking({...booking, email: e.target.value})}
-                         className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:border-amber-500 outline-none" 
-                         placeholder="guest@vinea.ai"
                        />
                     </div>
                   </div>
@@ -259,22 +230,6 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
                <div className="space-y-2">
                   <h2 className="text-4xl font-serif font-bold text-white">Journey Confirmed</h2>
                   <p className="text-stone-500 text-lg italic">"Your arrival intelligence has been synthesized."</p>
-               </div>
-               <div className="p-8 bg-stone-950/50 rounded-3xl border border-white/5 w-full space-y-4">
-                  <div className="flex justify-between text-xs border-b border-white/5 pb-2">
-                     <span className="text-stone-500 uppercase font-black tracking-widest">Time</span>
-                     <span className="text-white font-bold">{booking.time} Tonight</span>
-                  </div>
-                  <div className="flex justify-between text-xs border-b border-white/5 pb-2">
-                     <span className="text-stone-500 uppercase font-black tracking-widest">Identity</span>
-                     <span className="text-white font-bold">{booking.name}</span>
-                  </div>
-                  {booking.specialOccasion && (
-                    <div className="flex justify-between text-xs">
-                       <span className="text-amber-500 uppercase font-black tracking-widest">Occasion</span>
-                       <span className="text-white font-bold">{booking.specialOccasion}</span>
-                    </div>
-                  )}
                </div>
                <button 
                  onClick={onComplete}

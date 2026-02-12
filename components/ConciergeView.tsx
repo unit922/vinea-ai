@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { geminiService } from '../services/geminiService';
 import { supabaseSync, getSupabaseConfig } from '../services/supabaseClient';
-import { GuestJourney, GuestProfile, Table, InventoryItem, MarketingCampaign } from '../types';
+import { GuestJourney, Table, InventoryItem, MarketingCampaign } from '../types';
 import GuestReservationPortal from './GuestReservationPortal';
 
 const INITIAL_TABLES: Table[] = [
@@ -126,7 +125,7 @@ const ConciergeView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'arrivals' | 'campaigns'>('arrivals');
   const [journeys, setJourneys] = useState<GuestJourney[]>(() => {
     const saved = localStorage.getItem('vinea_journeys');
-    return saved ? JSON.parse(saved) : MOCK_JOURNEYS;
+    return saved ? (JSON.parse(saved) as GuestJourney[]) : MOCK_JOURNEYS;
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -160,19 +159,21 @@ const ConciergeView: React.FC = () => {
     
     // Fallback for tables to ensure map is never blank
     const savedTables = localStorage.getItem('vinea_tables');
-    const tableData = savedTables ? JSON.parse(savedTables) : INITIAL_TABLES;
+    const tableData = savedTables ? (JSON.parse(savedTables) as Table[]) : INITIAL_TABLES;
     setTables(tableData);
     if (!savedTables) localStorage.setItem('vinea_tables', JSON.stringify(INITIAL_TABLES));
 
     if (isProduction) {
       const cloudJourneys = await supabaseSync.pullJourneys();
-      if (cloudJourneys) {
+      if (cloudJourneys && Array.isArray(cloudJourneys)) {
         setJourneys(cloudJourneys);
         localStorage.setItem('vinea_journeys', JSON.stringify(cloudJourneys));
       }
     } else {
       const saved = localStorage.getItem('vinea_journeys');
-      if (saved) setJourneys(JSON.parse(saved));
+      if (saved) {
+        setJourneys(JSON.parse(saved) as GuestJourney[]);
+      }
     }
     setIsRefreshing(false);
   };
@@ -257,9 +258,8 @@ const ConciergeView: React.FC = () => {
     finally { setIsSynthesizingCampaign(false); }
   };
 
-  // Fix: Added useMemo hook to the list of imports from React at the top of the file
   const sortedJourneys = useMemo(() => {
-    const statusPriority = { 'Arrived': 0, 'Seated': 1, 'Confirmed': 2, 'Engagement Sent': 3, 'Completed': 4 };
+    const statusPriority: Record<GuestJourney['status'], number> = { 'Arrived': 0, 'Seated': 1, 'Confirmed': 2, 'Engagement Sent': 3, 'Completed': 4 };
     return [...journeys].sort((a, b) => statusPriority[a.status] - statusPriority[b.status]);
   }, [journeys]);
 
@@ -374,7 +374,6 @@ const ConciergeView: React.FC = () => {
                              </div>
                           </div>
                           
-                          {/* Visual Floor Layout Simulation */}
                           <div className="bg-stone-50 rounded-[2.5rem] border border-stone-100 p-12 aspect-[16/9] relative shadow-inner overflow-hidden min-h-[400px]">
                              {tables.length === 0 ? (
                                <div className="flex items-center justify-center h-full">
@@ -399,9 +398,6 @@ const ConciergeView: React.FC = () => {
                                  );
                                })
                              )}
-                             {/* Floor Annotations */}
-                             <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-stone-900/5 rounded-full text-[8px] font-black text-stone-300 uppercase tracking-widest italic">Main Dining Deck</div>
-                             <div className="absolute bottom-4 right-8 text-[8px] font-black text-stone-300 uppercase tracking-widest border border-stone-200 px-3 py-1 rounded-lg italic">Bar Silo A</div>
                           </div>
                        </div>
                      ) : (
@@ -421,7 +417,6 @@ const ConciergeView: React.FC = () => {
                                    <p className="text-2xl font-serif font-black text-stone-800">T{selectedTableForSeating.number}</p>
                                    <p className="text-[9px] font-black text-stone-400 uppercase">Interactive Core</p>
                                 </div>
-                                {/* Circular Seat Placement */}
                                 {[...Array(selectedTableForSeating.capacity)].map((_, i) => {
                                   const angle = (i * 360) / selectedTableForSeating.capacity;
                                   const rad = (angle * Math.PI) / 180;
@@ -563,11 +558,6 @@ const ConciergeView: React.FC = () => {
                     </button>
                  </div>
               </div>
-              <div className="bg-amber-500 text-stone-900 p-10 rounded-[3rem] shadow-2xl flex flex-col justify-center space-y-4">
-                 <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-60 italic">Campaign Success Alpha</p>
-                 <h4 className="text-5xl font-serif font-black italic leading-none">+28%</h4>
-                 <p className="text-xs font-bold leading-relaxed">Average conversion lift for palate-mapped automated outreach vs standard broadcasts.</p>
-              </div>
            </div>
 
            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
@@ -585,20 +575,8 @@ const ConciergeView: React.FC = () => {
                               <span className="text-[9px] font-black uppercase bg-stone-100 text-stone-500 px-2 py-0.5 rounded border border-stone-200 mb-2 inline-block">{camp.targetCluster}</span>
                               <h4 className="text-xl font-serif font-black italic text-stone-900 leading-tight group-hover:text-amber-600 transition-colors">{camp.title}</h4>
                            </div>
-                           <div className="text-right">
-                              <p className="text-[8px] font-black uppercase text-stone-400">Reach Projection</p>
-                              <p className="text-sm font-black text-stone-800">{camp.reach} Nodes</p>
-                           </div>
-                        </div>
-                        <div className="p-4 bg-stone-50 rounded-2xl border border-stone-100 mb-6">
-                           <p className="text-[9px] font-black text-stone-400 uppercase mb-1">Subject Protocol</p>
-                           <p className="text-xs font-bold text-stone-800 italic">"{camp.subject}"</p>
                         </div>
                         <div className="flex justify-between items-center pt-6 border-t border-stone-50">
-                           <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                              <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Target: {camp.offerItem}</span>
-                           </div>
                            <button className="px-6 py-2.5 bg-stone-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all active:scale-95 shadow-lg">Commit Dispatch</button>
                         </div>
                      </div>

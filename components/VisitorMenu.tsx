@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { InventoryItem, ServiceOrder, OrderItem, Table } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -125,6 +124,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
     );
   }
 
+  // After early return above, 'view' is narrowed to: 'menu' | 'sommelier' | 'tab'
   return (
     <div className="fixed inset-0 z-[700] h-full w-full flex flex-col bg-stone-50 overflow-hidden font-serif relative">
       <div className="absolute inset-0 opacity-40 pointer-events-none z-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]"></div>
@@ -273,7 +273,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                              <div className="flex justify-between items-center mb-4">
                                 <span className="text-[10px] font-black text-rose-900 uppercase tracking-widest italic">Round @ {order.timestamp}</span>
                                 <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                   order.status === 'Ready' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-rose-950'
+                                   order.status === 'Ready' ? 'bg-emerald-50 text-white' : 'bg-amber-50 text-rose-950'
                                 }`}>{order.status}</span>
                              </div>
                              <div className="space-y-2">
@@ -312,8 +312,8 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
         )}
       </div>
 
-      {/* Floating Chat Trigger - Persistently attached to guest view */}
-      {view !== 'sommelier' && view !== 'welcome' && (
+      {/* Floating Chat Trigger */}
+      {view !== 'sommelier' && (
         <button 
           onClick={() => setView('sommelier')}
           className="fixed bottom-32 right-8 z-[150] w-16 h-16 bg-amber-500 text-rose-950 rounded-2xl shadow-[0_20px_50px_rgba(245,158,11,0.4)] flex items-center justify-center animate-bounce hover:animate-none hover:scale-110 transition-all active:scale-95 group"

@@ -1,5 +1,5 @@
-
 import { createClient } from '@supabase/supabase-js';
+import { GuestJourney, GuestProfile } from '../types';
 
 export interface SupabaseConfig {
   url: string;
@@ -129,26 +129,30 @@ export const supabaseSync = {
     return data;
   },
 
-  async pullJourneys() {
+  async pullJourneys(): Promise<GuestJourney[] | null> {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
     const { data, error } = await supabase.from('guest_journeys').select('*').order('created_at', { ascending: false });
     if (error) return null;
     
-    // Map back to internal GuestJourney type
-    return data.map(d => ({
+    // Explicit mapping to ensure GuestJourney and GuestProfile interface compliance
+    const mapped: GuestJourney[] = data.map((d: any) => ({
       id: d.id,
       arrivalTime: d.arrival_time,
-      status: d.status,
+      status: (d.status as GuestJourney['status']) || 'Confirmed',
       tableNumber: d.table_number || '??',
-      specialOccasion: d.special_occasion,
+      specialOccasion: d.special_occasion || undefined,
+      pacingMode: d.pacing_mode || 'Standard',
       profile: {
         name: d.guest_name,
-        email: d.guest_email,
-        favoriteBeverages: d.preferences,
-        dietary_restrictions: d.dietary_restrictions,
-        pairing_style: d.pairing_style
+        location: d.location || 'Unknown',
+        favoriteBeverages: d.preferences || '',
+        dietaryRestrictions: d.dietary_restrictions || 'None',
+        pastOrders: d.past_orders || 'New Guest',
+        pairingStyle: (d.pairing_style as GuestProfile['pairingStyle']) || 'Classic'
       }
     }));
+
+    return mapped;
   }
 };

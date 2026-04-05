@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AppView, StaffShift } from './types';
 import Layout from './components/Layout';
 import ManagerDashboard from './components/ManagerDashboard';
@@ -196,6 +197,7 @@ const App: React.FC = () => {
 
   return (
     <>
+      <SpeedInsights />
       {showOnboarding && (
         <Onboarding 
           onComplete={handleOnboardingComplete} 

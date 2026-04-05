@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { AppView, StaffShift } from './types';
 import Layout from './components/Layout';
 import ManagerDashboard from './components/ManagerDashboard';
@@ -230,6 +231,7 @@ const App: React.FC = () => {
       >
         {renderContent()}
       </Layout>
+      <Analytics />
     </>
   );
 };

@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: restaurants
+    // Fields: id, name, type, focus, description, edition, aiPersona, aiTraits, somaticInstructions
+    //
+    // Collection: restaurants/{rid}/journeys
+    // Fields: id, arrivalTime, status, tableNumber, profile (name, email, etc), specialOccasion, pacingMode
+    //
+    // Collection: restaurants/{rid}/inventory
+    // Fields: id, name, category, stock, unit, minStock, price, originalPrice
+    //
+    // Collection: restaurants/{rid}/orders
+    // Fields: id, timestamp, tableNumber, serverName, status, priority, items
+    //
+    // Collection: registry
+    // Fields: id, name, tier, status, lastPulse, usageMetric, mrr
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "foritglo@gmail.com");
+    }
+
+    function isStaffOf(restaurantId) {
+      let isDemo = restaurantId == 'demo-id';
+      let isAuthorized = isAuthenticated() && 
+        (isDemo ||
+         get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerId == request.auth.uid ||
+         request.auth.token.restaurant_id == restaurantId);
+      
+      // Strict verification for non-demo professional tiers
+      return isAuthorized && (isDemo || isEmailVerified());
+    }
+
+    function isValidRestaurant(data) {
+      return data.keys().hasAll(['id', 'name', 'edition']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.edition in ['demo', 'free', 'paid', 'enterprise'];
+    }
+
+    function isValidJourney(data) {
+      return data.keys().hasAll(['id', 'arrivalTime', 'status', 'profile']) &&
+             data.profile.name is string && data.profile.name.size() < 100 &&
+             data.status in ['Confirmed', 'Engagement Sent', 'Arrived', 'Seated', 'Completed'];
+    }
+
+    function isValidInventory(data) {
+      return data.keys().hasAll(['id', 'name', 'category', 'stock', 'price']) &&
+             data.stock is number && data.price is number;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'timestamp', 'tableNumber', 'status', 'items']) &&
+             data.items is list;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /test/connection {
+      allow read: if true;
+    }
+
+    match /restaurants/{restaurantId} {
+      allow read: if true; // Publicly readable for menu/booking
+      allow create: if isAuthenticated() && isValidRestaurant(request.resource.data);
+      allow update: if (restaurantId == 'demo-id' || isStaffOf(restaurantId) || isAdmin()) && isValidRestaurant(request.resource.data);
+      allow delete: if isAdmin();
+
+      match /journeys/{journeyId} {
+        allow read, write: if restaurantId == 'demo-id' || isStaffOf(restaurantId) || isAdmin();
+      }
+
+      match /inventory/{itemId} {
+        allow read: if true;
+        allow write: if restaurantId == 'demo-id' || isStaffOf(restaurantId) || isAdmin();
+      }
+
+      match /orders/{orderId} {
+        allow read, write: if restaurantId == 'demo-id' || isStaffOf(restaurantId) || isAdmin();
+      }
+    }
+
+    match /registry/{restaurantId} {
+      allow read: if true; // Investor view
+      allow write: if restaurantId == 'demo-id' || isAdmin() || (isAuthenticated() && request.auth.uid == restaurantId);
+    }
+  }
+}

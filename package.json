@@ -1,26 +1,57 @@
 {
-  "name": "vinea-ai-beverage-intelligence-&-training",
+  "name": "hospitality-intelligence",
   "private": true,
-  "version": "0.0.0",
+  "version": "3.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "tsx server.ts",
+    "build": "vite build && ([ -n \"$VERCEL\" ] || esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs)",
+    "start": "node dist/server.cjs",
+    "preview": "vite preview",
+    "lint": "eslint ."
   },
   "dependencies": {
+    "@google/genai": "1.39.0",
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "2.45.4",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@vercel/speed-insights": "^2.0.0",
+    "axios": "^1.16.1",
+    "cors": "^2.8.6",
+    "d3": "^7.9.0",
+    "dotenv": "^17.4.0",
+    "esbuild": "^0.28.0",
+    "express": "^5.2.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^0.576.0",
+    "motion": "^12.34.4",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-ga4": "^3.0.1",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.15.0",
     "recharts": "2.15.0",
-    "@google/genai": "1.39.0",
-    "@supabase/supabase-js": "2.45.4",
-    "vite": "^7.3.1",
-    "@vitejs/plugin-react": "^5.1.4"
+    "resend": "^6.12.2",
+    "stripe": "^22.0.0",
+    "xlsx": "^0.18.5",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@tailwindcss/vite": "^4.2.0",
     "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
+    "@vitejs/plugin-react": "^5.1.4",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.0",
+    "globals": "^17.3.0",
+    "tailwindcss": "^4.2.0",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "typescript-eslint": "^8.56.0",
+    "vite": "^7.3.1"
   }
 }

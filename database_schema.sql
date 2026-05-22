@@ -1,96 +1,95 @@
 
--- 1. EXTENSIONS
-create extension if not exists "uuid-ossp";
+-- ... (Previous tables)
 
--- 2. CORE TABLES
-
--- Restaurant establishment profile
-create table public.restaurants (
-    id uuid primary key default uuid_generate_v4(),
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    name text not null unique,
-    type text,
-    focus text,
-    description text,
-    owner_id uuid references auth.users(id)
+-- 8. EQUIPMENT (Telemetry Silo)
+CREATE TABLE IF NOT EXISTS public.equipment (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL, -- HVAC, Refrigeration, Kitchen, Bar
+    health_score INTEGER DEFAULT 100,
+    status TEXT CHECK (status IN ('Optimal', 'Warning', 'Critical')) DEFAULT 'Optimal',
+    last_service TIMESTAMP WITH TIME ZONE,
+    telemetry JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- User profiles (The link between Auth and Establishments)
-create table public.profiles (
-    id uuid references auth.users(id) primary key,
-    restaurant_id uuid references public.restaurants(id) on delete cascade not null,
-    full_name text,
-    avatar_url text,
-    role text default 'Server' check (role in ('Manager', 'Sommelier', 'Mixologist', 'Server'))
+-- 9. ACADEMY MODULES (Intelligence Academy)
+CREATE TABLE IF NOT EXISTS public.academy_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE,
+    topic TEXT NOT NULL,
+    difficulty TEXT CHECK (difficulty IN ('Beginner', 'Intermediate', 'Advanced')) DEFAULT 'Beginner',
+    duration TEXT,
+    category TEXT,
+    video_url TEXT,
+    video_id TEXT,
+    completed BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 3. GUEST JOURNEYS (Reservations)
-create table public.guest_journeys (
-    id uuid primary key default uuid_generate_v4(),
-    restaurant_id uuid references public.restaurants(id) on delete cascade not null,
-    arrival_time text not null,
-    status text default 'Confirmed',
-    table_number text,
-    guest_name text not null,
-    guest_email text,
-    preferences text,
-    dietary_restrictions text,
-    pairing_style text,
-    special_occasion text,
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+-- 10. FLASH DRILLS (Scholar Node)
+CREATE TABLE IF NOT EXISTS public.flash_drills (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    options TEXT[] NOT NULL,
+    correct_index INTEGER NOT NULL,
+    explanation TEXT,
+    category TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 4. INTELLIGENCE CACHE
-create table public.ai_intelligence_cache (
-    id uuid primary key default uuid_generate_v4(),
-    restaurant_id uuid references public.restaurants(id) on delete cascade not null,
-    request_key text not null,
-    category text not null,
-    response_data jsonb not null,
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    expires_at timestamp with time zone,
-    unique(restaurant_id, request_key)
+-- 11. AI INSIGHTS (Yield Alpha)
+CREATE TABLE IF NOT EXISTS public.ai_insights (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE,
+    type TEXT CHECK (type IN ('Retention', 'Revenue', 'Efficiency', 'Sustainability')),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    impact_score NUMERIC DEFAULT 0,
+    actionable BOOLEAN DEFAULT true,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 5. INVENTORY
-create table public.inventory (
-    id uuid primary key default uuid_generate_v4(),
-    restaurant_id uuid references public.restaurants(id) on delete cascade not null,
-    name text not null,
-    category text check (category in ('Wine', 'Spirit', 'Mixer', 'Beer', 'Garnish', 'Snack')),
-    stock numeric default 0,
-    unit text not null,
-    min_stock numeric default 0,
-    max_stock numeric,
-    price numeric(10, 2),
-    description text,
-    predicted_demand numeric,
-    updated_at timestamp with time zone default timezone('utc'::text, now())
+-- 12. GUEST FEEDBACK (Experience Sentinel)
+CREATE TABLE IF NOT EXISTS public.guest_feedback (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE,
+    journey_id TEXT,
+    guest_name TEXT,
+    staff_id TEXT,
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    sentiment TEXT CHECK (sentiment IN ('Positive', 'Neutral', 'Negative')),
+    ai_summary TEXT,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 6. RLS SETTINGS
-alter table public.restaurants enable row level security;
-alter table public.profiles enable row level security;
-alter table public.inventory enable row level security;
-alter table public.ai_intelligence_cache enable row level security;
-alter table public.guest_journeys enable row level security;
+-- RLS Policies
+ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.academy_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.flash_drills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_insights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guest_feedback ENABLE ROW LEVEL SECURITY;
 
--- Policies for guest_journeys
--- Allow public insertion for the "view=book" portal
-create policy "Public: Create reservations"
-on public.guest_journeys for insert
-with check ( true );
+-- Helper for Enterprise Isolation
+CREATE OR REPLACE FUNCTION public.get_user_restaurant_id()
+RETURNS UUID AS $$
+BEGIN
+  RETURN (SELECT restaurant_id FROM public.profiles WHERE id = auth.uid() LIMIT 1);
+END;
+$$ LANGUAGE plpgsql STABLE;
 
--- Only authenticated staff can view/edit journeys for their restaurant
-create policy "Staff: Manage journeys"
-on public.guest_journeys for all
-using ( restaurant_id = (select restaurant_id from public.profiles where id = auth.uid()) );
-
--- RESTAURANTS:
-create policy "Discovery: Verify existence"
-on public.restaurants for select
-using ( true );
-
-create policy "Onboarding: Initial registration"
-on public.restaurants for insert
-with check ( true );
+-- Generic Security Logic
+DO $$
+DECLARE
+    t TEXT;
+BEGIN
+    FOR t IN SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' 
+    AND table_name IN ('equipment', 'academy_sessions', 'flash_drills', 'ai_insights', 'guest_feedback') LOOP
+        EXECUTE format('DROP POLICY IF EXISTS "Staff Access" ON public.%I', t);
+        EXECUTE format('CREATE POLICY "Staff Access" ON public.%I FOR ALL USING (restaurant_id = get_user_restaurant_id())', t);
+    END LOOP;
+END $$;

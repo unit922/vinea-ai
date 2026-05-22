@@ -1,9 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { geminiService } from '../services/geminiService';
-import { GuestProfile, PersonalizationRecommendation } from '../types';
+import { supabaseSync } from '../services/supabaseSync';
+import { GuestProfile, PersonalizationRecommendation, GuestJourney } from '../lib/types';
 
-const GuestProfileView: React.FC = () => {
+interface GuestProfileViewProps {
+  journeys: GuestJourney[];
+  setJourneys: React.Dispatch<React.SetStateAction<GuestJourney[]>>;
+}
+
+const GuestProfileView: React.FC<GuestProfileViewProps> = ({ journeys, setJourneys }) => {
   const [profile, setProfile] = useState<GuestProfile>({
     name: '',
     location: '',
@@ -12,11 +18,30 @@ const GuestProfileView: React.FC = () => {
     pastOrders: '',
     pairingStyle: 'Classic'
   });
+  const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (journeys.length > 0 && !selectedJourneyId) {
+      setProfile(journeys[0].profile);
+      setSelectedJourneyId(journeys[0].id);
+    }
+  }, [journeys, selectedJourneyId]);
+
+  const handleGuestSelect = (id: string) => {
+    const journey = journeys.find(j => j.id === id);
+    if (journey) {
+      setProfile(journey.profile);
+      setSelectedJourneyId(id);
+      setRecommendations([]);
+      setTags([]);
+    }
+  };
   const [debriefNotes, setDebriefNotes] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isProcessingNotes, setIsProcessingNotes] = useState(false);
   const [recommendations, setRecommendations] = useState<PersonalizationRecommendation[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [notification, setNotification] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!profile.name) return;
@@ -33,6 +58,25 @@ const GuestProfileView: React.FC = () => {
       
       const newTags = await geminiService.analyzeGuestTags(profile, profile.favoriteBeverages);
       setTags(newTags);
+
+      // Sync back to Supabase if we have a journey ID
+      if (selectedJourneyId) {
+        const journey = journeys.find(j => j.id === selectedJourneyId);
+        if (journey) {
+          const updatedJourney = { ...journey, profile };
+          const restaurantProfileString = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
+          const restaurantProfile = JSON.parse(restaurantProfileString || '{}');
+          await supabaseSync.pushJourney(restaurantProfile.id || 'demo', updatedJourney);
+          
+          // Update local state
+          const updatedJourneys = journeys.map(j => j.id === selectedJourneyId ? updatedJourney : j);
+          setJourneys(updatedJourneys);
+          localStorage.setItem('vinetelligence_journeys', JSON.stringify(updatedJourneys));
+          localStorage.setItem('vinea_journeys', JSON.stringify(updatedJourneys));
+          setNotification("Profile Synced to Cloud");
+          setTimeout(() => setNotification(null), 3000);
+        }
+      }
     } catch (error) {
       console.error("Personalization failed", error);
     } finally {
@@ -47,7 +91,8 @@ const GuestProfileView: React.FC = () => {
       // Simulate AI learning from notes to update profile
       await new Promise(r => setTimeout(r, 1500));
       const updatedProfile = await geminiService.getTrainingResponse(`Update guest profile ${JSON.stringify(profile)} based on these post-service notes: ${debriefNotes}. Just summarize the changes in one sentence.`, []);
-      alert(`AI System Updated: ${updatedProfile}`);
+      setNotification(`AI System Updated: ${updatedProfile}`);
+      setTimeout(() => setNotification(null), 5000);
       setDebriefNotes('');
     } catch (e) { console.error(e); }
     finally { setIsProcessingNotes(false); }
@@ -61,17 +106,64 @@ const GuestProfileView: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 pb-10">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 pb-10 relative">
+      {/* Demo Notice */}
+      <div className="lg:col-span-2 bg-amber-500/10 border border-amber-500/20 p-4 flex items-center justify-between rounded-2xl shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-500">
+            Guest Sentiment Simulation Active: Visualizing Synthetic Palate Data
+          </p>
+        </div>
+        <p className="text-[9px] italic text-amber-500/60">
+          Sync with POS node to view real-time guest behavioral patterns.
+        </p>
+      </div>
+
+      {notification && (
+        <div className="fixed top-8 right-8 z-[1000] animate-in slide-in-from-right-8 duration-500">
+          <div className="bg-stone-900/90 text-white px-8 py-5 rounded-[2rem] shadow-2xl border border-white/10 backdrop-blur-xl flex items-center gap-4">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-amber-500/20">
+              <i className="fas fa-brain text-amber-500 text-xs"></i>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest italic">{notification}</span>
+          </div>
+        </div>
+      )}
       <div className="space-y-6">
         <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-stone-200 shadow-sm space-y-6 h-fit">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center shrink-0 border border-amber-500/20">
-              <i className="fas fa-user-edit text-amber-600 text-xl"></i>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center shrink-0 border border-amber-500/20">
+                <i className="fas fa-user-edit text-amber-600 text-xl"></i>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-stone-800 font-serif">Guest Insight Profile</h2>
+                  {selectedJourneyId && (
+                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      journeys.find(j => j.id === selectedJourneyId)?.status === 'Completed' ? 'bg-stone-100 text-stone-400' :
+                      journeys.find(j => j.id === selectedJourneyId)?.status === 'Seated' ? 'bg-emerald-100 text-emerald-600' :
+                      'bg-amber-100 text-amber-600'
+                    }`}>
+                      {journeys.find(j => j.id === selectedJourneyId)?.status}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-stone-500 font-medium">Integrated CRM with AI Intelligence.</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-stone-800 font-serif">Guest Insight Profile</h2>
-              <p className="text-xs text-stone-500 font-medium">SevenRooms-style CRM with AI Intelligence.</p>
-            </div>
+            {journeys.length > 0 && (
+              <select 
+                value={selectedJourneyId || ''} 
+                onChange={(e) => handleGuestSelect(e.target.value)}
+                className="bg-stone-100 border-none rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-widest text-stone-600 focus:ring-2 focus:ring-amber-500 outline-none"
+              >
+                {journeys.map(j => (
+                  <option key={j.id} value={j.id}>{j.profile.name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="space-y-5">
@@ -154,7 +246,7 @@ const GuestProfileView: React.FC = () => {
                       <i className={`fas ${theme.icon} text-stone-600`}></i>
                       {cat} Selection
                     </h4>
-                    {items.map((rec, idx) => (
+                    {items.map((rec: PersonalizationRecommendation, idx: number) => (
                       <div key={idx} className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden mb-6">
                         <div className="p-6 md:p-8">
                           <p className="text-lg font-serif font-bold text-white mb-2">{rec.dish}</p>

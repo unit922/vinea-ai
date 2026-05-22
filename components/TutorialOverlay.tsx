@@ -9,41 +9,55 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onClose }) => {
   const [step, setStep] = useState(0);
 
   const steps = [
+      {
+        title: "Welcome to Intelligence",
+        subtitle: "The Future of Hospitality Management",
+        icon: "fa-rocket",
+        content: "Intelligence is a multi-silo generative AI ecosystem designed to bridge the gap between technical data and hospitality excellence. Whether you are an Explorer or a Visionary, we empower your establishment through neural insights.",
+        instruction: "The platform is organized into distinct 'Intelligence Nodes' found on the left sidebar. Explore them to see how AI transforms your daily operations."
+      },
     {
-      title: "Welcome to Vinea Intelligence",
-      subtitle: "The Future of Hospitality Management",
-      icon: "fa-glass-cheers",
-      content: "Vinea is more than a dashboard; it's a generative AI ecosystem for your establishment. We bridge the gap between technical data and hospitality excellence.",
-      instruction: "Explore the interface to see how AI transforms inventory, training, and guest relations."
+      title: "Establishment Persona",
+      subtitle: "Your AI, Your Vibe",
+      icon: "fa-sliders",
+        content: "In the 'Profile' section, you can configure your establishment's AI Persona. Choose 'Technical' for precision or 'Playful' for a more engaging staff experience. Your choice dictates how Intelligence communicates with your team.",
+      instruction: "Go to Profile to set your Tagline and AI Persona. Higher tiers unlock 'Dedicated Model Tuning' for bespoke brand alignment."
     },
+      {
+        title: "Command Center",
+        subtitle: "Global Network Surveillance",
+        icon: "fa-shield-halved",
+        content: "For Master Admins (vinetelligence.live users), the Command Center provides an executive view of the entire global network. Monitor Monthly Recurring Revenue (MRR), billing health, and real-time establishment activity in a private data silo.",
+        instruction: "If you have @vinetelligence.live credentials, access the Command Center from the sidebar to see the status of every Node in the nebula."
+      },
     {
-      title: "Predictive Inventory",
-      subtitle: "Stop Reacting, Start Predicting",
-      icon: "fa-boxes-stacked",
-      content: "Our 'AI Demand Forecast' analyzes consumption velocity and upcoming covers to tell you exactly what to order before you run out.",
-      instruction: "In the Inventory tab, click 'Run AI Demand Forecast' to see suggested orders and reasoning based on your historical patterns."
+      title: "Service Ledger",
+      subtitle: "Operational Pulse",
+      icon: "fa-clipboard-list",
+      content: "The Service Ledger tracks every order in real-time. It monitors staff performance, order priority, and table velocity to ensure seamless service flow during peak hours.",
+      instruction: "View active 'Orders' to monitor hospitality speed. Use the 'Performance Scores' in the Roster to see who is leading your team."
     },
+      {
+        title: "Palate Mapping",
+        subtitle: "Guest Intelligence DNA",
+        icon: "fa-fingerprint",
+        content: "Intelligence uses biometric hints and past interactions to generate 'Guest Palate DNA'. We derive bespoke 3-course beverage journeys with specific cultural etiquette notes for every guest.",
+        instruction: "Access 'Guest Journeys' to see your current guest roster. Click on a guest to generate an AI-powered beverage journey matched to their specific profile."
+      },
     {
-      title: "Staff Academy & Coach",
-      subtitle: "Upskill Your Team with AI",
-      icon: "fa-user-graduate",
-      content: "The Vinea AI Coach is trained on global beverage traditions. Staff can ask technical questions, and managers can assign role-based training modules.",
-      instruction: "Use the 'Academy' tab to chat with the AI coach. In 'Team Roster', assign modules like 'Advanced Mixology' to specific staff members."
+      title: "Supply Chain Yield",
+      subtitle: "Predictive Logistics",
+      icon: "fa-arrow-trend-up",
+      content: "Our 'Yield Alpha' system analyzes consumption velocity and upcoming covers to predict demand before it happens. It tells you exactly what to order and why, reducing waste and optimizing capital.",
+      instruction: "Navigate to 'Inventory' and select an item to see its AI demand prediction. Higher tiers offer fully automated re-ordering recommendations."
     },
-    {
-      title: "Signature Lab",
-      subtitle: "AI-Powered Creativity",
-      icon: "fa-vial-circle-check",
-      content: "Generate world-class cocktail recipes and high-definition visual profiles based on conceptual themes (e.g., 'Brutalist Espresso' or 'Kyoto Spring').",
-      instruction: "Visit the 'Signature Lab' under Staff Academy. Type a theme and watch Vinea brew a recipe and a professional photography-style visual."
-    },
-    {
-      title: "Guest Palate Mapping",
-      subtitle: "Hyper-Personalized Service",
-      icon: "fa-map-location-dot",
-      content: "Vinea uses cultural intelligence to suggest pairings. It automatically prioritizes inclusive 'Zero-Proof' options for guests with dietary preferences.",
-      instruction: "Input guest details in 'Guest Preferences' to generate a bespoke 3-course beverage journey with cultural etiquette notes."
-    }
+      {
+        title: "Neural Coaching",
+        subtitle: "Always-On Training",
+        icon: "fa-graduation-cap",
+        content: "The Intelligence Coach provides instant feedback and training for your staff. From cocktail masterclasses to wine service etiquette, knowledge is just one neural link away.",
+        instruction: "Visit the 'Social & Training' hub to access masterclasses or query the AI Avatar for instant beverage wisdom."
+      }
   ];
 
   const nextStep = () => {
@@ -65,14 +79,14 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onClose }) => {
           {steps.map((_, i) => (
             <div 
               key={i} 
-              className={`flex-1 transition-all duration-500 ${i <= step ? 'bg-amber-500' : 'bg-transparent'}`}
+              className={`flex-1 transition-all duration-500 ${i <= step ? 'bg-indigo-500' : 'bg-transparent'}`}
             />
           ))}
         </div>
 
         <div className="p-10 md:p-14 flex-1">
           <div className="flex justify-between items-start mb-10">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg transition-all duration-500 ${step % 2 === 0 ? 'bg-stone-900 text-amber-500' : 'bg-amber-500 text-stone-900'}`}>
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg transition-all duration-500 ${step % 2 === 0 ? 'bg-stone-900 text-indigo-500' : 'bg-indigo-500 text-stone-900'}`}>
               <i className={`fas ${current.icon}`}></i>
             </div>
             <button 
@@ -85,7 +99,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onClose }) => {
 
           <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
             <div>
-              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-600 mb-1">Module {step + 1} of {steps.length}</h4>
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 mb-1">Module {step + 1} of {steps.length}</h4>
               <h2 className="text-3xl font-serif font-bold text-stone-900">{current.title}</h2>
               <p className="text-stone-500 font-medium italic">{current.subtitle}</p>
             </div>
@@ -94,12 +108,12 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onClose }) => {
               {current.content}
             </p>
 
-            <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl mt-8">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-2 flex items-center gap-2">
+            <div className="bg-indigo-50 border border-indigo-200 p-6 rounded-2xl mt-8">
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2 flex items-center gap-2">
                 <i className="fas fa-terminal"></i>
                 Pro User Instruction
               </p>
-              <p className="text-sm text-amber-900 font-bold leading-relaxed">
+              <p className="text-sm text-indigo-900 font-bold leading-relaxed">
                 {current.instruction}
               </p>
             </div>
@@ -120,7 +134,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onClose }) => {
             className="px-10 py-4 bg-stone-900 text-white rounded-xl font-bold shadow-lg hover:bg-stone-800 transition-all active:scale-95 flex items-center gap-2"
           >
             {step === steps.length - 1 ? 'Get Started' : 'Next Insight'}
-            <i className="fas fa-chevron-right text-amber-500 text-xs"></i>
+            <i className="fas fa-chevron-right text-indigo-500 text-xs"></i>
           </button>
         </div>
       </div>

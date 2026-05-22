@@ -1,31 +1,106 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { getSupabaseClient } from "./supabaseClient";
+import { ServiceOrder, RetailTransaction, InventoryItem, AIPairingSuggestion } from "../lib/types";
 
 const getProfile = () => {
   if (typeof window === 'undefined') return { edition: 'demo', aiPersona: 'technical' };
-  const profile = localStorage.getItem('vinea_profile');
+  const profileKey = localStorage.getItem('intelligence_profile') ? 'intelligence_profile' : (localStorage.getItem('vinetelligence_profile') ? 'vinetelligence_profile' : 'vinea_profile');
+  const profile = localStorage.getItem(profileKey);
   if (profile) {
     try {
       return JSON.parse(profile);
-    } catch (e) {
+    } catch {
       return { edition: 'demo', aiPersona: 'technical' };
     }
   }
   return { edition: 'demo', aiPersona: 'technical' };
 };
 
-const getPersonaInstruction = () => {
+const getPersonaInstruction = (userRole?: string) => {
   const profile = getProfile();
   const personas: Record<string, string> = {
-    'technical': 'You are a highly technical Beverage Scholar. Focus on exact specifications, historical dates, production chemistry, and precision.',
-    'hospitable': 'You are a compassionate Hospitality Mentor. Prioritize guest warmth, service etiquette, and emotional impact.',
-    'creative': 'You are an Avant-Garde Creative Visionary. Encourage bold pairings and recipe innovation.'
+    'technical': 'You are a Master Sommelier and Beverage Scientist. Your tone is authoritative, precise, and sophisticated. Use technical terminology (e.g., "terroir", "organoleptic", "esterification") where appropriate. Focus on exact specifications, historical provenance, and the chemistry of production.',
+    'hospitable': 'You are a world-class Hospitality Director. Your tone is warm, encouraging, and impeccably polite. Focus on the emotional journey of the guest, the nuances of body language, and the art of anticipatory service.',
+    'creative': 'You are a visionary Liquid Architect. Your tone is inspiring, bold, and experimental. Encourage breaking traditional rules, exploring unusual botanical pairings, and pushing the boundaries of sensory experience.'
   };
-  return personas[profile.aiPersona] || personas['technical'];
+  
+  let instruction = personas[profile.aiPersona] || personas['technical'];
+  
+  instruction += `\n\nCORE IDENTITY:
+  - You are the integrated intelligence layer of the Global Network.
+  - Your purpose is to bridge the gap between technical scholarship and world-class hospitality.
+  - You operate as a "Nebula" of collective intelligence, drawing from global vintages and operational data.`;
+
+  instruction += `\n\nCOACHING PROTOCOLS:
+  - Act as a high-level mentor and technical coach, not just an information retrieval system.
+  - Maintain a professional, sophisticated, and encouraging demeanor.
+  - Provide "Masterclass" level insights, focusing on the "why" behind techniques and pairings.
+  - Use analogies related to luxury, art, chemistry, or global hospitality standards.
+  - Encourage critical thinking by occasionally asking the staff member how they would apply a concept in a high-pressure service scenario.
+  - Prioritize practical, actionable advice that can be implemented immediately at the bar or on the floor.
+  - Do not speculate on legal advice or health claims.
+  - Always provide a clear Rationale for your suggestions to ensure pedagogical value.`;
+  
+  instruction += `\n\nESTABLISHMENT CONTEXT:
+  - Venue: ${profile.name || 'Hospitality Node'} (${profile.type || 'Luxury Venue'})
+  - Focus: ${profile.focus || 'General Beverage Excellence'}
+  - Philosophy: ${profile.description || 'Precision and scholarship.'}`;
+
+  if (userRole) {
+    instruction += `\n- Coaching Target: You are currently mentoring a ${userRole}. Adjust your technical depth to challenge them while remaining actionable.`;
+  }
+
+  return instruction;
 };
 
-async function fetchFromCache(category: string, key: string): Promise<any | null> {
+// Data Governance: Strip sensitive info
+const sanitizeInput = (text: string) => {
+  return text.replace(/[0-9]{10,}/g, '[REDACTED_PHONE]')
+             .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[REDACTED_EMAIL]');
+};
+
+export const getApiKey = () => {
+  // Check sessionStorage for pre-loaded server API key first for frictionless sandbox operation
+  try {
+    const serverKey = sessionStorage.getItem('vinetelligence_server_api_key');
+    if (serverKey) return serverKey;
+  } catch (e) {
+    console.error("Failed to read sessionStorage for API key", e);
+  }
+
+  // Check localStorage first for manual override
+  try {
+    const profileKey = localStorage.getItem('vinetelligence_profile') 
+      ? 'vinetelligence_profile' 
+      : (localStorage.getItem('intelligence_profile') 
+          ? 'intelligence_profile' 
+          : (localStorage.getItem('oenovia_profile') 
+              ? 'oenovia_profile' 
+              : 'vinea_profile'));
+    const profile = JSON.parse(localStorage.getItem(profileKey) || '{}');
+    if (profile.geminiApiKey) return profile.geminiApiKey;
+  } catch (e) {
+    console.error("Failed to parse profile for API key", e);
+  }
+
+  let key = "";
+  if (typeof process !== 'undefined') {
+    key = process.env.GEMINI_API_KEY || process.env.API_KEY || "";
+  }
+  
+  if (!key) {
+    key = (import.meta.env?.VITE_GEMINI_API_KEY as string) || (import.meta.env?.VITE_API_KEY as string) || "";
+  }
+
+  if (!key || key === "undefined" || key === "null") {
+    console.warn("Intelligence: Gemini API Key is missing or invalid in environment.");
+  }
+  
+  return key;
+};
+
+async function fetchFromCache(category: string, key: string): Promise<{ data: unknown; timestamp: string } | null> {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
   try {
@@ -40,12 +115,12 @@ async function fetchFromCache(category: string, key: string): Promise<any | null
     
     if (error || !data) return null;
     return { data: data.response_data, timestamp: data.created_at };
-  } catch (e) {
+  } catch {
     return null;
   }
 }
 
-async function saveToCache(category: string, key: string, data: any) {
+async function saveToCache(category: string, key: string, data: unknown) {
   const profile = getProfile();
   const supabase = getSupabaseClient();
   if (!supabase) return null;
@@ -57,7 +132,9 @@ async function saveToCache(category: string, key: string, data: any) {
       response_data: data,
       created_at: new Date().toISOString()
     });
-  } catch (e) {}
+  } catch (e) {
+    console.error("Intelligence: Cache save failed", e);
+  }
 }
 
 async function callWithRetry<T>(fn: () => Promise<T>, fallbackData: T, options?: { category: string, key: string }, maxRetries = 2): Promise<T> {
@@ -75,7 +152,10 @@ async function callWithRetry<T>(fn: () => Promise<T>, fallbackData: T, options?:
     }
   }
 
-  if (edition === 'demo') {
+  const isPaidTier = edition !== 'demo' || profile.demoMode === 'operator' || profile.tier?.toLowerCase() === 'operator';
+  
+  // Allow Operator tier in demo mode to access real AI logic for training/insights
+  if (edition === 'demo' && !options && !isPaidTier) {
     await new Promise(resolve => setTimeout(resolve, 800));
     return fallbackData;
   }
@@ -88,11 +168,22 @@ async function callWithRetry<T>(fn: () => Promise<T>, fallbackData: T, options?:
         await saveToCache(options.category, options.key, result);
       }
       return result;
-    } catch (error: any) {
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       const errorMsg = error?.message || "";
+      
+      // Stop retrying if it's a permission/auth issue - these won't fix themselves with retries
+      if (errorMsg.includes("permission denied") || errorMsg.includes("API key not valid") || errorMsg.includes("403") || errorMsg.includes("401")) {
+        console.error("System Architecture: Permission Denied for AI Model. Credentials or model access restricted.", error);
+        // Throw a specialized error that the UI can catch
+        const customError = new Error(`Protocol Permission Denied: ${errorMsg}`);
+        (customError as any).isPermissionError = true; // eslint-disable-line @typescript-eslint/no-explicit-any
+        throw customError;
+      }
+
       if (errorMsg.includes("exceeded quota") && edition !== 'paid' && edition !== 'enterprise') {
         return fallbackData;
       }
+      
       if (i === maxRetries - 1) return fallbackData;
       await new Promise(resolve => setTimeout(resolve, delay));
       delay *= 2; 
@@ -106,548 +197,1227 @@ export const geminiService = {
   live: {
     connect(params: {
       model: string;
-      callbacks: any;
-      config: any;
+      callbacks: {
+        onopen?: () => void;
+        onmessage?: (message: unknown) => void;
+        onerror?: (error: unknown) => void;
+        onclose?: () => void;
+      };
+      config: {
+        responseModalities: string[];
+        speechConfig?: {
+          voiceConfig?: {
+            prebuiltVoiceConfig?: {
+              voiceName: string;
+            };
+          };
+        };
+        systemInstruction?: string;
+      };
     }) {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      return ai.live.connect(params);
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (ai as any).live.connect(params);
     }
   },
 
-  async getGlobalIntelligence() {
-    const category = 'global_news';
-    const key = 'beverage_industry_pulse_v2';
-    
+  // Fix: Removed 'responseMimeType' as it is not supported for 'gemini-2.5-flash-image'
+  // Added JSON cleaning logic to handle potential Markdown wrapping in the model response
+  async getIntelligencePitch(base64Image: string, mimeType: string) {
+    const fallback = { brandName: "Unknown", pitch: "Intelligence operational. (Protocol limitation in Demo Tier)", tastingNotes: [], pairing: "N/A", trivia: "N/A" };
     return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const apiKey = getApiKey();
+      if (!apiKey) return fallback;
+      
+      const ai = new GoogleGenAI({ apiKey });
+      const modelName = 'gemini-flash-latest'; // Recommended for text/vision reasoning
+      
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Conduct intensive research on current global beverage trends (flavor profiles, mixology techniques) and relevant hospitality industry news for Q1-Q2 2025. Focus on supply chain updates, sustainability legislation, and the rise of specific spirits or zero-proof categories.`,
+        model: modelName,
+        contents: [{
+          parts: [
+            { inlineData: { data: base64Image, mimeType: mimeType } },
+            { text: "Assume you are a Master Sommelier with a 'Modern' tone. Analyze this beverage label. Generate an Intelligence Pitch for a guest at a high-end table. The tone should be evocative, technical yet accessible, and deeply storytelling. Include: 1. A poetic yet concise 2-sentence 'narrative hook' about its heritage. 2. Three sophisticated technical tasting notes. 3. A perfect food pairing rationale. 4. A rare 'sommelier secret' trivia fact about this producer." }
+          ]
+        }],
         config: {
-          tools: [{googleSearch: {}}],
-          systemInstruction: "You are a specialized Beverage Industry Analyst. Provide high-impact, technical news and trends. Return JSON: {trends: [{id: string, title: string, message: string, rationale: string, impact: 'High'|'Medium', tags: string[]}], news: [{id: string, title: string, message: string, rationale: string, impact: 'High'|'Medium', tags: string[]}]}",
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              brandName: { type: Type.STRING },
+              pitch: { type: Type.STRING },
+              tastingNotes: { type: Type.ARRAY, items: { type: Type.STRING } },
+              pairing: { type: Type.STRING },
+              trivia: { type: Type.STRING }
+            },
+            required: ["brandName", "pitch", "tastingNotes", "pairing", "trivia"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getTrainingRecommendations(staff: StaffShift, context: string) {
+    const fallback: { moduleId: string, rationale: string }[] = [];
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: [{
+          parts: [{ text: `Analyze this staff member's profile and the current operational context:
+        Staff: ${JSON.stringify(staff)}
+        Context: ${context}
+        
+        Suggest 3 specific training modules from the Academy that would most benefit this operator right now. Provide a rationale for each.` }]
+        }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                moduleId: { type: Type.STRING },
+                rationale: { type: Type.STRING }
+              },
+              required: ["moduleId", "rationale"]
+            }
+          }
         }
       });
       
-      const text = response.text || "{}";
-      const data = JSON.parse(text);
-      const sources: any[] = [];
-      response.candidates?.[0]?.groundingMetadata?.groundingChunks?.forEach((c: any) => {
-        if (c.web) sources.push({ title: c.web.title, uri: c.web.uri });
+      const text = response.text || "[]";
+      return JSON.parse(text);
+    }, fallback);
+  },
+
+  async getAcademyROI(staffData: StaffShift[], feedbackData: GuestFeedback[]) {
+    const fallback = { correlationScore: 0, topSkill: "N/A", revenueImpact: "N/A", improvementArea: "N/A", summary: "Data synthesis pending." };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: [{
+          parts: [{ text: `Analyze the correlation between staff training completion and guest sentiment:
+        Staff Training Data: ${JSON.stringify(staffData)}
+        Guest Feedback Data: ${JSON.stringify(feedbackData)}
+        
+        Synthesize an 'ROI Report'. Include: 1. Correlation score (0-100). 2. Top performing trained skill. 3. Revenue impact estimate (qualitative). 4. One specific area for improvement.` }]
+        }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              correlationScore: { type: Type.NUMBER },
+              topSkill: { type: Type.STRING },
+              revenueImpact: { type: Type.STRING },
+              improvementArea: { type: Type.STRING },
+              summary: { type: Type.STRING }
+            },
+            required: ["correlationScore", "topSkill", "revenueImpact", "improvementArea", "summary"]
+          }
+        }
       });
       
-      return { ...data, sources, isCached: false, timestamp: new Date().toISOString() };
-    }, { trends: [], news: [], sources: [], isCached: false, timestamp: new Date().toISOString() }, { category, key });
+      const text = response.text || JSON.stringify(fallback);
+      return JSON.parse(text);
+    }, fallback);
   },
 
-  async getFlashDrill(role: string) {
+  async performVisionAudit(base64Image: string, mimeType: string) {
+    const fallback = { brandName: "Unknown", vintage: "N/A", region: "N/A", estimatedPrice: 0, confidence: 0, tastingNotes: "", sustainability: { carbonScore: 0, waterIntensity: "Medium", isBiodynamic: false, isFairTrade: false } };
     return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Generate a single high-speed technical flash drill question for a ${role} in a luxury venue. Focus on precision.`,
+        model: 'gemini-flash-latest',
+        contents: [{
+          parts: [
+            { inlineData: { data: base64Image, mimeType: mimeType } },
+            { text: "Analyze this image which contains a beverage label (wine, spirit, or beer). Focus specifically on the label frame and identify the product. Extract brand name, vintage, region, estimated market price, and technical tasting notes. Also synthesize a sustainability score (0-100) based on known production methods of this brand." }
+          ]
+        }],
         config: {
-          systemInstruction: "Return JSON: {id: string, question: string, options: string[], correctIndex: number, explanation: string, category: string}",
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              brandName: { type: Type.STRING },
+              vintage: { type: Type.STRING },
+              region: { type: Type.STRING },
+              estimatedPrice: { type: Type.NUMBER },
+              confidence: { type: Type.NUMBER },
+              tastingNotes: { type: Type.STRING },
+              sustainability: {
+                type: Type.OBJECT,
+                properties: {
+                  carbonScore: { type: Type.NUMBER },
+                  waterIntensity: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
+                  isBiodynamic: { type: Type.BOOLEAN },
+                  isFairTrade: { type: Type.BOOLEAN }
+                },
+                required: ["carbonScore", "waterIntensity", "isBiodynamic", "isFairTrade"]
+              }
+            },
+            required: ["brandName", "vintage", "region", "estimatedPrice", "confidence", "tastingNotes", "sustainability"]
+          }
         }
       });
-      return JSON.parse(response.text || "{}");
-    }, { id: 'fallback', question: "What is the standard pour for a glass of wine?", options: ["4oz", "5oz", "6oz", "7oz"], correctIndex: 1, explanation: "The standard restaurant pour is 5oz (150ml).", category: "Standard" });
+      
+      const text = response.text || JSON.stringify(fallback);
+      
+      try {
+        const parsed = JSON.parse(text);
+
+        // Ensure estimatedPrice is a number to prevent React child error
+        if (parsed.estimatedPrice && typeof parsed.estimatedPrice === 'object') {
+          parsed.estimatedPrice = parsed.estimatedPrice.value || 0;
+        } else if (typeof parsed.estimatedPrice === 'string') {
+          parsed.estimatedPrice = parseFloat(parsed.estimatedPrice.replace(/[^0-9.]/g, '')) || 0;
+        } else if (parsed.estimatedPrice === undefined) {
+          parsed.estimatedPrice = 0;
+        }
+
+        // Ensure all required fields exist for the UI
+        return {
+          brandName: parsed.brandName || "Unknown Brand",
+          vintage: parsed.vintage || "N/V",
+          region: parsed.region || "Unknown Region",
+          estimatedPrice: parsed.estimatedPrice,
+          confidence: parsed.confidence || 0,
+          tastingNotes: parsed.tastingNotes || "No tasting notes available.",
+          sustainability: {
+            carbonScore: parsed.sustainability?.carbonScore || 50,
+            waterIntensity: parsed.sustainability?.waterIntensity || "Medium",
+            isBiodynamic: !!parsed.sustainability?.isBiodynamic,
+            isFairTrade: !!parsed.sustainability?.isFairTrade
+          }
+        };
+      } catch (e) {
+        console.error("Intelligence: Vision parsing failed", e);
+        throw new Error("Failed to parse beverage data. Please ensure the label is clearly visible.");
+      }
+    }, fallback);
+  },
+  async logAIFeedback(type: string, query: string, response: string, rating: number, comments?: string) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    try {
+      await supabase.from('ai_feedback_logs').insert({
+        category: type,
+        query,
+        response,
+        rating,
+        comments,
+        created_at: new Date().toISOString()
+      });
+    } catch (e) {
+      console.error("Intelligence: Failed to log AI feedback to Supabase", e);
+    }
   },
 
-  async getServicePacingRecommendations(profile: any, currentPacing: string) {
+  async parseBulkInventory(text: string) {
+    const fallback = { items: [] };
     return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Guest Profile: ${JSON.stringify(profile)}. Current Service Pacing: ${currentPacing}. Provide 3 tactical service adjustments to maintain optimal turnover or guest experience.`,
+        model: 'gemini-flash-latest',
+        contents: `Parse this unstructured beverage inventory list into structured JSON. Input: "${sanitizeInput(text)}"`,
         config: {
-          systemInstruction: "You are a hospitality pacing expert. Provide 3 bullet points. Return JSON: {recommendations: string[]}",
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              items: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    category: { 
+                      type: Type.STRING, 
+                      enum: ['Wine', 'Spirit', 'Mixer', 'Beer', 'Garnish', 'Snack', 'Lunch', 'Dinner', 'Cocktail'] 
+                    },
+                    stock: { type: Type.NUMBER },
+                    unit: { type: Type.STRING },
+                    minStock: { type: Type.NUMBER },
+                    price: { type: Type.NUMBER }
+                  },
+                  required: ["name", "category", "stock", "unit", "price"]
+                }
+              },
+              metadata: {
+                type: Type.OBJECT,
+                properties: {
+                  dataQualityScore: { type: Type.NUMBER },
+                  warnings: { type: Type.ARRAY, items: { type: Type.STRING } }
+                }
+              }
+            },
+            required: ["items"]
+          }
         }
       });
-      return JSON.parse(response.text || '{"recommendations": []}');
-    }, { recommendations: ["Maintain standard intervals.", "Observe guest body language.", "Ready glassware for next course."] });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
   },
 
-  async getShiftBriefing(data: any) {
+  async getInventoryIntelligence(inventory: { id: string; name: string; stock: number; unit: string; price: number }[], transactions: RetailTransaction[] = []) {
+    const fallback = { summary: "", predictions: [] };
     return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Generate a shift briefing for the manager based on this data: ${JSON.stringify(data)}`,
+        model: 'gemini-flash-latest',
+        contents: `Inventory: ${JSON.stringify(inventory)}\n\nRecent Transactions: ${JSON.stringify(transactions.slice(-50))}`,
         config: {
-          systemInstruction: "You are a hospitality director. Provide a concise shift briefing. Return JSON: {brief: string, priority: string}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "{}");
-    }, { brief: "Shift protocol initialized. Focus on efficiency.", priority: "Normal" });
-  },
-
-  async getFacilityMaintenanceBrief(equipment: any) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Analyze equipment telemetry: ${JSON.stringify(equipment)}. Predict potential failures and suggest preventative maintenance to avoid emergency losses.`,
-        config: {
-          systemInstruction: "You are a predictive maintenance engineer for luxury hospitality. Return JSON: {riskSummary: string, alerts: [{equipmentId: string, prediction: string, timeToFailure: string, priority: 'High'|'Medium'|'Low'}]}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "{}");
-    }, { riskSummary: "Facility systems appear stable.", alerts: [] });
-  },
-
-  async getPalateMarketingCampaign(clusterData: any, inventory: any[]) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Guest Palate Cluster: ${clusterData.tag}. Match with inventory: ${JSON.stringify(inventory.slice(0,10))}. Generate a personalized marketing campaign.`,
-        config: {
-          systemInstruction: "You are a luxury marketing strategist. Create compelling copy for personalized outreach. Return JSON: {title: string, subject: string, body: string, targetCluster: string, offerItem: string}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "{}");
-    }, { title: "New Discovery", subject: "A recommendation for your palate", body: "We thought you might enjoy our latest acquisition.", targetCluster: clusterData.tag, offerItem: "House Selection" });
-  },
-
-  async getSustainabilityImpactAudit(wasteLog: any[]) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Analyze waste logs: ${JSON.stringify(wasteLog)}. Provide an impact audit and reduction roadmap.`,
-        config: {
-          systemInstruction: "You are a hospitality sustainability consultant. Return JSON: {wasteReductionPct: number, fiscalSavings: number, topSpillageItems: [{name: string, loss: number}], aiActionPlan: string[]}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "{}");
-    }, { wasteReductionPct: 0, fiscalSavings: 0, topSpillageItems: [], aiActionPlan: ["Monitor spillage intervals.", "Recalibrate pour standards."] });
-  },
-
-  async getWelcomeBrief(profile: any) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Provide a welcome brief for the establishment: ${JSON.stringify(profile)}`,
-        config: {
-          systemInstruction: "You are a hospitality consultant. Provide a warm and strategic welcome message.",
-        }
-      });
-      return response.text;
-    }, "Welcome to Vinea Intelligence.");
-  },
-
-  async getMenuPersonalization(profile: any, menu: any) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Create personal menu recommendations for guest: ${JSON.stringify(profile)} from menu: ${JSON.stringify(menu)}`,
-        config: {
-          systemInstruction: "You are a master sommelier and guest experience designer. Return JSON array: [{category: 'Appetizer'|'Main'|'Dessert', dish: string, beveragePairing: string, rationale: string, zeroProofAlternative: string, culturalNote: string, pairingInsight: string}]",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "[]");
-    }, []);
-  },
-
-  async getRegionalMixologyBrief(region: string) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Provide a brief overview of mixology trends and culture in ${region}.`,
-        config: {
-          systemInstruction: "You are a global beverage historian. Be concise and evocative.",
-        }
-      });
-      return response.text || "";
-    }, "");
-  },
-
-  async getStaffingInsights(staff: any[], orders: any[]) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Analyze staffing vs orders. Staff: ${JSON.stringify(staff)}, Orders: ${JSON.stringify(orders)}`,
-        config: {
-          systemInstruction: "Analyze hospitality staffing efficiency. Return JSON: {insight: string, recommendation: string}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "{}");
-    }, { insight: "Standard operations.", recommendation: "Maintain roster." });
-  },
-
-  async generateModuleQuiz(topic: string) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Generate a 3-question technical quiz about: ${topic}`,
-        config: {
-          systemInstruction: "Return JSON: {questions: [{question: string, options: string[], correctIndex: number}]}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "{}");
-    }, { questions: [
-      { question: "What is the primary characteristic of this topic?", options: ["Precision", "Volume", "Speed", "History"], correctIndex: 0 },
-      { question: "Which protocol is recommended for luxury service?", options: ["Casual", "Standard", "Elevated", "Technical"], correctIndex: 3 }
-    ] });
-  },
-
-  async generateServiceBrief(profile: any) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Generate a service brief for guest: ${JSON.stringify(profile)}`,
-        config: {
-          systemInstruction: "You are a luxury hospitality manager. Provide a concise internal service brief for staff.",
-        }
-      });
-      return response.text;
-    }, "");
-  },
-
-  async getPredictivePulse(data: any) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Analyze this revenue data for an executive summary: ${JSON.stringify(data)}. Identify trends and provide a 1-sentence operational focus.`,
-        config: {
-          systemInstruction: "You are a hospitality profit analyst. Be concise, technical, and high-impact.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
               summary: { type: Type.STRING },
-              focusAction: { type: Type.STRING },
-              sentiment: { type: Type.STRING, description: "One word: Bullish, Bearish, or Stable" }
+              predictions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    itemName: { type: Type.STRING },
+                    status: { type: Type.STRING },
+                    suggestedOrder: { type: Type.NUMBER },
+                    rationale: { type: Type.STRING },
+                    confidence: { type: Type.NUMBER },
+                    technicalRationale: { type: Type.STRING }
+                  },
+                  required: ["itemName", "status", "suggestedOrder", "rationale", "confidence", "technicalRationale"]
+                }
+              }
+            },
+            required: ["summary", "predictions"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getTrainingResponse(query: string, history: {role: string, text: string}[], userRole?: string) {
+    const contents = history.map(m => ({
+      role: m.role === 'intelligence' ? 'model' : 'user',
+      parts: [{ text: m.text }]
+    }));
+    contents.push({ role: 'user', parts: [{ text: sanitizeInput(query) }] });
+
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        contents,
+        config: {
+          systemInstruction: getPersonaInstruction(userRole),
+          tools: [{ googleSearch: {} }]
+        }
+      });
+      
+      // Grounding Check for Transparency
+      const sources: string[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      response.candidates?.[0]?.groundingMetadata?.groundingChunks?.forEach((c: any) => {
+        if (c.web) sources.push(c.web.uri);
+      });
+
+      let text = response.text || "";
+      if (sources.length > 0) {
+         text += `\n\n--- Technical Grounding ---\nVerified via sources: ${sources.join(', ')}`;
+      }
+      return text;
+    }, "Intelligence operational. (Protocol limitation in Demo Tier)");
+  },
+
+  async getDynamicPricingSuggestions(items: { id: string; name: string; stock: number; unit: string; price: number }[]) {
+    const fallback = { suggestions: [] };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Analyze these inventory items and suggest dynamic pricing: ${JSON.stringify(items)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              suggestions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    itemName: { type: Type.STRING },
+                    currentPrice: { type: Type.NUMBER },
+                    suggestedPrice: { type: Type.NUMBER },
+                    rationale: { type: Type.STRING },
+                    reasonType: { type: Type.STRING }
+                  },
+                  required: ["itemName", "currentPrice", "suggestedPrice", "rationale", "reasonType"]
+                }
+              }
+            },
+            required: ["suggestions"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async generateSignatureSpecial(theme: string) {
+    const fallback = { recipe: { name: "Signature Special", story: "A concept in synthesis.", ingredients: [], glassware: "Standard", instructions: [] }, imageUrl: "" };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      
+      // Step 1: Generate Recipe
+      const recipeResponse = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Create a unique, world-class cocktail recipe based on this theme: ${theme}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              recipe: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  story: { type: Type.STRING },
+                  ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  glassware: { type: Type.STRING },
+                  instructions: { type: Type.ARRAY, items: { type: Type.STRING } }
+                },
+                required: ["name", "story", "ingredients", "glassware", "instructions"]
+              }
+            },
+            required: ["recipe"]
+          }
+        }
+      });
+      const recipeData = JSON.parse(recipeResponse.text || "{}");
+      
+      // Step 2: Generate Image using gemini-2.5-flash-image
+      const imagePrompt = `High-end professional food photography of a cocktail named "${recipeData.recipe?.name}". Story: ${recipeData.recipe?.story}. Glassware: ${recipeData.recipe?.glassware}. Dark, moody luxury lounge background.`;
+      const imageResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: imagePrompt
+      });
+      
+      let imageUrl = '';
+      for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+          imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+          break;
+        }
+      }
+      
+      return { ...recipeData, imageUrl };
+    }, fallback);
+  },
+
+  async getWelcomeBrief(profile: Record<string, unknown>) {
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Generate a brief welcome message for a new establishment: ${JSON.stringify(profile)}`,
+        config: {
+          systemInstruction: "Be welcoming and professional. Mention the specific venue type and philosophy."
+        }
+      });
+      return response.text || "Welcome to the Intelligence Node.";
+    }, "Welcome to the Intelligence Node.");
+  },
+
+  async getMenuPersonalization(profile: Record<string, unknown>, currentMenu: Record<string, unknown>) {
+    const fallback: unknown[] = [];
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Guest Profile: ${JSON.stringify(profile)}\nMenu: ${JSON.stringify(currentMenu)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                category: { type: Type.STRING },
+                dish: { type: Type.STRING },
+                beveragePairing: { type: Type.STRING },
+                rationale: { type: Type.STRING },
+                pairingInsight: { type: Type.STRING }
+              },
+              required: ["category", "dish", "beveragePairing", "rationale", "pairingInsight"]
+            }
+          }
+        }
+      });
+      return JSON.parse(response.text || "[]");
+    }, fallback);
+  },
+
+  async analyzeGuestTags(profile: Record<string, unknown>, input: string) {
+    const fallback: string[] = [];
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Profile: ${JSON.stringify(profile)}\nInput: ${input}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
+          }
+        }
+      });
+      return JSON.parse(response.text || "[]");
+    }, fallback);
+  },
+
+  async getRegionalCocktailSuggestions(region: string) {
+    const fallback: string[] = [];
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `List 6 popular cocktail names from the region: ${region}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
+          }
+        }
+      });
+      return JSON.parse(response.text || "[]");
+    }, fallback);
+  },
+
+  async getRegionalMixologyBrief(region: string) {
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Provide a short, elegant brief about the mixology culture in: ${region}`
+      });
+      return response.text || "Regional data synthesis pending.";
+    }, "Regional data synthesis pending.");
+  },
+
+  async getAIPairingSuggestions(foodItems: InventoryItem[], beverageInventory: InventoryItem[]): Promise<AIPairingSuggestion[]> {
+    const fallback: AIPairingSuggestion[] = [];
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Food Items: ${JSON.stringify(foodItems)}\nBeverage Inventory: ${JSON.stringify(beverageInventory)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                foodItem: { type: Type.STRING },
+                foodCategory: { type: Type.STRING },
+                beveragePairing: { type: Type.STRING },
+                beverageCategory: { type: Type.STRING },
+                rationale: { type: Type.STRING },
+                pairingInsight: { type: Type.STRING }
+              },
+              required: ["foodItem", "foodCategory", "beveragePairing", "beverageCategory", "rationale", "pairingInsight"]
+            }
+          }
+        }
+      });
+      return JSON.parse(response.text || "[]");
+    }, fallback);
+  },
+
+  async getCocktailInsight(name: string, ingredients: string[]) {
+    const fallback = { history: "", origins: "", facts: [] };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Provide insights for the cocktail: ${name}. Ingredients: ${ingredients.join(', ')}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              history: { type: Type.STRING },
+              origins: { type: Type.STRING },
+              facts: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ["history", "origins", "facts"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getCompetitorAnalysis(competitorData: any[], userInventory: InventoryItem[]) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const fallback = { competitors: [], overallStrategy: "", marketTrends: [] };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Analyze these competitors and our inventory to generate a market strategy:
+        Competitors: ${JSON.stringify(competitorData)}
+        Our Inventory: ${JSON.stringify(userInventory.slice(0, 50))}
+        
+        Generate:
+        1. Performance analysis for each competitor.
+        2. Current regional market trends in hospitality/beverage.
+        3. A comprehensive counter-strategy leveraging our inventory strengths.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              competitors: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    strength: { type: Type.STRING },
+                    weakness: { type: Type.STRING },
+                    strategy: { type: Type.STRING }
+                  },
+                  required: ["name", "strength", "weakness", "strategy"]
+                }
+              },
+              marketTrends: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              overallStrategy: { type: Type.STRING }
+            },
+            required: ["competitors", "marketTrends", "overallStrategy"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getServiceEfficiencyInsights(orders: ServiceOrder[], transactions: RetailTransaction[]) {
+    const apiKey = getApiKey();
+    if (!apiKey) return { narrative: "Vinetelligence Intelligence requires a valid API Key for service analysis." };
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    // Calculate metrics
+    const serviceTimes = orders.filter(o => o.deliveredAt).map(o => {
+      const start = new Date(o.timestamp).getTime();
+      const end = new Date(o.deliveredAt!).getTime();
+      return (end - start) / 60000;
+    });
+
+    const avgServiceTime = serviceTimes.length > 0 ? (serviceTimes.reduce((a, b) => a + b, 0) / serviceTimes.length).toFixed(1) : "N/A";
+    const slowOrders = orders.filter(o => {
+      if (!o.deliveredAt) return false;
+      const start = new Date(o.timestamp).getTime();
+      const end = new Date(o.deliveredAt!).getTime();
+      return (end - start) / 60000 > 15;
+    }).length;
+
+    const prompt = `
+      ${getPersonaInstruction('Manager')}
+      
+      SERVICE PERFORMANCE AUDIT:
+      - Total Orders Analyzed: ${orders.length}
+      - Completed Transactions: ${transactions.length}
+      - Average Service Time (Order to Delivery): ${avgServiceTime} minutes
+      - Critical Delays (>15m): ${slowOrders}
+      
+      TASK:
+      Analyze these operational metrics. Identify potential bottlenecks (e.g., bar prep time vs delivery time). 
+      Provide 3 high-impact, sophisticated recommendations for the Manager to improve service speed and guest satisfaction.
+      Focus on "Masterclass" hospitality standards.
+      
+      Return a JSON object with:
+      {
+        "narrative": "markdown formatted analysis and recommendations"
+      }
+    `;
+
+    return callWithRetry(async () => {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+      return JSON.parse(response.text || '{"narrative": "Analysis incomplete."}');
+    }, { narrative: "Operational intelligence synthesis delayed. Please check network protocols." });
+  },
+
+  async getStaffingInsights(staff: { id: string; name: string; role: string; performanceScore?: number; availabilityStatus?: string }[], zones: { id: string; name: string }[], journeys: { id: string; guest_name: string }[]) {
+    const fallback = { 
+      narrative: "Manual deployment suggested.",
+      assignments: []
+    };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Staff Available: ${JSON.stringify(staff)}\nFloor Zones: ${JSON.stringify(zones)}\nUpcoming Guests: ${JSON.stringify(journeys)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              narrative: { type: Type.STRING },
+              assignments: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    staffId: { type: Type.STRING },
+                    zoneId: { type: Type.STRING },
+                    priority: { type: Type.NUMBER }
+                  },
+                  required: ["staffId", "zoneId", "priority"]
+                }
+              }
+            },
+            required: ["narrative", "assignments"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getFacilityMaintenanceBrief(equipment: { id: string; name: string; status: string; healthScore: number }[]) {
+    const fallback = { riskSummary: "Diagnostic offline." };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Equipment Telemetry: ${JSON.stringify(equipment)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              riskSummary: { type: Type.STRING }
+            },
+            required: ["riskSummary"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getSustainabilityImpactAudit(orders: { id: string; items: { name: string; quantity: number }[] }[]) {
+    const fallback = { wasteReductionPct: 0, fiscalSavings: 0, topSpillageItems: [], aiActionPlan: [] };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Analyze sustainability impact for these orders: ${JSON.stringify(orders)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              wasteReductionPct: { type: Type.NUMBER },
+              fiscalSavings: { type: Type.NUMBER },
+              topSpillageItems: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    loss: { type: Type.NUMBER }
+                  },
+                  required: ["name", "loss"]
+                }
+              },
+              aiActionPlan: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ["wasteReductionPct", "fiscalSavings", "topSpillageItems", "aiActionPlan"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async generateGuestEngagement(profile: Record<string, unknown>, context: Record<string, unknown>) {
+    const fallback = { email: { body: "" }, sms: { body: "" } };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Profile: ${JSON.stringify(profile)}\nContext: ${JSON.stringify(context)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              email: {
+                type: Type.OBJECT,
+                properties: { body: { type: Type.STRING } },
+                required: ["body"]
+              },
+              sms: {
+                type: Type.OBJECT,
+                properties: { body: { type: Type.STRING } },
+                required: ["body"]
+              }
+            },
+            required: ["email", "sms"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async generateServiceBrief(profile: Record<string, unknown>, sessionInfo?: { startTime?: string, durationMinutes?: number, tableNumber?: string }, orders: ServiceOrder[] = []) {
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      
+      const sessionContext = sessionInfo ? `
+      CURRENT SESSION:
+      - Table: ${sessionInfo.tableNumber || 'Pending'}
+      - Seated Since: ${sessionInfo.startTime || 'N/A'}
+      - Duration: ${sessionInfo.durationMinutes || 0} minutes
+      - Active Orders: ${orders.length}
+      - Order History: ${JSON.stringify(orders.map(o => ({ item: o.itemName, status: o.status, time: o.timestamp })))}
+      ` : 'Guest has not been seated yet.';
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `
+        ${getPersonaInstruction('Concierge')}
+        
+        REAL-TIME GUEST CONTEXT:
+        ${JSON.stringify(profile)}
+        
+        ${sessionContext}
+        
+        TASK:
+        Create a one-sentence, highly sophisticated service briefing for the staff. 
+        It MUST focus on the CURRENT MOMENT (e.g., if they just ordered, if they've been seated too long without a drink, or based on their specific palate preferences relative to their current status). 
+        Be concise, authoritative, and actionable.`
+      });
+      return response.text || "Service protocol operational.";
+    }, "Service protocol operational.");
+  },
+
+  async getServicePacingRecommendations(profile: Record<string, unknown>, mode: string, orders: ServiceOrder[] = []) {
+    const fallback = { recommendations: [] };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Guest Profile: ${JSON.stringify(profile)}\nRequested Pace: ${mode}\nCurrent Order Status: ${JSON.stringify(orders)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ["recommendations"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getPreArrivalOutreach(profile: Record<string, unknown>, inventory: { id: string; name: string; stock: number; unit: string; price: number }[]) {
+    const fallback = {};
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Guest: ${JSON.stringify(profile)}\nInventory: ${JSON.stringify(inventory.slice(0, 20))}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              plan: { type: Type.STRING },
+              suggestedItems: { type: Type.ARRAY, items: { type: Type.STRING } }
             }
           }
         }
       });
       return JSON.parse(response.text || "{}");
-    }, { summary: "Scanning revenue patterns...", focusAction: "Awaiting data sync.", sentiment: "Stable" });
+    }, fallback);
   },
 
-  async getInvestorIntelligence(financialData: any) {
-    const category = 'executive_brief';
-    const key = 'investor_deck_narrative';
-    
+  async getPalateMarketingCampaign(target: Record<string, unknown>, inventory: { id: string; name: string; stock: number; unit: string; price: number }[]) {
+    const fallback = { title: "Special Offer", targetCluster: "", subject: "", body: "", offerItem: "" };
     return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Analyze establishment performance for Series A. Financials: ${JSON.stringify(financialData)}. Compare against current 2024-2025 hospitality tech benchmarks.`,
+        model: 'gemini-flash-latest',
+        contents: `Target Cluster: ${JSON.stringify(target)}\nInventory: ${JSON.stringify(inventory.slice(0, 20))}`,
         config: {
-          tools: [{googleSearch: {}}],
-          systemInstruction: `You are a Venture Capital Hospitality Analyst for top-tier firms like Thayer Ventures, Derive Ventures, and GroundForce Capital. 
-          Focus on identifying: 
-          1. Operational Efficiency & Automation (Inventory accuracy, waste reduction).
-          2. Revenue Management & Growth (Upselling alpha, check size increase via AI).
-          3. Data-Driven Personalization (Guest data usage for tailored experiences).
-          4. Sustainability & Health trends.
-          5. Scalability & High EBITDA Potential (ROI evidence).
-          Return valid JSON: {narrative: string, scalabilityRoadmap: [{phase: string, milestone: string, impact: string}], riskAssessment: [{category: string, level: 'Low'|'Medium'|'High', detail: string}], equityAlpha: string, projectedValuationMultiplier: number, benchmarks: [{category: string, venueValue: number|string, indexValue: number|string, unit: string}]}`,
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "{}");
-    }, null, { category, key });
-  },
-
-  async getDynamicPricingSuggestions(inventory: any[]) {
-    const fallback = { suggestions: [] };
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Review inventory and current prices for yield optimization: ${JSON.stringify(inventory)}`,
-        config: {
-          systemInstruction: "You are a hospitality revenue analyst. Suggest price increases for low-stock high-demand items or decreases for slow-moving stock. Return JSON: {suggestions: [{itemName: string, currentPrice: number, suggestedPrice: number, rationale: string, reasonType: 'Demand'|'Scarcity'|'Event'}]}",
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              targetCluster: { type: Type.STRING },
+              subject: { type: Type.STRING },
+              body: { type: Type.STRING },
+              offerItem: { type: Type.STRING }
+            },
+            required: ["title", "targetCluster", "subject", "body", "offerItem"]
+          }
         }
       });
       return JSON.parse(response.text || JSON.stringify(fallback));
     }, fallback);
   },
 
-  async getTechnicalSpecs(itemName: string) {
-    const fallback = { measurements: ["2oz Spirits"], glassware: "Glass", garnish: "None", technique: "Pour" };
+  async getSmartSeatingSuggestion(profile: Record<string, unknown>, tables: { id: string; number: string; capacity: number; status: string; zoneId?: string }[], partySize: number) {
+    const fallback = { tableId: "", rationale: "Manual selection required." };
     return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Provide detailed technical specs for: ${itemName}`,
+        model: 'gemini-flash-latest',
+        contents: `Party Size: ${partySize}\nGuest Profile: ${JSON.stringify(profile)}\nAvailable Tables: ${JSON.stringify(tables.filter(t => t.status === 'Available'))}`,
         config: {
-          systemInstruction: "Provide exact specs in JSON: {measurements: string[], glassware: string, garnish: string, technique: string}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || JSON.stringify(fallback));
-    }, fallback, { category: 'tech_specs', key: `spec-${itemName.replace(/\s+/g, '-')}` });
-  },
-
-  async getBarPrepIntelligence(orders: any[]) {
-    const fallback = { sequence: ["Prep"], proTip: "Focus." };
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Sequence: ${JSON.stringify(orders)}`,
-        config: {
-          systemInstruction: "Return batching sequence and pro tip in JSON.",
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              tableId: { type: Type.STRING },
+              rationale: { type: Type.STRING }
+            },
+            required: ["tableId", "rationale"]
+          }
         }
       });
       return JSON.parse(response.text || JSON.stringify(fallback));
     }, fallback);
   },
 
-  async getModuleCurriculum(topic: string) {
+  async getBarPrepIntelligence(orders: ServiceOrder[]) {
+    const fallback = { sequence: [], proTip: "" };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Active Orders: ${JSON.stringify(orders)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              sequence: { type: Type.ARRAY, items: { type: Type.STRING } },
+              proTip: { type: Type.STRING }
+            },
+            required: ["sequence", "proTip"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getCocktailPreparationGuide(name: string) {
+    const fallback = { instructions: [], videoUrl: "", imageUrl: "", tips: [] };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Provide a detailed preparation guide for the cocktail: ${name}. Search for a high-quality YouTube tutorial video link specifically for making this cocktail.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              instructions: { type: Type.ARRAY, items: { type: Type.STRING } },
+              videoUrl: { type: Type.STRING },
+              imageUrl: { type: Type.STRING },
+              tips: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ["instructions", "videoUrl", "imageUrl", "tips"]
+          },
+          tools: [{ googleSearch: {} }]
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getFinancialIntelligence(transactions: { id: string; amount: number; date: string; description: string }[], inventory: { id: string; name: string; stock: number; unit: string; price: number }[], type: string) {
     const fallback = { 
-      title: topic, 
-      sections: [
-        {
-          heading: "Introduction to Theory",
-          content: "In the Vinea Explorer sandbox, this curriculum focuses on the foundational scholarship of the topic. Master the origins and technical chemistry before proceeding to the live lab.",
-          keySpecs: ["Standard Temperature", "Glassware Selection", "Region History"],
-          labDrill: "Identify 3 regional variations of the primary beverage style."
-        },
-        {
-          heading: "Technical Execution",
-          content: "Precision is the hallmark of a Vinea scholar. Focus on measurement exactness and service posture to maximize guest sentiment.",
-          keySpecs: ["42ms Observation Rule", "Zero-Proof Inclusivity", "Etiquette Standards"],
-          labDrill: "Perform a simulated technical pour with feedback disengaged."
-        }
-      ] 
+      title: "Fiscal Synthesis", 
+      narrative: "Standard financial mapping.", 
+      metrics: [], 
+      aiAdvice: [] 
     };
     return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Generate 4-step curriculum for: ${topic}`,
+        model: 'gemini-flash-latest',
+        contents: `Analyze data for a ${type} report. Transactions: ${JSON.stringify(transactions.slice(0, 50))}\nInventory: ${JSON.stringify(inventory.slice(0, 50))}`,
         config: {
-          systemInstruction: getPersonaInstruction() + ` Return JSON: {title: string, sections: [{heading: string, content: string, keySpecs: string[], labDrill: string}]}`,
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              narrative: { type: Type.STRING },
+              metrics: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    label: { type: Type.STRING },
+                    value: { type: Type.STRING },
+                    trend: { type: Type.STRING }
+                  },
+                  required: ["label", "value", "trend"]
+                }
+              },
+              aiAdvice: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ["title", "narrative", "metrics", "aiAdvice"]
+          }
         }
       });
       return JSON.parse(response.text || JSON.stringify(fallback));
     }, fallback);
   },
 
-  async analyzeVisionFrame(base64Image: string) {
-    const fallback = { itemName: "Unknown", detectedStock: 0, confidence: 0 };
+  async getInvestorIntelligence(transactions: { id: string; amount: number; date: string; description: string }[]) {
+    const fallback = { 
+      narrative: "Equity alpha remains stable based on local node velocity.",
+      equityAlpha: "Strong potential for market expansion.",
+      projectedValuationMultiplier: 4.2,
+      scalabilityRoadmap: [
+        { phase: "Node Density", milestone: "Establishment of secondary units", impact: "Increased MRR via scale" }
+      ],
+      riskAssessment: [
+        { category: "Market Scarcity", level: "Low", detail: "Exclusive access to specific vintage nodes." }
+      ],
+      benchmarks: []
+    };
     return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-pro-latest',
+        contents: `Investor Synthesis. Data: ${JSON.stringify(transactions.slice(0, 50))}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              narrative: { type: Type.STRING },
+              equityAlpha: { type: Type.STRING },
+              projectedValuationMultiplier: { type: Type.NUMBER },
+              scalabilityRoadmap: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    phase: { type: Type.STRING },
+                    milestone: { type: Type.STRING },
+                    impact: { type: Type.STRING }
+                  },
+                  required: ["phase", "milestone", "impact"]
+                }
+              },
+              riskAssessment: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    category: { type: Type.STRING },
+                    level: { type: Type.STRING },
+                    detail: { type: Type.STRING }
+                  },
+                  required: ["category", "level", "detail"]
+                }
+              },
+              benchmarks: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    category: { type: Type.STRING },
+                    venueValue: { type: Type.NUMBER },
+                    indexValue: { type: Type.NUMBER },
+                    unit: { type: Type.STRING }
+                  },
+                  required: ["category", "venueValue", "indexValue", "unit"]
+                }
+              }
+            },
+            required: ["narrative", "equityAlpha", "projectedValuationMultiplier", "scalabilityRoadmap", "riskAssessment", "benchmarks"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async getSentimentReport(feedback: GuestFeedback[]) {
+    const feedbackText = feedback.map(f => `Guest: ${f.guestName}, Rating: ${f.rating}, Comment: ${f.comment}`).join('\n');
+    const prompt = `Analyze the following guest feedback for a luxury restaurant/bar and provide a strategic sentiment report. 
+    Identify key themes, areas of excellence, and critical friction points. 
+    Recommend 3 specific actions to improve guest retention.
+    
+    Format the response in professional Markdown with clear headings and bullet points.
+    
+    Feedback:
+    ${feedbackText}`;
+
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: prompt,
+      });
+      return response.text || "Unable to generate report at this time.";
+    }, "Unable to generate report at this time.");
+  },
+
+  async getChurnPrediction(feedback: GuestFeedback[], loyaltyMembers: LoyaltyMember[]) {
+    const feedbackText = feedback.map(f => `Guest: ${f.guestName}, Rating: ${f.rating}, Comment: ${f.comment}`).join('\n');
+    const loyaltyText = loyaltyMembers.map(m => `Member: ${m.name}, Tier: ${m.tier}, Points: ${m.points}, Last Visit: ${m.lastVisit}`).join('\n');
+    
+    const prompt = `Based on the following guest feedback and loyalty data, predict potential customer churn. 
+    Identify high-risk members and suggest 3 proactive retention strategies.
+    
+    Format the response in professional Markdown with clear headings and bullet points.
+    
+    Feedback:
+    ${feedbackText}
+    
+    Loyalty Data:
+    ${loyaltyText}`;
+
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: prompt,
+      });
+      return response.text || "Unable to generate churn prediction at this time.";
+    }, "Unable to generate churn prediction at this time.");
+  },
+
+  async generatePromoCampaign(context: { establishmentName: string, items: string[], theme?: string }) {
+    const fallback = {
+      videoScript: "Loading script...",
+      linkedInPost: "Loading post...",
+      videoPrompt: "A high-end cinematic shot of a luxury bar.",
+      scenes: []
+    };
+    
+    return callWithRetry(async () => {
+      const apiKey = getApiKey();
+      if (!apiKey) return fallback;
+
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Create a marketing campaign for ${context.establishmentName}. 
+        Items to feature: ${context.items.join(', ')}. 
+        Theme: ${context.theme || 'Luxury and Sophistication'}.
+        
+        Provide:
+        1. A 15-second cinematic video script/storyboard.
+        2. A polished LinkedIn post with hashtags.
+        3. A detailed visual prompt for an AI video generation model (Veo).
+        4. Break the video into 3 distinct scenes with descriptions and specific visual prompts for image generation.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              videoScript: { type: Type.STRING },
+              linkedInPost: { type: Type.STRING },
+              videoPrompt: { type: Type.STRING },
+              scenes: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    description: { type: Type.STRING },
+                    visualPrompt: { type: Type.STRING }
+                  },
+                  required: ["description", "visualPrompt"]
+                }
+              }
+            },
+            required: ["videoScript", "linkedInPost", "videoPrompt", "scenes"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
+  async generateSceneFrame(prompt: string) {
+    const fallback = { imageUrl: "" };
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [
-            { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-            { text: "Identify brand and fill level. Return JSON." }
-          ]
-        }
-      });
-      const text = response.text || "";
-      try {
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        return JSON.parse(jsonMatch ? jsonMatch[0] : text);
-      } catch (e) { return fallback; }
-    }, fallback);
-  },
-
-  async getInventoryIntelligence(inventory: any[]) {
-    const fallback = { summary: "", predictions: [] };
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Audit: ${JSON.stringify(inventory)}`,
-        config: {
-          systemInstruction: "Output JSON: {summary: string, predictions: [{itemName: string, status: string, suggestedOrder: number, rationale: string}]}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || JSON.stringify(fallback));
-    }, fallback);
-  },
-
-  async getBusinessStrategy(data: any) {
-    const fallback: any[] = [];
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Strategy for ${data.profile?.type}. Inventory: ${JSON.stringify(data.inventory)}.`,
-        config: {
-          systemInstruction: "Return valid JSON array: [{type: string, message: string, impact: string, actionLabel: string, priority: string, rationale: string}].",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "[]");
-    }, fallback);
-  },
-
-  async runServiceSimulator(scenario: string, userInput: string) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Scenario: ${scenario}. Input: "${userInput}"`,
-        config: {
-          systemInstruction: "Return guest response, score (0-100), and feedback in JSON.",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || '{}');
-    }, { guestResponse: "The guest observes your approach with curiosity. (Demo Mode Feedback: Focus on technical precision in full versions.)", score: 85, feedback: "Maintain eye contact and technical specifications.", finished: false });
-  },
-
-  async generateSignatureSpecial(theme: string) {
-    const fallback = { recipe: { name: "Special", story: "A unique creation synthesized by Vinea's local archives.", ingredients: ["2oz Local Spirit", "1oz Craft Bitter", "Zest"], glassware: "Technical Glass", instructions: ["Combine", "Stir over clear ice", "Strain"] }, imageUrl: "" };
-    
-    const recipeResult = await callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Create a professional signature beverage recipe inspired by the theme: ${theme}.`,
-        config: {
-          systemInstruction: "You are a master mixologist. Create unique recipes with compelling stories. Return JSON: {recipe: {name: string, story: string, ingredients: string[], glassware: string, instructions: string[]}}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || '{}');
-    }, { recipe: fallback.recipe });
-
-    const imageResult = await callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
-        contents: {
-          parts: [{ text: `A professional, high-end studio photograph of a cocktail named "${recipeResult.recipe.name}" served in a ${recipeResult.recipe.glassware}. The style is cinematic, elegant lighting, dark background, luxury beverage photography. Concept: ${theme}.` }]
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: "1:1",
-            imageSize: "1K"
-          }
-        }
+        contents: `Ultra-high-end professional food and hospitality photography. ${prompt}. Cinematic lighting, shallow depth of field, 8k resolution, luxury aesthetic.`
       });
       
-      let imageUrl = "";
-      // Fix: Add optional chaining for safer access to response parts
-      const parts = response?.candidates?.[0]?.content?.parts;
-      if (parts) {
-        for (const part of parts) {
-          if (part.inlineData) {
-            imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-            break;
-          }
+      let imageUrl = '';
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+          imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+          break;
         }
       }
-      return imageUrl || "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=800&q=80";
-    }, "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=800&q=80");
-
-    return { ...recipeResult, imageUrl: imageResult };
-  },
-
-  async getTrainingResponse(query: string, history: any[]) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: query,
-        config: { systemInstruction: getPersonaInstruction() }
-      });
-      return response.text || "";
-    }, "Vinea Intelligence operational. (Explorer Tier: Real-time API calls disengaged to preserve local quota. Secure your facility for live scholarship.)");
-  },
-
-  async getCocktailInsight(cocktailName: string, ingredients: string[]) {
-    const fallback = { history: "This drink carries the technical heritage of its primary spirit.", origins: "Global archives point to multiple cross-cultural influences.", facts: ["Vinea identifies 14 flavor variants.", "Technical glassware selection is critical."] };
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Insight: ${cocktailName}`,
-        config: {
-          systemInstruction: "Return history, origin, and facts in JSON.",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || JSON.stringify(fallback));
+      return { imageUrl };
     }, fallback);
   },
 
-  async getRegionalCocktailSuggestions(region: string) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `6 cocktails from ${region}`,
-        config: { systemInstruction: "Return JSON array.", responseMimeType: "application/json" }
-      });
-      return JSON.parse(response.text || "[]");
-    }, ["Old Fashioned", "Negroni", "Martini", "Margarita", "Sidecar", "Daiquiri"]);
+  async startVideoGeneration(prompt: string) {
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey: apiKey || "" });
+    
+    const operation = await ai.models.generateVideos({
+      model: 'veo-3.1-lite-generate-preview',
+      prompt: prompt,
+      config: {
+        numberOfVideos: 1,
+        resolution: '1080p',
+        aspectRatio: '16:9'
+      }
+    });
+    
+    return operation;
   },
 
-  async generateGuestEngagement(profile: any, establishment: any) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Draft for ${profile.name}`,
-        config: {
-          systemInstruction: "Return JSON: {email: {subject: string, body: string}, sms: {body: string}}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "{}");
-    }, { email: { subject: "Welcome to Vinea", body: "We look forward to synthesizing your palate journey tonight." }, sms: { body: "Your Table is ready at Vinea. Our sommelier is prepared." } });
-  },
-
-  async getPreArrivalOutreach(profile: any, inventory: any[]) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Guest Profile: ${JSON.stringify(profile)}. Inventory Highlight: ${JSON.stringify(inventory.slice(0,5))}. Draft a personalized pre-arrival outreach message (Email/SMS) that suggests a specific drink from inventory that matches their palate.`,
-        config: {
-          systemInstruction: "You are a luxury concierge. Be elegant, personalized, and focus on high-value upselling. Return JSON: {subject: string, body: string, suggestedItem: string}",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "{}");
-    }, { subject: "Tonight's Selection", body: "We look forward to seeing you. Our archives suggest you may enjoy our reserve list.", suggestedItem: "House Reserve" });
-  },
-
-  async analyzeGuestTags(profile: any, notes: string) {
-    return callWithRetry(async () => {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Profile: ${JSON.stringify(profile)}. Notes: ${notes}. Generate 3 automated short behavioral tags (max 15 chars each).`,
-        config: {
-          systemInstruction: "Return JSON array of strings: ['Tag1', 'Tag2', 'Tag3']",
-          responseMimeType: "application/json"
-        }
-      });
-      return JSON.parse(response.text || "[]");
-    }, ["Classic Palate", "High Loyalty", "Service Detail"]);
+  async pollVideoStatus(operationId: string) {
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey: apiKey || "" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const operation = await (ai as any).operations.getVideosOperation({ operation: { name: operationId } });
+    return operation;
   }
 };

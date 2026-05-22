@@ -1,0 +1,209 @@
+{
+  "entities": {
+    "Restaurant": {
+      "title": "Restaurant Profile",
+      "description": "The configuration and identity of a Vinetelligence node.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "focus": { "type": "string" },
+        "description": { "type": "string" },
+        "edition": { "type": "string" },
+        "aiPersona": { "type": "string" },
+        "aiTraits": {
+          "type": "object",
+          "properties": {
+            "technical": { "type": "number" },
+            "creative": { "type": "number" },
+            "verbosity": { "type": "number" }
+          }
+        },
+        "somaticInstructions": { "type": "string" },
+        "allowGoogleAuth": { "type": "boolean" }
+      },
+      "required": ["id", "name", "edition"]
+    },
+    "GuestJourney": {
+      "title": "Guest Journey",
+      "description": "A guest's experience from arrival to completion.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "arrivalTime": { "type": "string" },
+        "status": { "type": "string", "enum": ["Confirmed", "Engagement Sent", "Arrived", "Seated", "Completed"] },
+        "tableNumber": { "type": "string" },
+        "profile": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "location": { "type": "string" },
+            "favoriteBeverages": { "type": "string" },
+            "dietaryRestrictions": { "type": "string" },
+            "pastOrders": { "type": "string" },
+            "pairingStyle": { "type": "string", "enum": ["Classic", "Adventurous", "Zero-Proof"] }
+          }
+        },
+        "specialOccasion": { "type": "string" },
+        "pacingMode": { "type": "string", "enum": ["Leisurely", "Standard", "Brisk"] }
+      },
+      "required": ["id", "arrivalTime", "status", "profile"]
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "A beverage or snack in stock.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["Wine", "Spirit", "Mixer", "Beer", "Garnish", "Snack"] },
+        "stock": { "type": "number" },
+        "unit": { "type": "string" },
+        "minStock": { "type": "number" },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" }
+      },
+      "required": ["id", "name", "category", "stock", "price"]
+    },
+    "ServiceOrder": {
+      "title": "Service Order",
+      "description": "An active order for a table.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "tableNumber": { "type": "string" },
+        "serverName": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Prepping", "Ready", "Delivered"] },
+        "priority": { "type": "string", "enum": ["Normal", "High", "VIP"] },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "status": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["id", "timestamp", "tableNumber", "status", "items"]
+    },
+    "StaffRoster": {
+      "title": "Staff Roster",
+      "description": "Pre-authorized emails for establishment registration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Registered"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "EstablishmentRegistry": {
+      "title": "Establishment Registry",
+      "description": "Global node status for investors.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "tier": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Suspended", "Trial_Expired"] },
+        "lastPulse": { "type": "string" },
+        "usageMetric": { "type": "number" },
+        "mrr": { "type": "number" }
+      },
+      "required": ["id", "name", "status"]
+    },
+    "GuestFeedback": {
+      "title": "Guest Feedback",
+      "description": "Post-visit feedback and sentiment analysis.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "journeyId": { "type": "string" },
+        "guestName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "sentiment": { "type": "string", "enum": ["Positive", "Neutral", "Negative"] },
+        "timestamp": { "type": "string" },
+        "aiSummary": { "type": "string" }
+      },
+      "required": ["id", "rating", "timestamp"]
+    },
+    "LoyaltyMember": {
+      "title": "Loyalty Member",
+      "description": "Customer loyalty program data.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "points": { "type": "number" },
+        "tier": { "type": "string", "enum": ["Bronze", "Silver", "Gold", "Platinum"] },
+        "joinDate": { "type": "string" },
+        "lastVisit": { "type": "string" },
+        "preferences": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "name", "points", "tier"]
+    },
+    "AIInsight": {
+      "title": "AI Insight",
+      "description": "Advanced operational insights generated by AI.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["Retention", "Revenue", "Efficiency", "Sustainability"] },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "impactScore": { "type": "number" },
+        "actionable": { "type": "boolean" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "type", "title", "message"]
+    }
+  },
+  "firestore": {
+    "/restaurants/{restaurantId}": {
+      "schema": "Restaurant",
+      "description": "Root restaurant profile."
+    },
+    "/restaurants/{restaurantId}/journeys/{journeyId}": {
+      "schema": "GuestJourney",
+      "description": "Guest journeys for this restaurant."
+    },
+    "/restaurants/{restaurantId}/inventory/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "Inventory for this restaurant."
+    },
+    "/restaurants/{restaurantId}/orders/{orderId}": {
+      "schema": "ServiceOrder",
+      "description": "Active orders for this restaurant."
+    },
+    "/restaurants/{restaurantId}/staff_roster/{staffId}": {
+      "schema": "StaffRoster",
+      "description": "Authorized staff for this restaurant."
+    },
+    "/restaurants/{restaurantId}/feedback/{feedbackId}": {
+      "schema": "GuestFeedback",
+      "description": "Guest feedback for this restaurant."
+    },
+    "/restaurants/{restaurantId}/loyalty/{memberId}": {
+      "schema": "LoyaltyMember",
+      "description": "Loyalty program members for this restaurant."
+    },
+    "/restaurants/{restaurantId}/ai_insights/{insightId}": {
+      "schema": "AIInsight",
+      "description": "AI-generated insights for this restaurant."
+    },
+    "/registry/{restaurantId}": {
+      "schema": "EstablishmentRegistry",
+      "description": "Global registry for investor view."
+    }
+  }
+}

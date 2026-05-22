@@ -1,6 +1,12 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { InventoryItem, ServiceOrder, OrderItem, Table } from '../types';
+import { InventoryItem, ServiceOrder, OrderItem, Table, RestaurantProfile, AIPairingSuggestion } from '../lib/types';
 import { geminiService } from '../services/geminiService';
+import { generateUUID } from '../services/supabaseSync';
+import { GoogleGenAI, Modality } from "@google/genai";
+import { getApiKey } from '../services/geminiService';
+
+import { SectorInterestPoll } from './SectorInterestPoll';
 
 interface VisitorMenuProps {
   table: Table;
@@ -8,61 +14,231 @@ interface VisitorMenuProps {
   onPlaceOrder: (items: OrderItem[]) => void;
   activeOrders: ServiceOrder[];
   onExit: () => void;
+  restaurantProfile?: RestaurantProfile | null;
 }
 
-const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrder, activeOrders, onExit }) => {
-  const [view, setView] = useState<'welcome' | 'menu' | 'sommelier' | 'tab'>('welcome');
-  const [cart, setCart] = useState<Record<string, number>>({});
+const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrder, activeOrders, onExit, restaurantProfile }) => {
+  const [view, setView] = useState<'welcome' | 'menu' | 'sommelier' | 'tab' | 'exit'>('welcome');
+  const [menuSearch, setMenuSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [cartItems, setCartItems] = useState<OrderItem[]>([]);
+  const [showQuickModFor, setShowQuickModFor] = useState<InventoryItem | null>(null);
   const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'vinea', text: string}[]>([]);
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'intelligence', text: string}[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const [isSettlementRequested, setIsSettlementRequested] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [isProcessingOrder, setIsProcessingOrder] = useState(false);
+  const [paymentStep, setPaymentStep] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [pairingSuggestions, setPairingSuggestions] = useState<AIPairingSuggestion[]>([]);
+  const [isLoadingPairings, setIsLoadingPairings] = useState(false);
+  
+  // Feedback States
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackGuestName, setFeedbackGuestName] = useState(table.occupantName || '');
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
-  const categories = ['Wine', 'Beer', 'Spirit', 'Mixer', 'Snack'] as const;
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const categories = useMemo(() => {
+    const standardCats = ['Wine', 'Beer', 'Cocktail', 'Spirit', 'Lunch', 'Dinner', 'Snack'];
+    const cats = Array.from(new Set([...standardCats, ...inventory.map(i => i.category)]));
+    return cats.sort();
+  }, [inventory]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
-  const addToCart = (id: string) => {
-    setCart(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+  useEffect(() => {
+    const fetchPairings = async () => {
+      if (inventory.length === 0) return;
+      setIsLoadingPairings(true);
+      try {
+        const foodItems = inventory.filter(i => i.category === 'Lunch' || i.category === 'Dinner' || i.category === 'Snack');
+        const beverageInventory = inventory.filter(i => i.category === 'Wine' || i.category === 'Beer' || i.category === 'Cocktail' || i.category === 'Spirit');
+        if (foodItems.length > 0 && beverageInventory.length > 0) {
+          const suggestions = await geminiService.getAIPairingSuggestions(foodItems, beverageInventory);
+          setPairingSuggestions(suggestions);
+        }
+      } catch (e) {
+        console.error("Intelligence: Failed to fetch pairing suggestions", e);
+      } finally {
+        setIsLoadingPairings(false);
+      }
+    };
+    fetchPairings();
+  }, [inventory]);
+
+  const handlePlayAudio = async (item: InventoryItem) => {
+    if (playingAudioId === item.id) {
+      audioRef.current?.pause();
+      setPlayingAudioId(null);
+      return;
+    }
+
+    setPlayingAudioId(item.id);
+    try {
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        console.warn("Intelligence: API Key missing for audio generation");
+        setPlayingAudioId(null);
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
+      const prompt = `Describe this beverage elegantly: ${item.name}. ${item.description || 'A fine selection.'}`;
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-tts-preview",
+        contents: [{ parts: [{ text: prompt }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: 'Kore' },
+            },
+          },
+        },
+      });
+
+      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (base64Audio) {
+        const audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.play();
+          audioRef.current.onended = () => setPlayingAudioId(null);
+        } else {
+          const audio = new Audio(audioUrl);
+          audioRef.current = audio;
+          audio.play();
+          audio.onended = () => setPlayingAudioId(null);
+        }
+      }
+    } catch (error) {
+      console.error("Intelligence: Audio generation failed", error);
+      setPlayingAudioId(null);
+    }
+  };
+
+  const calculateModifierPrice = (basePrice: number, modifier?: string, category?: string) => {
+    if (!modifier) return basePrice;
+    
+    // Spirit/Mixer pricing logic
+    if (category === 'Spirit' || category === 'Mixer') {
+      switch (modifier) {
+        case 'Double': return basePrice * 1.8;
+        case 'Rocks':
+        case 'On the Rocks': return basePrice + 2;
+        case 'Mix':
+        case 'Measurement Mix': return basePrice + 3;
+        case 'Neat': return basePrice;
+        case 'Shot': return basePrice * 0.6;
+        default: return basePrice;
+      }
+    }
+    
+    // Cocktail/Wine/Other pricing logic
+    switch (modifier) {
+      case 'Rocks':
+      case 'On the Rocks': return basePrice + 2;
+      case 'Neat': return basePrice;
+      default: return basePrice;
+    }
+  };
+
+  const addToCart = (item: InventoryItem, modifier?: string) => {
+    if (!modifier && (item.category === 'Spirit' || item.category === 'Mixer' || item.category === 'Cocktail')) {
+      setShowQuickModFor(item);
+      return;
+    }
+
+    const price = calculateModifierPrice(item.price, modifier, item.category);
+    
+    const newItem: OrderItem = {
+      id: generateUUID(),
+      name: item.name,
+      quantity: 1,
+      status: 'Pending',
+      prepType: (item.category === 'Lunch' || item.category === 'Dinner' || item.category === 'Cocktail' || item.category === 'Snack') ? 'Complex' : (item.category === 'Mixer' ? 'Mix' : 'Pour'),
+      priceAtOrder: price,
+      style: item.category,
+      modifier: modifier
+    };
+
+    setCartItems(prev => [...prev, newItem]);
+    setShowQuickModFor(null);
   };
 
   const removeFromCart = (id: string) => {
-    setCart(prev => {
-      const next = { ...prev };
-      if (next[id] > 1) next[id]--;
-      else delete next[id];
+    setCartItems(prev => {
+      const index = [...prev].reverse().findIndex(item => inventory.find(inv => inv.name === item.name)?.id === id);
+      if (index === -1) return prev;
+      const actualIndex = prev.length - 1 - index;
+      const next = [...prev];
+      next.splice(actualIndex, 1);
       return next;
     });
   };
 
   const cartTotal: number = useMemo(() => {
-    return Object.entries(cart).reduce((sum, [id, qty]) => {
-      const item = inventory.find(i => i.id === id);
-      return sum + (item?.price || 0) * (qty as number);
-    }, 0);
-  }, [cart, inventory]);
+    return cartItems.reduce((sum, item) => sum + item.priceAtOrder * item.quantity, 0);
+  }, [cartItems]);
 
-  const handleCheckout = () => {
-    const items: OrderItem[] = Object.entries(cart).map(([id, qty]) => {
-      const inv = inventory.find(i => i.id === id)!;
-      return {
-        id: `voi-${Date.now()}-${id}`,
-        name: inv.name,
-        quantity: qty as number,
-        status: 'Pending',
-        prepType: inv.category === 'Snack' ? 'Complex' : (inv.category === 'Mixer' ? 'Mix' : 'Pour'),
-        priceAtOrder: inv.price,
-        style: inv.category
-      };
+  const cartCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    cartItems.forEach(item => {
+      const invItem = inventory.find(inv => inv.name === item.name);
+      if (invItem) {
+        counts[invItem.id] = (counts[invItem.id] || 0) + 1;
+      }
     });
+    return counts;
+  }, [cartItems, inventory]);
+
+  const handleCheckout = async () => {
+    if (cartItems.length === 0 || isProcessingOrder) return;
     
-    onPlaceOrder(items);
-    setCart({});
-    setView('tab');
-    window.dispatchEvent(new Event('storage'));
+    // Payment is only required for Kiosk mode (if we had one) or if explicitly desired.
+    // The user requested that seated guests at a table on the floor should NOT use 'pay before fire'.
+    const isKiosk = table.number.toLowerCase().includes('kiosk');
+    
+    if (isKiosk && !paymentStep) {
+      setPaymentStep(true);
+      return;
+    }
+
+    setIsProcessingOrder(true);
+    try {
+      // Update local table occupant if not set
+      const savedTables = localStorage.getItem('intelligence_tables') || localStorage.getItem('oenovia_tables') || localStorage.getItem('vinetelligence_tables') || localStorage.getItem('vinea_tables');
+      const currentTables = JSON.parse(savedTables || '[]');
+      const updatedTables = currentTables.map((t: Table) => 
+        t.id === table.id ? { ...t, status: 'Occupied', occupantName: t.occupantName || 'Guest (Portal)' } : t
+      );
+      localStorage.setItem('intelligence_tables', JSON.stringify(updatedTables));
+      // Migrate old keys if needed by removing them on next logical write cycle
+      
+      await new Promise(r => setTimeout(r, 1200));
+      
+      onPlaceOrder(cartItems);
+      setCartItems([]);
+      setPaymentStep(false);
+      setOrderSuccess(true);
+      setTimeout(() => setOrderSuccess(false), 4000);
+      setView('tab');
+      
+      window.dispatchEvent(new Event('storage'));
+    } catch (e) {
+      console.error("Intelligence: Checkout failed", e);
+    } finally {
+      setIsProcessingOrder(false);
+    }
   };
 
   const handleChatSubmit = async (e?: React.FormEvent, overrideMsg?: string) => {
@@ -76,9 +252,9 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
 
     try {
       const response = await geminiService.getTrainingResponse(`As an elegant restaurant sommelier, answer this guest question: ${msg}`, []);
-      setChatHistory(prev => [...prev, { role: 'vinea', text: response }]);
-    } catch (err) {
-      setChatHistory(prev => [...prev, { role: 'vinea', text: "I apologize, my knowledge archives are temporarily unreachable. How else may I assist you?" }]);
+      setChatHistory(prev => [...prev, { role: 'intelligence', text: response }]);
+    } catch {
+      setChatHistory(prev => [...prev, { role: 'intelligence', text: "I apologize, my knowledge archives are temporarily unreachable. How else may I assist you?" }]);
     } finally {
       setIsThinking(false);
     }
@@ -97,121 +273,447 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
 
   if (view === 'welcome') {
     return (
-      <div className="fixed inset-0 z-[700] h-full w-full bg-rose-950 flex flex-col items-center justify-center p-12 text-center relative overflow-hidden font-serif">
-         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center opacity-20 scale-110"></div>
-         <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-[1px]"></div>
+      <div className="fixed inset-0 z-[700] h-full w-full bg-indigo-950 flex flex-col items-center p-4 md:p-12 text-center relative overflow-y-auto custom-scrollbar font-serif">
+         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center opacity-20 scale-110 fixed"></div>
+         <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-[1px] fixed"></div>
          
-         <div className="relative z-10 space-y-12 animate-in fade-in zoom-in duration-1000">
+         <div className="relative z-10 space-y-6 md:space-y-12 animate-in fade-in zoom-in duration-1000 w-full max-w-lg my-auto py-8 md:py-12">
             <div className="space-y-4">
-               <span className="text-[11px] font-black uppercase tracking-[0.7em] text-amber-500 block">ESTABLISHED 2025</span>
-               <h1 className="text-8xl md:text-9xl font-black text-stone-100 tracking-tighter italic leading-none drop-shadow-2xl">Vinea</h1>
-               <div className="h-[1px] w-40 bg-amber-500/40 mx-auto mt-6"></div>
+               <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.4em] md:tracking-[0.7em] text-indigo-500 block">ESTABLISHED 2025</span>
+               <h1 className="text-4xl sm:text-6xl md:text-9xl font-black text-stone-100 tracking-tighter italic leading-none drop-shadow-2xl">{restaurantProfile?.name || 'Intelligence'}</h1>
+               <div className="h-[1px] w-24 md:w-40 bg-indigo-500/40 mx-auto mt-4 md:mt-6"></div>
             </div>
             
-            <div className="space-y-4">
-               <h2 className="text-3xl text-stone-200 italic font-medium">Welcome, Table {table.number}</h2>
-               <p className="text-stone-400 text-sm max-w-xs mx-auto leading-relaxed">Please enjoy our curated collection of technical vintages and artisanal small plates.</p>
+            <div className="space-y-2 md:space-y-4">
+               <h2 className="text-lg md:text-3xl text-stone-200 italic font-medium">Welcome, Table {table.number}</h2>
+               <p className="text-stone-400 text-[10px] md:text-sm max-w-[250px] md:max-w-xs mx-auto leading-relaxed">Please enjoy our curated collection of technical vintages and artisanal small plates.</p>
             </div>
 
-            <button 
-              onClick={() => setView('menu')}
-              className="px-16 py-7 bg-stone-100 text-rose-950 rounded-full font-bold uppercase text-[11px] tracking-[0.5em] shadow-2xl hover:bg-amber-500 transition-all active:scale-95"
-            >
-              Enter Experience
-            </button>
+            <div className="flex flex-col gap-3 md:gap-4">
+              <button 
+                onClick={() => setView('menu')}
+                className="px-8 md:px-16 py-4 md:py-7 bg-stone-100 text-indigo-950 rounded-full font-bold uppercase text-[9px] md:text-[11px] tracking-[0.2em] md:tracking-[0.5em] shadow-2xl hover:bg-indigo-50 transition-all active:scale-95"
+              >
+                Enter Experience
+              </button>
+              {restaurantProfile?.edition === 'demo' && (
+                <p className="text-[8px] md:text-[10px] text-indigo-500/60 font-black uppercase tracking-widest">Demo Mode: Guest Experience</p>
+              )}
+            </div>
+
+            {/* Market Intelligence Poll */}
+            <div className="pt-8 md:pt-12 border-t border-white/10 hidden sm:block">
+               <SectorInterestPoll />
+            </div>
          </div>
       </div>
     );
   }
 
-  // After early return above, 'view' is narrowed to: 'menu' | 'sommelier' | 'tab'
+  if (view === 'exit') {
+    const handleFeedbackSubmit = async () => {
+      if (feedbackRating === 0) return;
+      setIsSubmittingFeedback(true);
+      try {
+        const feedback: GuestFeedback = {
+          id: generateUUID(),
+          rating: feedbackRating,
+          comment: feedbackComment,
+          tags: selectedTags,
+          sentiment: feedbackRating >= 4 ? 'Positive' : (feedbackRating <= 2 ? 'Negative' : 'Neutral'),
+          timestamp: new Date().toISOString(),
+          guestName: feedbackGuestName || 'Guest'
+        };
+
+        // Save to local storage for now (since we're not using Firestore)
+        const savedFeedback = localStorage.getItem('intelligence_feedback') || localStorage.getItem('oenovia_feedback') || localStorage.getItem('vinetelligence_feedback') || localStorage.getItem('vinea_feedback');
+        const existingFeedback = JSON.parse(savedFeedback || '[]');
+        localStorage.setItem('intelligence_feedback', JSON.stringify([...existingFeedback, feedback]));
+        // Migration: explicitly use new intelligence_ key only
+        
+        setFeedbackSubmitted(true);
+        await new Promise(r => setTimeout(r, 1500));
+        onExit();
+      } catch (e) {
+        console.error("Intelligence: Failed to save feedback", e);
+      } finally {
+        setIsSubmittingFeedback(false);
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 z-[700] h-full w-full bg-stone-950 flex flex-col items-center justify-center p-4 md:p-12 text-center relative overflow-y-auto custom-scrollbar font-serif">
+         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center opacity-10 grayscale fixed"></div>
+         <div className="relative z-10 space-y-4 md:space-y-8 animate-in fade-in zoom-in duration-700 w-full max-w-lg my-auto py-8">
+            {!feedbackSubmitted ? (
+              <>
+                <div className="w-12 h-12 md:w-20 md:h-20 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto border border-indigo-500/20">
+                   <i className="fas fa-heart text-indigo-500 text-xl md:text-3xl"></i>
+                </div>
+                <div className="space-y-2 md:space-y-4">
+                   <h2 className="text-2xl md:text-5xl font-black text-white italic tracking-tighter">Rate Your Experience</h2>
+                   <p className="text-stone-400 text-[10px] md:text-sm max-w-[250px] md:max-w-xs mx-auto leading-relaxed italic">"Your insights refine our scholarship. How was your journey at {restaurantProfile?.name || 'Intelligence'}?"</p>
+                </div>
+
+                <div className="flex justify-center gap-3 py-2 md:py-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setFeedbackRating(star)}
+                      className={`text-2xl md:text-3xl transition-all ${feedbackRating >= star ? 'text-indigo-500 scale-110' : 'text-stone-700 hover:text-stone-500'}`}
+                    >
+                      <i className={`fas fa-star`}></i>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="w-full space-y-4 md:space-y-6">
+                  <div className="space-y-2 md:space-y-3">
+                    <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-stone-500">Quick Impressions</p>
+                    <div className="flex flex-wrap justify-center gap-1.5 md:gap-2">
+                       {[
+                         "Exceptional Service", "Expert Guidance", "Perfect Pairing", 
+                         "Hidden Gem", "Elegant Vibe", "Scholar's Choice", 
+                         "Technical Mastery", "Unforgettable Pour"
+                       ].map(tag => (
+                         <button
+                           key={tag}
+                           onClick={() => {
+                             setSelectedTags(prev => 
+                               prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                             );
+                           }}
+                           className={`px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[7px] md:text-[9px] font-black uppercase tracking-widest transition-all border ${
+                             selectedTags.includes(tag)
+                               ? 'bg-indigo-500 text-stone-950 border-indigo-500 shadow-lg shadow-indigo-500/20'
+                               : 'bg-white/5 text-stone-400 border-white/10 hover:border-white/20'
+                           }`}
+                         >
+                           {tag}
+                         </button>
+                       ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 md:space-y-4">
+                    <input
+                      type="text"
+                      value={feedbackGuestName}
+                      onChange={(e) => setFeedbackGuestName(e.target.value)}
+                      placeholder="Your Name (Optional)"
+                       className="w-full bg-white/5 border border-white/10 rounded-xl md:rounded-2xl p-3 md:p-4 text-white text-[11px] md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder:text-stone-600"
+                    />
+                    <textarea
+                      value={feedbackComment}
+                      onChange={(e) => setFeedbackComment(e.target.value)}
+                      placeholder="Optional: Share your thoughts on the experience..."
+                      className="w-full bg-white/5 border border-white/10 rounded-xl md:rounded-2xl p-3 md:p-4 text-white text-[11px] md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[80px] md:min-h-[100px] placeholder:text-stone-600"
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 md:gap-3">
+                    <button 
+                      onClick={handleFeedbackSubmit}
+                      disabled={feedbackRating === 0 || isSubmittingFeedback}
+                      className="w-full py-3 md:py-4 bg-indigo-500 text-stone-950 rounded-full font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.4em] shadow-2xl hover:bg-indigo-400 transition-all active:scale-95 disabled:opacity-30"
+                    >
+                      {isSubmittingFeedback ? 'Transmitting...' : 'Submit Feedback'}
+                    </button>
+                    <button 
+                      onClick={onExit}
+                      className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-stone-500 hover:text-stone-300 transition-colors"
+                    >
+                      Skip & Exit
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-6 animate-in zoom-in duration-500">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-2xl">
+                  <i className="fas fa-check text-2xl md:text-3xl"></i>
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter">Thank You</h2>
+                  <p className="text-stone-400 text-[11px] md:text-sm italic">"Your feedback has been archived into our intelligence core."</p>
+                </div>
+              </div>
+            )}
+         </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[700] h-full w-full flex flex-col bg-stone-50 overflow-hidden font-serif relative">
       <div className="absolute inset-0 opacity-40 pointer-events-none z-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]"></div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10 scroll-smooth pb-40">
         {view === 'menu' && (
-          <div className="p-8 md:p-12 space-y-16 animate-in fade-in duration-700">
-            <header className="text-center space-y-4 pt-10">
-               <h3 className="text-rose-950/40 font-bold uppercase tracking-[0.5em] text-[10px]">Technical Selection</h3>
-               <h1 className="text-6xl font-black text-rose-950 tracking-tighter italic">The Vinea List</h1>
+          <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-700">
+            {/* Hero Lifestyle Image */}
+            <div className="w-full h-32 md:h-48 rounded-2xl md:rounded-[2rem] overflow-hidden relative group shadow-2xl border border-indigo-900/10">
+              <img 
+                src="https://picsum.photos/seed/intelligence-hero/1200/600" 
+                alt="Intelligence Experience" 
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2000ms]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/80 via-indigo-950/20 to-transparent flex flex-col justify-end p-4 md:p-8">
+                <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] text-indigo-500 mb-1 md:mb-2">The Intelligence Experience</p>
+                <h2 className="text-xl md:text-3xl font-serif font-bold text-white italic tracking-tighter">Curated Intelligence.</h2>
+              </div>
+            </div>
+
+            <header className="text-center space-y-1 md:space-y-2 pt-2 md:pt-6 relative">
+               {restaurantProfile?.edition === 'demo' && (
+                 <button 
+                   onClick={onExit}
+                   className="absolute top-0 right-0 px-2 py-1 md:px-3 md:py-1.5 bg-stone-900 text-white rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest shadow-lg border border-white/10 hover:bg-stone-800 transition-all active:scale-95"
+                 >
+                   <i className="fas fa-arrow-left mr-1 md:mr-2"></i> Dashboard
+                 </button>
+               )}
+               <h3 className="text-indigo-950/40 font-bold uppercase tracking-[0.3em] md:tracking-[0.5em] text-[8px] md:text-[9px]">Technical Selection</h3>
+               <h1 className="text-2xl md:text-4xl font-black text-indigo-950 tracking-tighter italic">The Intelligence List</h1>
+               <div className="flex justify-center gap-2 mt-1">
+                 <span className="text-[6px] md:text-[7px] font-black uppercase tracking-widest text-indigo-600/60 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">v2.1 Refined</span>
+               </div>
             </header>
 
-            {categories.map(cat => {
-              const items = inventory.filter(i => i.category === cat && i.stock > 0);
+            {/* Search and Filter */}
+            <div className="sticky top-0 z-50 bg-stone-50/90 backdrop-blur-md py-2 md:py-3 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-stone-200/50 space-y-2 md:space-y-3">
+              <div className="relative group">
+                <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-[9px] md:text-[10px] group-focus-within:text-indigo-900 transition-colors"></i>
+                <input 
+                  type="text"
+                  placeholder="Search the list..."
+                  value={menuSearch}
+                  onChange={(e) => setMenuSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 md:py-2.5 bg-white border border-stone-200 rounded-xl text-[10px] md:text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-indigo-900/10 focus:border-indigo-900/30 transition-all shadow-sm"
+                />
+              </div>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {['All', ...categories].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-3 md:px-4 py-1.5 rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
+                      selectedCategory === cat 
+                        ? 'bg-indigo-950 text-white border-indigo-950 shadow-lg shadow-indigo-950/20' 
+                        : 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* AI Pairing Suggestions Section */}
+            {isLoadingPairings ? (
+              <div className="mb-12 flex items-center gap-4 animate-pulse">
+                <div className="w-10 h-10 bg-stone-100 rounded-2xl"></div>
+                <div className="space-y-2">
+                  <div className="w-32 h-3 bg-stone-100 rounded-full"></div>
+                  <div className="w-20 h-2 bg-stone-100 rounded-full"></div>
+                </div>
+              </div>
+            ) : pairingSuggestions.length > 0 && (
+              <div className="mb-12 space-y-6 animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                      <i className="fas fa-sparkles text-sm"></i>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.3em] text-indigo-950">Sommelier's Pairings</h3>
+                      <p className="text-[8px] text-stone-400 font-bold uppercase tracking-widest italic">AI-Generated Intelligence</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-8 px-8">
+                  {pairingSuggestions.map((suggestion, idx) => (
+                    <div key={idx} className="min-w-[280px] md:min-w-[320px] bg-white rounded-[2rem] p-6 border border-stone-100 shadow-xl shadow-indigo-950/5 flex flex-col justify-between group hover:border-indigo-200 transition-all">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-900 px-3 py-1 rounded-full border border-indigo-100">
+                            {suggestion.foodCategory} + {suggestion.beverageCategory}
+                          </span>
+                          <i className="fas fa-wine-glass-alt text-indigo-500/30 text-xl group-hover:scale-110 transition-transform"></i>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-bold text-stone-800 leading-tight">
+                            {suggestion.foodItem}
+                          </h4>
+                          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                            paired with {suggestion.beveragePairing}
+                          </p>
+                        </div>
+                        
+                        <p className="text-[11px] text-stone-500 italic leading-relaxed line-clamp-3">
+                          "{suggestion.rationale}"
+                        </p>
+                      </div>
+                      
+                      <div className="mt-6 pt-4 border-t border-stone-50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-stone-100 rounded-full flex items-center justify-center text-stone-400">
+                            <i className="fas fa-lightbulb text-[8px]"></i>
+                          </div>
+                          <span className="text-[9px] font-bold text-stone-400 italic">Insight: {suggestion.pairingInsight}</span>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            const food = inventory.find(i => i.name === suggestion.foodItem);
+                            const bev = inventory.find(i => i.name === suggestion.beveragePairing);
+                            if (food) addToCart(food.id);
+                            if (bev) addToCart(bev.id);
+                          }}
+                          className="w-8 h-8 bg-indigo-950 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-all active:scale-90"
+                          title="Add both to cart"
+                        >
+                          <i className="fas fa-plus text-[10px]"></i>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(selectedCategory === 'All' ? categories : [selectedCategory]).map((cat, idx) => {
+              const items = inventory.filter(i => 
+                i.category === cat && 
+                i.stock > 0 &&
+                (menuSearch === '' || 
+                 i.name.toLowerCase().includes(menuSearch.toLowerCase()) || 
+                 i.description.toLowerCase().includes(menuSearch.toLowerCase()))
+              );
+              
               if (items.length === 0) return null;
               return (
-                <div key={cat} className="space-y-8">
-                  <div className="flex items-center gap-6">
-                    <h4 className="text-xl font-bold italic text-rose-900 whitespace-nowrap">{cat}</h4>
-                    <div className="h-[1px] w-full bg-rose-900/10"></div>
+                <React.Fragment key={cat}>
+                  {/* Lifestyle Image Interjection */}
+                  {idx === 1 && selectedCategory === 'All' && (
+                    <div className="w-full h-32 rounded-2xl overflow-hidden relative group mb-8 shadow-lg border border-white/10">
+                      <img 
+                        src="https://picsum.photos/seed/intelligence-interior/800/400" 
+                        alt="Restaurant Interior" 
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/60 to-transparent flex items-end p-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/90">Atmospheric Excellence</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {idx === 3 && selectedCategory === 'All' && (
+                    <div className="w-full h-32 rounded-2xl overflow-hidden relative group mb-8 shadow-lg border border-white/10">
+                      <img 
+                        src="https://picsum.photos/seed/intelligence-drinks/800/400" 
+                        alt="Drinks Sharing" 
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/60 to-transparent flex items-end p-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/90">Shared Moments</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <h4 className="text-lg font-bold italic text-indigo-900 whitespace-nowrap">{cat}</h4>
+                    <div className="h-[1px] w-full bg-indigo-900/10"></div>
                   </div>
-                  <div className="space-y-10">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
                     {items.map(item => (
-                      <div key={item.id} className="group flex flex-col gap-2">
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-lg font-bold text-stone-800 leading-none">{item.name}</span>
-                          <div className="flex-1 mx-4 border-b border-dotted border-stone-300"></div>
-                          <span className="text-lg font-bold text-rose-950">${item.price}</span>
+                      <div key={item.id} className="group flex gap-3 bg-white p-2.5 md:p-3.5 rounded-xl md:rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
+                        <div className="w-14 h-14 md:w-20 md:h-20 shrink-0 bg-stone-100 rounded-lg md:rounded-xl overflow-hidden relative border border-stone-200">
+                           <img 
+                             src={`https://picsum.photos/seed/${item.name.replace(/\s/g, '')}/200/200`} 
+                             alt={item.name}
+                             referrerPolicy="no-referrer"
+                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                           />
                         </div>
-                        <p className="text-xs text-stone-400 italic pr-12 line-clamp-2 leading-relaxed">
-                          {item.description || 'Artisanal selection curated for technical flavor profiles and heritage.'}
-                        </p>
-                        <div className="mt-3 flex items-center justify-between">
-                           <div className="flex items-center gap-4">
-                              {cart[item.id] ? (
-                                <div className="inline-flex items-center gap-4 bg-rose-950 text-white rounded-full px-4 py-1.5 shadow-lg">
-                                  <button onClick={() => removeFromCart(item.id)} className="hover:text-amber-500"><i className="fas fa-minus text-[9px]"></i></button>
-                                  <span className="text-xs font-black w-4 text-center">{cart[item.id]}</span>
-                                  <button onClick={() => addToCart(item.id)} className="hover:text-amber-500"><i className="fas fa-plus text-[9px]"></i></button>
-                                </div>
-                              ) : (
+                        <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
+                           <div className="space-y-0.5 md:space-y-1">
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="text-[11px] md:text-[13px] font-bold text-stone-800 leading-tight truncate">{item.name}</span>
+                              <span className="text-[11px] md:text-[13px] font-black text-indigo-950">${item.price}</span>
+                            </div>
+                            <p className="text-[9px] md:text-[10px] text-stone-400 italic line-clamp-1 leading-tight font-medium">
+                               {item.description || 'Artisanal selection curated for technical flavor profiles.'}
+                            </p>
+                          </div>
+                          <div className="mt-1 md:mt-2 flex items-center justify-between">
+                             <div className="flex items-center gap-1.5 md:gap-3">
+                                {cartCounts[item.id] ? (
+                                  <div className="inline-flex items-center gap-2 md:gap-3 bg-indigo-950 text-white rounded-full px-2 py-0.5 md:px-3 md:py-1 shadow-md">
+                                    <button onClick={() => removeFromCart(item.id)} className="hover:text-indigo-500 transition-colors px-1"><i className="fas fa-minus text-[6px] md:text-[8px]"></i></button>
+                                    <span className="text-[9px] md:text-[11px] font-black w-2 md:w-3 text-center">{cartCounts[item.id]}</span>
+                                    <button onClick={() => addToCart(item)} className="hover:text-indigo-500 transition-colors px-1"><i className="fas fa-plus text-[6px] md:text-[8px]"></i></button>
+                                  </div>
+                                ) : (
+                                  <button 
+                                    onClick={() => addToCart(item)}
+                                    className="text-[7px] md:text-[9px] font-black uppercase tracking-widest text-stone-600 hover:text-indigo-900 flex items-center gap-1 transition-all active:scale-95 border border-stone-200 px-2 py-0.5 md:px-4 md:py-1.5 rounded-full bg-white shadow-sm"
+                                  >
+                                    <i className="fas fa-plus"></i> Add
+                                  </button>
+                                )}
                                 <button 
-                                  onClick={() => addToCart(item.id)}
-                                  className="text-[9px] font-black uppercase tracking-widest text-stone-600 hover:text-rose-900 flex items-center gap-2 transition-all active:scale-95 border border-stone-200 px-4 py-2 rounded-full bg-white shadow-sm"
+                                  onClick={() => handlePlayAudio(item)}
+                                  className={`w-5 h-5 md:w-7 md:h-7 rounded-full flex items-center justify-center transition-all ${playingAudioId === item.id ? 'bg-indigo-500 text-indigo-950 animate-pulse' : 'bg-stone-100 text-stone-400 hover:bg-stone-200'}`}
                                 >
-                                  <i className="fas fa-plus-circle"></i> Add to Round
+                                  <i className={`fas ${playingAudioId === item.id ? 'fa-pause' : 'fa-volume-up'} text-[7px] md:text-[9px]`}></i>
                                 </button>
-                              )}
-                           </div>
-                           <button 
-                             onClick={() => handleAskAboutItem(item.name)}
-                             className="text-[9px] font-black uppercase tracking-widest text-amber-600 hover:text-amber-700 flex items-center gap-2 transition-all active:scale-95"
-                           >
-                             <i className="fas fa-sparkles"></i> Technical Insight
-                           </button>
+                             </div>
+                             <button 
+                               onClick={() => handleAskAboutItem(item.name)}
+                               className="text-[7px] md:text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-all active:scale-95"
+                             >
+                               <i className="fas fa-sparkles text-[8px] md:text-[10px]"></i> Insight
+                             </button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              );
-            })}
+              </React.Fragment>
+            );
+          })}
           </div>
         )}
 
         {view === 'sommelier' && (
           <div className="h-full flex flex-col p-8 md:p-12 space-y-10 animate-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
             <header className="text-center space-y-2 pt-8">
-               <h3 className="text-amber-600 font-bold uppercase tracking-[0.4em] text-[10px]">Your Digital Expert</h3>
-               <h1 className="text-5xl font-black text-rose-950 italic tracking-tighter">AI Sommelier</h1>
+               <h3 className="text-indigo-600 font-bold uppercase tracking-[0.4em] text-[10px]">Your Digital Expert</h3>
+               <h1 className="text-5xl font-black text-indigo-950 italic tracking-tighter">AI Sommelier</h1>
             </header>
 
             <div className="flex-1 overflow-y-auto space-y-6 min-h-[400px] bg-white/40 backdrop-blur-sm rounded-[2.5rem] p-8 shadow-inner border border-stone-200/50 flex flex-col">
               {chatHistory.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-6 opacity-60">
-                   <div className="w-20 h-20 bg-rose-100 rounded-[2rem] flex items-center justify-center text-rose-900 shadow-sm border border-rose-200/50">
+                   <div className="w-20 h-20 bg-indigo-100 rounded-[2rem] flex items-center justify-center text-indigo-900 shadow-sm border border-indigo-200/50">
                       <i className="fas fa-brain text-4xl"></i>
                    </div>
                    <div className="space-y-2">
-                      <p className="text-rose-950 font-bold text-lg">Inquire with the expert.</p>
+                      <p className="text-indigo-950 font-bold text-lg">Inquire with the expert.</p>
                       <p className="text-stone-500 italic leading-relaxed text-sm max-w-xs">Ask about tasting notes, spirit heritage, or food pairings for any item on the list.</p>
                    </div>
                 </div>
               ) : (
                 chatHistory.map((msg, i) => (
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in`}>
-                     <div className={`max-w-[85%] p-6 rounded-[2rem] shadow-sm ${msg.role === 'user' ? 'bg-rose-950 text-white rounded-br-none' : 'bg-white border border-stone-100 text-stone-800 rounded-bl-none italic font-medium text-sm leading-relaxed'}`}>
+                     <div className={`max-w-[85%] p-6 rounded-[2rem] shadow-sm ${msg.role === 'user' ? 'bg-indigo-950 text-white rounded-br-none' : 'bg-white border border-stone-100 text-stone-800 rounded-bl-none italic font-medium text-sm leading-relaxed'}`}>
                         <p>{msg.text}</p>
                      </div>
                   </div>
@@ -220,9 +722,9 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
               {isThinking && (
                 <div className="flex justify-start">
                    <div className="bg-white p-4 rounded-full border border-stone-100 flex gap-2 shadow-sm">
-                      <div className="w-1.5 h-1.5 bg-rose-900 rounded-full animate-bounce"></div>
-                      <div className="w-1.5 h-1.5 bg-rose-900 rounded-full animate-bounce delay-75"></div>
-                      <div className="w-1.5 h-1.5 bg-rose-900 rounded-full animate-bounce delay-150"></div>
+                      <div className="w-1.5 h-1.5 bg-indigo-900 rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 bg-indigo-900 rounded-full animate-bounce delay-75"></div>
+                      <div className="w-1.5 h-1.5 bg-indigo-900 rounded-full animate-bounce delay-150"></div>
                    </div>
                 </div>
               )}
@@ -234,9 +736,9 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                  value={chatInput} 
                  onChange={e => setChatInput(e.target.value)}
                  placeholder="Search our technical archives..."
-                 className="w-full px-10 py-6 bg-white border border-stone-200 rounded-full text-sm font-bold focus:outline-none focus:border-rose-900 shadow-xl transition-all italic placeholder:text-stone-300"
+                 className="w-full px-10 py-6 bg-white border border-stone-200 rounded-full text-sm font-bold focus:outline-none focus:border-indigo-900 shadow-xl transition-all italic placeholder:text-stone-300"
                />
-               <button type="submit" disabled={isThinking || !chatInput.trim()} className="absolute right-4 top-4 w-10 h-10 bg-rose-950 text-white rounded-full flex items-center justify-center shadow-lg disabled:opacity-30 active:scale-90 transition-transform">
+               <button type="submit" disabled={isThinking || !chatInput.trim()} className="absolute right-4 top-4 w-10 h-10 bg-indigo-950 text-white rounded-full flex items-center justify-center shadow-lg disabled:opacity-30 active:scale-90 transition-transform">
                   <i className="fas fa-paper-plane text-[10px]"></i>
                </button>
             </form>
@@ -246,121 +748,264 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
         {view === 'tab' && (
           <div className="p-8 md:p-12 space-y-12 animate-in slide-in-from-right-4 duration-500">
              <header className="text-center space-y-2 pt-8">
-                <h3 className="text-amber-600 font-bold uppercase tracking-[0.4em] text-[10px]">Your Selection</h3>
-                <h1 className="text-5xl font-black text-rose-950 italic tracking-tighter">Current Tab</h1>
+                <h3 className="text-indigo-600 font-bold uppercase tracking-[0.4em] text-[10px]">Your Selection</h3>
+                <h1 className="text-5xl font-black text-indigo-950 italic tracking-tighter">Current Tab</h1>
              </header>
 
-             <div className="bg-white border border-stone-200 p-8 rounded-[3rem] shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5"><i className="fas fa-receipt text-8xl text-rose-950"></i></div>
+             {orderSuccess && (
+                <div className="p-8 bg-emerald-50 border border-emerald-100 rounded-[2.5rem] flex items-center gap-6 animate-in zoom-in-95 duration-500 shadow-lg shadow-emerald-900/5">
+                   <div className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                      <i className="fas fa-check text-xl"></i>
+                   </div>
+                   <div className="space-y-1">
+                      <h4 className="text-sm font-black text-emerald-900 uppercase tracking-widest italic">Order Received</h4>
+                      <p className="text-[11px] text-emerald-700 italic font-medium leading-relaxed">"Your selections have been transmitted. Our team is preparing them for you now."</p>
+                   </div>
+                </div>
+             )}
+
+             <div className="bg-white border border-stone-200 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5"><i className="fas fa-receipt text-8xl text-indigo-950"></i></div>
                 <div className="space-y-10 relative z-10">
-                   <div className="flex justify-between items-end border-b-2 border-stone-50 pb-8">
+                   <div className="flex justify-between items-end border-b-2 border-stone-50 pb-10">
                       <div>
-                         <p className="text-[10px] font-black uppercase text-stone-400 mb-1">Balance Due</p>
-                         <p className="text-5xl font-bold text-rose-950 tracking-tighter">${currentTabTotal.toFixed(2)}</p>
+                         <p className="text-[10px] font-black uppercase text-stone-400 mb-1 tracking-widest">Balance Due</p>
+                         <p className="text-6xl font-black text-indigo-950 tracking-tighter italic">${currentTabTotal.toFixed(2)}</p>
                       </div>
                       <div className="text-right">
-                         <p className="text-[10px] font-black uppercase text-stone-400 mb-1">Table</p>
-                         <p className="text-2xl font-bold text-stone-800 italic">{table.number}</p>
+                         <p className="text-[10px] font-black uppercase text-stone-400 mb-1 tracking-widest">Table</p>
+                         <p className="text-3xl font-black text-stone-800 italic">{table.number}</p>
                       </div>
                    </div>
 
-                   <div className="space-y-6">
-                      {activeOrders.length === 0 ? (
-                        <p className="text-center py-20 text-stone-300 italic">No rounds fired yet. Visit the menu to begin.</p>
-                      ) : (
-                        activeOrders.map(order => (
-                          <div key={order.id} className="p-6 bg-stone-50 rounded-3xl border border-stone-100">
-                             <div className="flex justify-between items-center mb-4">
-                                <span className="text-[10px] font-black text-rose-900 uppercase tracking-widest italic">Round @ {order.timestamp}</span>
-                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                   order.status === 'Ready' ? 'bg-emerald-50 text-white' : 'bg-amber-50 text-rose-950'
-                                }`}>{order.status}</span>
-                             </div>
-                             <div className="space-y-2">
-                                {order.items.map((item, idx) => (
-                                   <div key={idx} className="flex justify-between items-center text-sm font-bold">
-                                      <span className="text-stone-700">x{item.quantity} {item.name}</span>
-                                      <span className="text-stone-400 font-medium">${(item.priceAtOrder * item.quantity).toFixed(2)}</span>
-                                   </div>
-                                ))}
-                             </div>
+                   <div className="space-y-8">
+                      <div className="flex items-center gap-4">
+                         <i className="fas fa-history text-indigo-900/20"></i>
+                         <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-stone-400">Order History</h4>
+                      </div>
+                      
+                      <div className="space-y-10">
+                        {activeOrders.length === 0 ? (
+                          <div className="text-center py-20 space-y-4 opacity-30">
+                             <i className="fas fa-receipt text-4xl"></i>
+                             <p className="text-sm italic font-medium">No rounds fired yet. Visit the menu to begin.</p>
                           </div>
-                        ))
-                      )}
+                        ) : (
+                          activeOrders.map((order, idx) => (
+                            <div key={order.id} className="space-y-6 group">
+                               <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-3">
+                                     <span className="w-6 h-6 rounded-full bg-stone-100 text-stone-400 text-[9px] font-black flex items-center justify-center border border-stone-200">
+                                        {activeOrders.length - idx}
+                                     </span>
+                                     <span className="text-[10px] font-black text-indigo-900 uppercase tracking-widest italic">
+                                        Round {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                     </span>
+                                  </div>
+                                  <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full border ${
+                                     order.status === 'Completed' || order.status === 'Ready' 
+                                       ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                                       : 'bg-indigo-50 text-indigo-600 border-indigo-100 animate-pulse'
+                                  }`}>
+                                     {order.status}
+                                  </span>
+                               </div>
+                               <div className="space-y-4 pl-9">
+                                  {order.items.map((item, i) => (
+                                     <div key={i} className="flex justify-between items-baseline group/item">
+                                        <div className="flex flex-col">
+                                           <div className="flex items-center gap-3">
+                                              <span className="text-xs font-black text-indigo-950">{item.quantity}x</span>
+                                              <span className="text-sm font-bold text-stone-800 italic group-hover/item:text-indigo-900 transition-colors">{item.name}</span>
+                                           </div>
+                                           {item.modifier && (
+                                              <span className="text-[10px] font-black uppercase text-indigo-600 ml-9 mt-0.5 tracking-widest">
+                                                 [{item.modifier}]
+                                              </span>
+                                           )}
+                                        </div>
+                                        <div className="flex-1 mx-4 border-b border-dotted border-stone-200"></div>
+                                        <span className="text-sm font-bold text-stone-400">${(item.priceAtOrder * item.quantity).toFixed(2)}</span>
+                                     </div>
+                                  ))}
+                               </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
                    </div>
                 </div>
              </div>
 
-             {isSettlementRequested ? (
-               <div className="p-10 bg-emerald-50 border-2 border-emerald-100 rounded-[2rem] text-center animate-in zoom-in-95 duration-500">
-                  <div className="w-14 h-14 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                    <i className="fas fa-check text-xl"></i>
-                  </div>
-                  <h4 className="text-xl font-bold text-emerald-900 mb-2">Request Transmitted</h4>
-                  <p className="text-sm text-emerald-700 font-medium italic">"A sommelier will be at your table shortly to finalize the journey. Thank you."</p>
-               </div>
-             ) : (
-               <button 
-                 onClick={() => setIsSettlementRequested(true)}
-                 disabled={activeOrders.length === 0}
-                 className="w-full py-6 bg-rose-950 text-white rounded-3xl font-black uppercase text-[11px] tracking-[0.3em] shadow-xl shadow-rose-950/20 active:scale-95 transition-all disabled:opacity-30"
-               >
-                 Request Settlement
-               </button>
-             )}
+            {isSettlementRequested ? (
+              <div className="p-12 bg-emerald-50 border-2 border-emerald-100 rounded-[3rem] text-center animate-in zoom-in-95 duration-500 shadow-xl shadow-emerald-900/5">
+                 <div className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                   <i className="fas fa-check text-2xl"></i>
+                 </div>
+                 <h4 className="text-2xl font-black text-emerald-900 mb-2 italic tracking-tighter">Staff Notified</h4>
+                 <p className="text-sm text-emerald-700 font-medium italic leading-relaxed">"A team member is on their way to assist with your final settlement. Thank you for visiting."</p>
+              </div>
+            ) : (
+              <button 
+                onClick={() => setIsSettlementRequested(true)}
+                disabled={activeOrders.length === 0}
+                className="w-full py-8 bg-indigo-950 text-white rounded-[2.5rem] font-black uppercase text-[11px] tracking-[0.5em] shadow-2xl shadow-indigo-950/30 active:scale-95 transition-all disabled:opacity-30 group"
+              >
+                <span className="group-hover:tracking-[0.7em] transition-all">Request Bill</span>
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* Floating Chat Trigger */}
-      {view !== 'sommelier' && (
-        <button 
-          onClick={() => setView('sommelier')}
-          className="fixed bottom-32 right-8 z-[150] w-16 h-16 bg-amber-500 text-rose-950 rounded-2xl shadow-[0_20px_50px_rgba(245,158,11,0.4)] flex items-center justify-center animate-bounce hover:animate-none hover:scale-110 transition-all active:scale-95 group"
-        >
-          <i className="fas fa-brain text-2xl"></i>
-          <span className="absolute right-full mr-4 bg-stone-900 text-white text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            Ask Sommelier
-          </span>
-        </button>
-      )}
+      {/* Quick Modifier Overlay */}
+      {showQuickModFor && (
+        <div className="fixed inset-0 z-[800] bg-stone-950/90 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10 p-8 space-y-8">
+            <div className="text-center space-y-2">
+              <h3 className="text-2xl font-serif font-bold italic text-indigo-950">{showQuickModFor.name}</h3>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-400">Measurement & Mix</p>
+            </div>
 
-      {/* Floating Order Bar */}
-      {view === 'menu' && cartTotal > 0 && (
-        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-[90%] z-50 animate-in slide-in-from-bottom-10">
-           <div className="bg-rose-950 text-stone-100 p-4 rounded-full shadow-[0_20px_50px_rgba(45,10,10,0.5)] flex justify-between items-center border border-white/10">
-              <div className="pl-6">
-                 <p className="text-[8px] font-black uppercase text-stone-400">Round Total</p>
-                 <p className="text-xl font-bold italic text-amber-500">${cartTotal.toFixed(2)}</p>
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Measurement</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Standard', 'Shot', 'Double'].map(mod => (
+                    <button
+                      key={mod}
+                      onClick={() => addToCart(showQuickModFor, mod as OrderItem['modifier'])}
+                      className="py-3 bg-stone-50 border border-stone-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-stone-600 hover:bg-indigo-500 hover:text-indigo-950 transition-all active:scale-95"
+                    >
+                      {mod}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <button 
-                onClick={handleCheckout}
-                className="px-10 py-4 bg-amber-500 text-stone-900 rounded-full font-black uppercase text-[10px] tracking-[0.2em] hover:bg-amber-400 active:scale-95 transition-all shadow-xl"
-              >
-                Fire Round
-              </button>
-           </div>
+
+              <div className="space-y-3">
+                <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Style & Mix</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {['On the Rocks', 'Neat', 'Measurement Mix'].map(mod => (
+                    <button
+                      key={mod}
+                      onClick={() => addToCart(showQuickModFor, mod as OrderItem['modifier'])}
+                      className="py-3 bg-stone-50 border border-stone-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-stone-600 hover:bg-indigo-500 hover:text-indigo-950 transition-all active:scale-95"
+                    >
+                      {mod}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setShowQuickModFor(null)}
+              className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Guest Bottom Navigation Bar */}
-      <nav className="absolute bottom-0 left-0 right-0 h-24 bg-white/95 backdrop-blur-xl border-t border-stone-200 z-[100] px-8 flex justify-around items-center shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-         <button onClick={() => setView('menu')} className={`flex flex-col items-center gap-1.5 transition-all ${view === 'menu' ? 'text-rose-900' : 'text-stone-300 hover:text-stone-600'}`}>
-            <i className={`fas fa-wine-glass text-xl ${view === 'menu' ? 'scale-110' : ''}`}></i>
-            <span className="text-[8px] font-black uppercase tracking-widest">Menu</span>
+      {/* Floating Chat Trigger - More compact */}
+      {view !== 'sommelier' && (
+        <button 
+          onClick={() => setView('sommelier')}
+          className="fixed bottom-24 right-6 z-[150] w-12 h-12 bg-indigo-500 text-indigo-950 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-all active:scale-95 group"
+        >
+          <i className="fas fa-brain text-lg"></i>
+        </button>
+      )}
+
+      {/* Floating Order Bar - Ultra-Compact Hospitality Style */}
+      {view === 'menu' && cartTotal > 0 && (
+        <div className="fixed bottom-24 left-4 right-4 z-[140] animate-in slide-in-from-bottom-4">
+           {!isProcessingOrder ? (
+             <div className="bg-indigo-950 rounded-3xl shadow-2xl overflow-hidden border border-white/10 ring-1 ring-white/20">
+                {/* Cart Preview (Small Detail) */}
+                <div className="hidden sm:block p-3 px-6 bg-black/20 border-b border-white/5">
+                   <div className="flex flex-wrap gap-2">
+                      {cartItems.slice(0, 3).map((item) => (
+                         <span key={item.id} className="text-[8px] font-black uppercase text-stone-400 bg-white/5 px-2 py-0.5 rounded-full">
+                            {item.quantity}x {item.name} {item.modifier && `[${item.modifier}]`}
+                         </span>
+                      ))}
+                      {cartItems.length > 3 && (
+                         <span className="text-[8px] font-black uppercase text-indigo-500 bg-white/5 px-2 py-0.5 rounded-full">
+                            +{cartItems.length - 3} more
+                         </span>
+                      )}
+                   </div>
+                </div>
+
+                <button 
+                  onClick={handleCheckout}
+                  className={`w-full text-stone-100 h-10 flex justify-between items-center px-5 transition-all active:scale-[0.98] ${paymentStep ? 'bg-emerald-600 hover:bg-emerald-500' : 'hover:bg-indigo-900'}`}
+                >
+                   <div className="flex items-center gap-2.5">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shadow-sm ${paymentStep ? 'bg-white text-emerald-900' : 'bg-indigo-500 text-indigo-950'}`}>
+                         {cartItems.length}
+                      </div>
+                      <span className="text-[9px] font-black uppercase tracking-widest">
+                        {paymentStep ? 'Confirm & Pay' : (table.number.toLowerCase().includes('kiosk') ? 'Review Order' : 'Fire Selections')}
+                      </span>
+                   </div>
+                   <div className="flex items-center gap-2.5">
+                      <span className={`text-[10px] font-bold italic ${paymentStep ? 'text-white' : 'text-indigo-500'}`}>${cartTotal.toFixed(2)}</span>
+                      <div className="h-3 w-[1px] bg-white/20"></div>
+                      <div className="flex items-center gap-2">
+                        <i className={`fas ${paymentStep ? 'fa-credit-card' : 'fa-bolt'} text-[8px] ${!paymentStep ? 'animate-pulse' : ''}`}></i>
+                        <span className="text-[9px] font-black uppercase tracking-widest">
+                          {paymentStep ? 'Pay Now' : (table.number.toLowerCase().includes('kiosk') ? 'Pay' : 'Transmit')}
+                        </span>
+                      </div>
+                   </div>
+                </button>
+                {paymentStep && (
+                  <div className="bg-black/20 p-2 text-center">
+                    <button onClick={() => setPaymentStep(false)} className="text-[8px] font-black uppercase tracking-widest text-stone-400 hover:text-white transition-colors">
+                      <i className="fas fa-arrow-left mr-1"></i> Back to Review
+                    </button>
+                  </div>
+                )}
+             </div>
+           ) : (
+             <button 
+               disabled
+               className="w-full bg-indigo-950 text-stone-100 h-10 rounded-full shadow-2xl flex justify-center items-center px-5 border border-white/10 opacity-50"
+             >
+               <i className="fas fa-spinner fa-spin mr-3 text-indigo-500 text-xs"></i>
+               <span className="text-[9px] font-black uppercase tracking-widest">Synchronizing Silo...</span>
+             </button>
+           )}
+        </div>
+      )}
+
+      {/* Guest Bottom Navigation Bar - Streamlined */}
+      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/95 backdrop-blur-xl border-t border-stone-200 z-[100] px-6 flex justify-around items-center shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+          <button onClick={() => setView('menu')} className={`flex flex-col items-center gap-1 transition-all relative ${view === 'menu' ? 'text-indigo-900' : 'text-stone-300 hover:text-stone-600'}`}>
+            <i className={`fas fa-wine-glass text-lg ${view === 'menu' ? 'scale-110' : ''}`}></i>
+            <span className="text-[7px] font-black uppercase tracking-widest">Menu</span>
+            {cartItems.length > 0 && view !== 'menu' && (
+              <span className="absolute -top-1 -right-2 w-3.5 h-3.5 bg-indigo-950 text-white text-[7px] font-black rounded-full flex items-center justify-center border border-white shadow-sm">
+                {cartItems.length}
+              </span>
+            )}
+          </button>
+         <button onClick={() => setView('sommelier')} className={`flex flex-col items-center gap-1 transition-all ${view === 'sommelier' ? 'text-indigo-900' : 'text-stone-300 hover:text-stone-600'}`}>
+            <i className={`fas fa-brain text-lg ${view === 'sommelier' ? 'scale-110' : ''}`}></i>
+            <span className="text-[7px] font-black uppercase tracking-widest">Expert</span>
          </button>
-         <button onClick={() => setView('sommelier')} className={`flex flex-col items-center gap-1.5 transition-all ${view === 'sommelier' ? 'text-rose-900' : 'text-stone-300 hover:text-stone-600'}`}>
-            <i className={`fas fa-brain text-xl ${view === 'sommelier' ? 'scale-110' : ''}`}></i>
-            <span className="text-[8px] font-black uppercase tracking-widest">Expert</span>
+         <button onClick={() => setView('tab')} className={`flex flex-col items-center gap-1 transition-all relative ${view === 'tab' ? 'text-indigo-900' : 'text-stone-300 hover:text-stone-600'}`}>
+            <i className={`fas fa-receipt text-lg ${view === 'tab' ? 'scale-110' : ''}`}></i>
+            <span className="text-[7px] font-black uppercase tracking-widest">My Tab</span>
+            {activeOrders.length > 0 && <span className="absolute -top-1 -right-2 w-3.5 h-3.5 bg-indigo-500 text-indigo-950 text-[7px] font-black rounded-full flex items-center justify-center border border-white shadow-sm">{activeOrders.length}</span>}
          </button>
-         <button onClick={() => setView('tab')} className={`flex flex-col items-center gap-1.5 transition-all relative ${view === 'tab' ? 'text-rose-900' : 'text-stone-300 hover:text-stone-600'}`}>
-            <i className={`fas fa-receipt text-xl ${view === 'tab' ? 'scale-110' : ''}`}></i>
-            <span className="text-[8px] font-black uppercase tracking-widest">My Tab</span>
-            {activeOrders.length > 0 && <span className="absolute -top-1 -right-3 w-4 h-4 bg-amber-500 text-rose-950 text-[8px] font-black rounded-full flex items-center justify-center border border-white shadow-sm">{activeOrders.length}</span>}
-         </button>
-         <button onClick={onExit} className="flex flex-col items-center gap-1.5 text-stone-300 hover:text-rose-500 transition-all">
-            <i className="fas fa-door-open text-xl"></i>
-            <span className="text-[8px] font-black uppercase tracking-widest">Exit</span>
+         <button onClick={() => setView('exit')} className="flex flex-col items-center gap-1 text-stone-300 hover:text-indigo-900 transition-all p-2">
+            <i className="fas fa-door-open text-lg"></i>
+            <span className="text-[7px] font-black uppercase tracking-widest">Exit</span>
          </button>
       </nav>
     </div>

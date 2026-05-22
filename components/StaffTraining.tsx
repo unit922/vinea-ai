@@ -1,9 +1,13 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Sparkles, RefreshCw } from 'lucide-react';
 import { TRAINING_MODULES, INITIAL_SHIFTS } from '../constants';
 import { geminiService } from '../services/geminiService';
+import { useVinetelligenceStore } from '../store/vinetelligenceStore';
+import { getBrandedTerm } from '../utils/branding';
 import CocktailSearch from './CocktailSearch';
-import { StaffShift, TrainingSession } from '../types';
+import { VisionPitch } from './VisionPitch';
+import { GuestFeedback, StaffShift } from '../lib/types';
 
 interface StaffTrainingProps {
   searchQuery?: string;
@@ -13,8 +17,20 @@ const ROLES = ['Sommelier', 'Mixologist', 'Server', 'Manager'] as const;
 
 const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
   const [activeTab, setActiveTab] = useState<'academy' | 'mixology' | 'signature' | 'roster'>('academy');
-  const [messages, setMessages] = useState<{role: 'user' | 'vinea', text: string}[]>([
-    { role: 'vinea', text: 'Hello! I am Vinea, your AI Beverage Coach. What would you like to learn today? I can help with wine pairings, cocktail recipes, or service techniques from various cultures.' }
+  const [activeVideo, setActiveVideo] = useState<string | null>(null);
+  const [showVisionPitch, setShowVisionPitch] = useState(false);
+  const [roiReport, setRoiReport] = useState<{
+    correlationScore: number;
+    topSkill: string;
+    revenueImpact: string;
+    improvementArea: string;
+    summary: string;
+  } | null>(null);
+  const [isCalculatingROI, setIsCalculatingROI] = useState(false);
+  const [recommendations, setRecommendations] = useState<Record<string, { moduleId: string; rationale: string }[]>>({});
+  const [isRecommending, setIsRecommending] = useState<string | null>(null);
+  const [messages, setMessages] = useState<{role: 'user' | 'vinetelligence', text: string}[]>([
+    { role: 'vinetelligence', text: 'Hello! I am Vinetelligence, your AI Beverage Coach. What would you like to learn today? I can help with wine pairings, cocktail recipes, or service techniques from various cultures.' }
   ]);
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -23,20 +39,24 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
   // Signature Special State
   const [theme, setTheme] = useState('');
   const [isGeneratingSpecial, setIsGeneratingSpecial] = useState(false);
-  const [specialResult, setSpecialResult] = useState<any>(null);
+  const [specialResult, setSpecialResult] = useState<{ imageUrl: string; recipe: { name: string; story: string; ingredients: string[]; glassware: string; instructions: string[] } } | null>(null);
 
   // Team Management State
   const [staffList, setStaffList] = useState<StaffShift[]>(() => {
-    const saved = localStorage.getItem('vinea_staff_list');
+    const saved = localStorage.getItem('vinetelligence_staff_list') || localStorage.getItem('vinea_staff_list');
     return saved ? JSON.parse(saved) : INITIAL_SHIFTS;
   });
   const [newStaff, setNewStaff] = useState({ name: '', role: 'Server' as StaffShift['role'] });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [staffToDelete, setStaffToDelete] = useState<string | null>(null);
   const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
 
   useEffect(() => {
+    localStorage.setItem('vinetelligence_staff_list', JSON.stringify(staffList));
     localStorage.setItem('vinea_staff_list', JSON.stringify(staffList));
   }, [staffList]);
+
+  const store = useVinetelligenceStore();
 
   const filteredModules = useMemo(() => {
     if (!searchQuery.trim()) return TRAINING_MODULES;
@@ -62,9 +82,9 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
 
     try {
       const response = await geminiService.getTrainingResponse(userMsg, []);
-      setMessages(prev => [...prev, { role: 'vinea', text: response || 'I missed that, could you repeat?' }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'vinea', text: 'Sorry, I am having trouble connecting to my knowledge base right now.' }]);
+      setMessages(prev => [...prev, { role: 'vinetelligence', text: response || 'I missed that, could you repeat?' }]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'vinetelligence', text: 'Sorry, I am having trouble connecting to my knowledge base right now.' }]);
     } finally {
       setIsThinking(false);
     }
@@ -77,8 +97,8 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
     try {
       const result = await geminiService.generateSignatureSpecial(theme);
       setSpecialResult(result);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error("Vinetelligence: Special synthesis failed.");
     } finally {
       setIsGeneratingSpecial(false);
     }
@@ -93,12 +113,42 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
     setStaffList(prev => prev.map(staff => staff.id === id ? { ...staff, performanceScore: score } : staff));
   };
 
+  const handleCalculateROI = async () => {
+    setIsCalculatingROI(true);
+    try {
+      // Mock feedback data for demonstration if none exists
+      const mockFeedback: GuestFeedback[] = [
+        { id: '1', rating: 5, comment: 'Amazing wine knowledge!', sentiment: 'Positive', timestamp: new Date().toISOString(), staffId: '1' },
+        { id: '2', rating: 4, comment: 'Great service, very professional.', sentiment: 'Positive', timestamp: new Date().toISOString(), staffId: '2' },
+        { id: '3', rating: 2, comment: 'Staff seemed unsure about the menu.', sentiment: 'Negative', timestamp: new Date().toISOString(), staffId: '3' }
+      ];
+      const result = await geminiService.getAcademyROI(staffList, mockFeedback);
+      setRoiReport(result);
+    } catch (err) {
+      console.error("Vinetelligence: ROI calculation failed", err);
+    } finally {
+      setIsCalculatingROI(false);
+    }
+  };
+
+  const handleGetRecommendations = async (staff: StaffShift) => {
+    setIsRecommending(staff.id);
+    try {
+      const context = "Upcoming Spring Menu change: focusing on biodynamic wines and molecular cocktails.";
+      const recs = await geminiService.getTrainingRecommendations(staff, context);
+      setRecommendations(prev => ({ ...prev, [staff.id]: recs }));
+    } catch (err) {
+      console.error("Vinetelligence: Recommendation failed", err);
+    } finally {
+      setIsRecommending(null);
+    }
+  };
   const handleAddStaff = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStaff.name.trim()) return;
     
     const staff: StaffShift = {
-      id: Date.now().toString(),
+      id: Math.random().toString(36).substring(2, 9),
       name: newStaff.name,
       role: newStaff.role,
       startTime: '17:00',
@@ -114,8 +164,13 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
   };
 
   const handleRemoveStaff = (id: string) => {
-    if (confirm("Permanently remove this operator from the roster?")) {
-      setStaffList(prev => prev.filter(s => s.id !== id));
+    setStaffToDelete(id);
+  };
+
+  const confirmRemoveStaff = () => {
+    if (staffToDelete) {
+      setStaffList(prev => prev.filter(s => s.id !== staffToDelete));
+      setStaffToDelete(null);
     }
   };
 
@@ -151,14 +206,79 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
     return TRAINING_MODULES.some(m => assignedIds.includes(m.id) && m.difficulty === 'Advanced');
   };
 
+  const globalProgress = useMemo(() => {
+    const allAssigned = staffList.flatMap(s => s.assignedModules || []);
+    if (allAssigned.length === 0) return 0;
+    const completed = allAssigned.filter(m => m.completed).length;
+    return Math.round((completed / allAssigned.length) * 100);
+  }, [staffList]);
+
+  const progressTitle = useMemo(() => {
+    const isLight = store.profile?.aesthetic === 'light';
+    if (globalProgress < 20) return isLight ? 'Beginner' : 'Novice Node';
+    if (globalProgress < 40) return isLight ? 'Learner' : 'Apprentice Sommelier';
+    if (globalProgress < 60) return isLight ? 'Intermediate' : 'Technical Specialist';
+    if (globalProgress < 80) return isLight ? 'Advanced' : 'Master Operator';
+    return isLight ? 'Expert' : 'Elite Intelligence';
+  }, [globalProgress, store.profile?.aesthetic]);
+
   return (
     <div className="space-y-6">
+      {activeVideo && (
+        <div className="fixed inset-0 bg-stone-900/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
+          <div className="bg-black w-full max-w-5xl aspect-video rounded-[2rem] overflow-hidden shadow-2xl relative border border-white/10">
+            <button 
+              onClick={() => setActiveVideo(null)}
+              className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-all z-10"
+            >
+              <i className="fas fa-times text-xl"></i>
+            </button>
+            <iframe 
+              src={`https://www.youtube.com/embed/${activeVideo}?rel=0&enablejsapi=1`} 
+              className="w-full h-full" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowFullScreen
+            ></iframe>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <a 
+              href={`https://www.youtube.com/watch?v=${activeVideo}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-stone-400 hover:text-white text-xs flex items-center gap-1"
+            >
+              <i className="fas fa-external-link-alt"></i>
+              Open in YouTube
+            </a>
+          </div>
+        </div>
+      )}
+
+      {staffToDelete && (
+        <div className="fixed inset-0 z-[600] bg-stone-950/90 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden border border-stone-200 p-10 text-center space-y-8">
+            <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
+              <i className="fas fa-user-slash text-3xl"></i>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-serif font-black italic text-stone-900">Revoke Authorization?</h3>
+              <p className="text-stone-500 text-xs leading-relaxed italic">
+                Permanently remove this operator from the roster? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <button onClick={() => setStaffToDelete(null)} className="flex-1 py-4 bg-stone-100 text-stone-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-stone-200 transition-all">Cancel</button>
+              <button onClick={confirmRemoveStaff} className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-rose-700 transition-all active:scale-95">Confirm Removal</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex gap-4 border-b border-stone-200 overflow-x-auto whitespace-nowrap custom-scrollbar">
         <button
           onClick={() => setActiveTab('academy')}
           className={`pb-4 text-sm font-bold transition-all px-2 ${activeTab === 'academy' ? 'text-amber-600 border-b-2 border-amber-600' : 'text-stone-400 hover:text-stone-600'}`}
         >
-          Academy & AI Coach
+          {getBrandedTerm('scholar_node', store.profile || undefined)}
         </button>
         <button
           onClick={() => setActiveTab('mixology')}
@@ -184,15 +304,24 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-16rem)]">
           <div className="lg:col-span-1 space-y-6 overflow-y-auto pr-2 custom-scrollbar">
             <div className="bg-stone-900 text-white p-6 rounded-2xl shadow-lg">
-              <h3 className="text-xl font-bold font-serif mb-2">Vinea Academy</h3>
-              <p className="text-stone-400 text-sm mb-6">Master global beverage traditions and technical service.</p>
+              <h3 className="text-xl font-bold font-serif mb-2">{getBrandedTerm('scholar_node', store.profile || undefined)}</h3>
+              <p className="text-stone-400 text-sm mb-6">{store.profile?.aesthetic === 'light' ? 'Learn about drinks and service.' : 'Master global beverage traditions and technical service.'}</p>
+              
+              <button 
+                onClick={() => setShowVisionPitch(true)}
+                className="w-full mb-6 py-3 bg-amber-500 text-stone-950 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-amber-400 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-amber-500/20"
+              >
+                <i className="fas fa-camera"></i>
+                Vinetelligence Vision Scan
+              </button>
+
               <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl mb-6">
-                <div className="w-12 h-12 rounded-full border-4 border-amber-500 flex items-center justify-center font-bold text-lg text-amber-500">
-                    33%
+                <div className="w-12 h-12 rounded-full border-4 border-amber-500 flex items-center justify-center font-bold text-lg text-amber-500" style={{ borderColor: `rgba(245, 158, 11, ${globalProgress/100})` }}>
+                    {globalProgress}%
                 </div>
                 <div>
                     <p className="text-xs font-bold text-stone-500 uppercase tracking-widest">Progress</p>
-                    <p className="text-sm font-bold">Apprentice Sommelier</p>
+                    <p className="text-sm font-bold">{progressTitle}</p>
                 </div>
               </div>
             </div>
@@ -208,7 +337,20 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
                     }`}>
                       {m.difficulty}
                     </span>
-                    {m.completed && <i className="fas fa-check-circle text-green-500"></i>}
+                    <div className="flex items-center gap-2">
+                      {m.videoId && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveVideo(m.videoId!);
+                          }}
+                          className="text-amber-500 hover:text-amber-600 transition-colors"
+                        >
+                          <i className="fas fa-play-circle text-lg"></i>
+                        </button>
+                      )}
+                      {m.completed && <i className="fas fa-check-circle text-green-500"></i>}
+                    </div>
                   </div>
                   <p className="font-bold text-stone-800 mb-1 group-hover:text-amber-600">{m.topic}</p>
                   <div className="flex items-center gap-3 text-xs text-stone-400">
@@ -222,6 +364,47 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
                 </div>
               )}
             </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-black text-[10px] uppercase tracking-[0.2em] text-stone-400">Academy ROI Analytics</h4>
+                <button 
+                  onClick={handleCalculateROI}
+                  disabled={isCalculatingROI}
+                  className="text-[10px] font-bold text-amber-600 hover:text-amber-500 flex items-center gap-1"
+                >
+                  {isCalculatingROI ? <i className="fas fa-sync-alt animate-spin"></i> : <i className="fas fa-chart-line"></i>}
+                  Synthesize Report
+                </button>
+              </div>
+
+              {roiReport ? (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 font-bold text-xl">
+                      {roiReport.correlationScore}%
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-stone-500 uppercase">Sentiment Correlation</p>
+                      <p className="text-xs text-stone-600">Training impact on guest satisfaction</p>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-100">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase mb-1">Top Performing Skill</p>
+                    <p className="text-sm font-bold text-stone-800">{roiReport.topSkill}</p>
+                  </div>
+                  <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Revenue Impact</p>
+                    <p className="text-xs text-emerald-800 leading-tight">{roiReport.revenueImpact}</p>
+                  </div>
+                  <p className="text-[10px] text-stone-400 italic leading-tight">"{roiReport.summary}"</p>
+                </div>
+              ) : (
+                <div className="py-8 text-center border-2 border-dashed border-stone-100 rounded-2xl">
+                  <p className="text-xs text-stone-400 italic">"Link training scores to guest reviews to prove ROI."</p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 flex flex-col shadow-sm overflow-hidden">
@@ -231,7 +414,7 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
                   <i className="fas fa-brain text-amber-400"></i>
                 </div>
                 <div>
-                  <h3 className="font-bold text-stone-800">Vinea AI Coach</h3>
+                  <h3 className="font-bold text-stone-800">Vinetelligence AI Coach</h3>
                   <span className="flex items-center gap-1.5 text-[10px] text-green-500 font-bold uppercase tracking-widest">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                     Global Intelligence Active
@@ -437,10 +620,10 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
 
           <div className="bg-white rounded-[2.5rem] border border-stone-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-stone-50 border-b border-stone-200">
-                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Operational Node</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Operator</th>
                     <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Tier Designation</th>
                     <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Performance Index</th>
                     <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Training Sync</th>
@@ -475,7 +658,7 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
                                     </span>
                                   )}
                                 </p>
-                                <p className="text-[10px] text-stone-400 font-medium">Node ID: {staff.id.slice(-4)}</p>
+                                <p className="text-[10px] text-stone-400 font-medium">{store.profile?.aesthetic === 'light' ? 'Staff ID' : 'Node ID'}: {staff.id.slice(-4)}</p>
                               </div>
                             </div>
                           </td>
@@ -544,6 +727,36 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
                           <tr>
                             <td colSpan={5} className="bg-stone-50/50 border-y border-stone-100 animate-in slide-in-from-top-2 duration-300">
                                <div className="p-8">
+                                  <div className="mb-8 p-6 bg-amber-50/50 rounded-3xl border border-amber-100">
+                                     <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                           <Sparkles className="text-amber-500" size={16} />
+                                           <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600">Predictive Roster Insights</h5>
+                                        </div>
+                                        <button 
+                                           onClick={() => handleGetRecommendations(staff)}
+                                           disabled={isRecommending === staff.id}
+                                           className="text-[10px] font-bold text-amber-700 hover:underline flex items-center gap-1"
+                                        >
+                                           {isRecommending === staff.id ? <RefreshCw size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                                           Sync Recommendations
+                                        </button>
+                                     </div>
+                                     
+                                     {recommendations[staff.id] ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                           {recommendations[staff.id].map((rec, i) => (
+                                              <div key={i} className="bg-white p-4 rounded-2xl border border-amber-200/50 shadow-sm">
+                                                 <p className="text-[10px] font-black text-amber-600 uppercase mb-1">Module {rec.moduleId}</p>
+                                                 <p className="text-xs text-stone-600 leading-tight">{rec.rationale}</p>
+                                              </div>
+                                           ))}
+                                        </div>
+                                     ) : (
+                                        <p className="text-xs text-stone-400 italic">"AI will suggest modules based on upcoming menu changes and seasonal trends."</p>
+                                     )}
+                                  </div>
+
                                   <div className="flex items-center gap-4 mb-6">
                                      <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500 italic">Curriculum Control Panel</h5>
                                      <div className="h-[1px] flex-1 bg-stone-200"></div>
@@ -584,9 +797,19 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
                                             </div>
                                             {isAssigned && (
                                               <div className="flex items-center justify-between mt-2 pt-4 border-t border-stone-50">
-                                                 <div className="flex items-center gap-2 text-stone-400">
-                                                    <i className="far fa-clock text-[10px]"></i>
-                                                    <span className="text-[10px] font-bold">{module.duration}</span>
+                                                 <div className="flex items-center gap-3">
+                                                   <div className="flex items-center gap-2 text-stone-400">
+                                                      <i className="far fa-clock text-[10px]"></i>
+                                                      <span className="text-[10px] font-bold">{module.duration}</span>
+                                                   </div>
+                                                   {module.videoId && (
+                                                     <button 
+                                                       onClick={() => setActiveVideo(module.videoId!)}
+                                                       className="text-amber-500 hover:text-amber-600 transition-colors"
+                                                     >
+                                                       <i className="fas fa-play-circle text-sm"></i>
+                                                     </button>
+                                                   )}
                                                  </div>
                                                  <button 
                                                    onClick={() => toggleModuleCompletion(staff.id, module.id)}
@@ -623,6 +846,10 @@ const StaffTraining: React.FC<StaffTrainingProps> = ({ searchQuery = '' }) => {
             )}
           </div>
         </div>
+      )}
+
+      {showVisionPitch && (
+        <VisionPitch onClose={() => setShowVisionPitch(false)} />
       )}
     </div>
   );

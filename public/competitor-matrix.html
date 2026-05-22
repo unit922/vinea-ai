@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3YVY58JCNJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-3YVY58JCNJ');
+    </script>
+    <!-- End Google tag (gtag.js) -->
+    <title>Vinetelligence AI | Enterprise Competitive Analysis v3.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0c0a09;
+            color: #f5f5f4;
+            scroll-behavior: smooth;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .emerald-glow {
+            text-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+        }
+        
+        /* Print Specifics */
+        @media print {
+            body { 
+                background-color: #ffffff !important; 
+                color: #0c0a09 !important;
+            }
+            .no-print { display: none !important; }
+            .print-card {
+                background: #f5f5f4 !important;
+                border: 1px solid #e7e5e4 !important;
+                color: #0c0a09 !important;
+            }
+            .print-text-dark { color: #0c0a09 !important; }
+            .print-text-muted { color: #57534e !important; }
+            .print-border { border-color: #e7e5e4 !important; }
+            .page-break { page-break-after: always; }
+        }
+
+        .tab-btn.active {
+            background-color: #10b981;
+            color: #0c0a09;
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+        }
+    </style>
+</head>
+<body class="selection-red overflow-x-hidden min-h-screen pb-20">
+
+    <!-- Top Sticky Bar (Actions) -->
+    <div class="no-print sticky top-0 left-0 right-0 z-50 bg-stone-950/80 backdrop-blur-md border-b border-white/5 px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <span class="font-serif text-xl font-black text-emerald-500 tracking-tighter italic uppercase">Vinetelligence</span>
+            <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">Competitive Edge Matrix</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="window.print()" class="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-xl flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Export Printable PDF
+            </button>
+            <a href="/index.html" class="px-6 py-2.5 border border-white/10 hover:border-white text-stone-300 rounded-full text-[10px] font-black uppercase tracking-widest transition-all">
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Header Cover Area -->
+    <header class="max-w-7xl mx-auto px-6 pt-16 pb-12 text-center md:text-left grid md:grid-cols-3 gap-12 items-center border-b border-white/5">
+        <div class="md:col-span-2 space-y-6">
+            <div class="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase tracking-[0.3em] rounded-full">
+                <i class="fas fa-radar"></i> Enterprise SaaS Dossier
+            </div>
+            <h1 class="text-4xl sm:text-6xl md:text-8xl font-serif font-black italic tracking-tighter text-white leading-tight">
+                Synthesized<br/><span class="text-emerald-500">Separation.</span>
+            </h1>
+            <p class="text-lg md:text-xl text-stone-400 font-medium italic max-w-2xl leading-relaxed">
+                "An empirical analysis isolating the performance, architecture, and guest-intelligence differentials between Vinetelligence and traditional hospitality systems."
+            </p>
+        </div>
+        <div class="glass p-8 rounded-[2rem] border border-white/10 space-y-6 print-card text-left">
+            <p class="text-[9px] font-black uppercase text-stone-500 tracking-[0.2em] leading-none mb-2">Analysis Synopsis</p>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center border-b border-white/5 pb-2 print-border">
+                    <span class="text-[10px] font-bold text-stone-400 uppercase">Target Markets</span>
+                    <span class="text-[10px] font-black uppercase text-emerald-400">Luxury, Fine Beverage</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-white/5 pb-2 print-border">
+                    <span class="text-[10px] font-bold text-stone-400 uppercase">Total Competitors</span>
+                    <span class="text-[10px] font-black uppercase text-white print-text-dark">4 Industry Leaders</span>
+                </div>
+                <div class="flex justify-between items-center pb-2">
+                    <span class="text-[10px] font-bold text-stone-400 uppercase">Primary Driver</span>
+                    <span class="text-[10px] font-black uppercase text-emerald-500">Palate DNA Mapping</span>
+                </div>
+            </div>
+            <p class="text-[8px] text-stone-500 uppercase tracking-widest leading-relaxed">
+                Prepared by Oenology Systems Group for hotel beverage directors, executive sommeliers, and hospitality innovators.
+            </p>
+        </div>
+    </header>
+
+    <!-- Social Copywriter Section (LinkedIn Tool) -->
+    <section class="max-w-7xl mx-auto px-6 mt-16 no-print">
+        <div class="glass p-8 md:p-12 rounded-[3rem] border border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent space-y-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div class="space-y-2">
+                    <h3 class="text-xl font-serif font-black italic text-white">Social Amplification Suite</h3>
+                    <p class="text-[9px] font-black uppercase text-stone-400 tracking-widest">Share the comparative edge directly to LinkedIn, Twitter, or Slack.</p>
+                </div>
+                <span class="bg-indigo-500/10 text-indigo-400 text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-indigo-500/20">
+                    <i class="fab fa-linkedin mr-1.5"></i> Ready-to-Publish Assets
+                </span>
+            </div>
+
+            <!-- Tabs/Picker for LinkedIn Posts -->
+            <div class="flex gap-2 border-b border-white/5 pb-4">
+                <button onclick="switchSocialTab('post-founder')" id="btn-social-founder" class="social-tab-btn active px-4 py-2 bg-stone-900 border border-white/10 rounded-xl text-[9px] tracking-widest uppercase font-black text-stone-400 hover:text-white transition-all">
+                    Founder Pitch (High Conversion)
+                </button>
+                <button onclick="switchSocialTab('post-somm')" id="btn-social-somm" class="social-tab-btn px-4 py-2 bg-stone-900 border border-white/10 rounded-xl text-[9px] tracking-widest uppercase font-black text-stone-400 hover:text-white transition-all">
+                    Sommelier Focus (Intellectual)
+                </button>
+            </div>
+
+            <!-- Post 1 Content -->
+            <div id="social-post-founder" class="social-post-box space-y-4">
+                <div class="relative bg-stone-950/80 p-8 rounded-2xl border border-white/5 font-mono text-xs text-stone-300 leading-relaxed whitespace-pre-wrap select-all max-h-96 overflow-y-auto" id="founder-text-copy">🚨 The generic restaurant stack is breaking your luxury brand. 
+
+I analyzed Vinetelligence against the top 4 restaurant apps in hospitality right now (Toast, SevenRooms, OpenTable, and Treema API). Here is why the elite are migrating:
+
+1️⃣ Dynamic Palate DNA over Static Logs
+- Legacy Apps (SevenRooms, OpenTable) count on manual floor notes (e.g. "likes Pinot").
+- Vinetelligence maps chemical and sensory profiles in real-time, matching biological taste structures with inventory DNA using Google Gemini.
+
+2️⃣ Isolated Zero-Trust Sovereignty over Shared Pools
+- Free marketplaces (OpenTable) capture your precious guest network and immediately recommend neighboring competitors to them to fill search volume.
+- Vinetelligence provisions hardware-isolated, dedicated tenant databases protecting your private reserve metrics.
+
+3️⃣ Low Latency Network (42ms) over Cloud Sync lag
+- Toast & Legacy POS rely on cloud sync queues that fluctuate with standard consumer Wi-Fi during peak volume.
+- Vinetelligence Edge Nodes prioritize critical terminal communications under a dual-channel radio interface.
+
+Stop treating your fine beverage program as a standardized invoice engine. Hospitality isn't transactional—it is algorithmic.
+
+Read the detailed architecture brief: https://vinetelligence.live/competitor-matrix
+
+#HospitalityAI #WineTech #RestaurantOperations #SommelierTech #FinTech #Vinetelligence</div>
+                <div class="flex justify-end">
+                    <button onclick="copySocialText('founder-text-copy')" class="px-6 py-2.5 bg-white hover:bg-emerald-500 hover:text-stone-950 text-stone-900 rounded-lg text-[10px] uppercase tracking-widest font-black transition-all flex items-center gap-2">
+                        <i class="fas fa-copy"></i> Copy To Clipboard
+                    </button>
+                </div>
+            </div>
+
+            <!-- Post 2 Content -->
+            <div id="social-post-somm" class="social-post-box hidden space-y-4">
+                <div class="relative bg-stone-950/80 p-8 rounded-2xl border border-white/5 font-mono text-xs text-stone-300 leading-relaxed whitespace-pre-wrap select-all max-h-96 overflow-y-auto" id="somm-text-copy">🍷 Why Sommeliers are pushing back against legacy SaaS.
+
+Most reservation systems and POS tools do not understand oenology. To them, a Grand Cru is the exact same database cell as an mass-market lager. It is just stock.
+
+We ran a strategic benchmark putting Vinetelligence against Toast, OpenTable, SevenRooms, and Treema:
+
+🔍 What legacy platforms get wrong:
+- OpenTable: Prioritizes platform monetization over local user retention.
+- Toast: Solid checkout pipeline, but leaves the floor staff completely disconnected from beverage storytelling or educational regional mapping.
+- SevenRooms: Great table pacing dashboard, but relies heavily on staff manually typing customer details into web-views rather than predictive flavor assistance.
+
+💎 The Vinetelligence Paradigm:
+- Real-time "Scholar sommelier Node" gives staff micro-second access to complex terroir data, food pairing algorithms, and technical fermentation notes.
+- True local Edge engine running sub-50ms ensures that transaction spikes do not lag table ordering.
+
+Give your service teams the power of synthesis, not just administrative logging. 
+
+Check out the full comparison: https://vinetelligence.live/competitor-matrix
+
+#Oenology #WineDirector #SommelierLife #FineDining #HospitalityAI #Oenotech</div>
+                <div class="flex justify-end">
+                    <button onclick="copySocialText('somm-text-copy')" class="px-6 py-2.5 bg-white hover:bg-emerald-500 hover:text-stone-950 text-stone-900 rounded-lg text-[10px] uppercase tracking-widest font-black transition-all flex items-center gap-2">
+                        <i class="fas fa-copy"></i> Copy To Clipboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison Section (Interactive Tabs) -->
+    <main class="max-w-7xl mx-auto px-6 mt-16 space-y-16">
+        
+        <div class="text-center md:text-left space-y-4">
+            <h2 class="text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 font-sans">The Strategic Matrix</h2>
+            <h3 class="text-3xl md:text-5xl font-serif font-black italic tracking-tighter text-white">Direct Benchmark Overview</h3>
+            <p class="text-sm text-stone-400 font-medium max-w-xl">
+                Select an incumbent platform below to see how they compare directly to Vinetelligence's specialized neural architecture.
+            </p>
+        </div>
+
+        <!-- Competitor Selector Tabs -->
+        <div class="flex flex-wrap justify-center md:justify-start gap-4 border-b border-white/5 pb-6">
+            <button onclick="showCompetitor('toast')" id="tab-toast" class="tab-btn active px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
+                Toast POS <span class="text-[8px] opacity-40 italic ml-1 block">(Non-AI Cloud POS)</span>
+            </button>
+            <button onclick="showCompetitor('sevenrooms')" id="tab-sevenrooms" class="tab-btn px-6 py-4 bg-stone-900 border border-white/5 hover:border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-white transition-all">
+                SevenRooms <span class="text-[8px] opacity-40 italic ml-1 block">(Incumbent CRM)</span>
+            </button>
+            <button onclick="showCompetitor('opentable')" id="tab-opentable" class="tab-btn px-6 py-4 bg-stone-900 border border-white/5 hover:border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-white transition-all">
+                OpenTable <span class="text-[8px] opacity-40 italic ml-1 block">(Legacy Marketplace)</span>
+            </button>
+            <button onclick="showCompetitor('treema')" id="tab-treema" class="tab-btn px-6 py-4 bg-stone-900 border border-white/5 hover:border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-white transition-all">
+                Treema AI <span class="text-[8px] opacity-40 italic ml-1 block">(Simple Forecasting)</span>
+            </button>
+        </div>
+
+        <!-- Matrix Content Dynamic Box -->
+        <div class="grid lg:grid-cols-12 gap-12 items-stretch" id="matrix-wrapper">
+            
+            <!-- Left Panel (Core Competitor Weakness) -->
+            <div class="lg:col-span-4 glass p-10 rounded-[3rem] border border-white/5 flex flex-col justify-between space-y-8 min-h-full print-card">
+                <div class="space-y-6">
+                    <span class="text-[9px] font-black uppercase text-rose-500 tracking-[0.3em]" id="comp-category-badge">Transaction-First System</span>
+                    <h4 class="text-3xl font-serif font-black italic text-white print-text-dark" id="comp-title">Toast POS</h4>
+                    <p class="text-sm text-stone-400 italic leading-relaxed print-text-muted" id="comp-definition">
+                        A robust accounting and order ticketing system constructed for fast-casual operations, currently lacking deep oenological context or predictive palate capabilities.
+                    </p>
+                </div>
+
+                <div class="space-y-6 border-t border-white/15 pt-8 print-border">
+                    <p class="text-[9px] font-black uppercase text-stone-500 tracking-[0.2em]">Primary Operational Gap</p>
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-exclamation-triangle text-rose-500 mt-1"></i>
+                            <p class="text-xs text-stone-300 font-medium italic print-text-muted" id="comp-gap-1">Requires manual stock entry for vintages with no automated cellar valuation or pairing knowledge.</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-exclamation-triangle text-rose-500 mt-1"></i>
+                            <p class="text-xs text-stone-300 font-medium italic print-text-muted" id="comp-gap-2">No guest profile persistency across tables outside of basic credit card names.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <p class="text-[8px] font-black uppercase text-stone-600 tracking-widest">SaaS Status Category</p>
+                    <p class="text-[10px] font-bold text-stone-300 uppercase print-text-dark" id="comp-status">Legacy Hardware Ledger</p>
+                </div>
+            </div>
+
+            <!-- Right Panel (Detailed Compare Grid) -->
+            <div class="lg:col-span-8 space-y-6 flex flex-col justify-between">
+                <div class="glass rounded-[3rem] border border-white/5 overflow-hidden print-card">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-white/5 print-border bg-white/5 print-card">
+                                <th class="p-6 text-[10px] font-black uppercase tracking-widest text-stone-400">Structural Metric</th>
+                                <th class="p-6 text-[10px] font-black uppercase tracking-widest text-emerald-400">Vinetelligence AI</th>
+                                <th class="p-6 text-[10px] font-black uppercase tracking-widest text-rose-500" id="table-comp-header">Toast POS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comparison-rows">
+                            <!-- Dynamic Rows will load here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Strategic Summary Quote -->
+                <div class="p-8 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 flex flex-col md:flex-row justify-between items-center gap-6 print-card">
+                    <div class="space-y-2">
+                        <p class="text-[9px] font-black uppercase text-emerald-500 tracking-widest">The Economic Outcome</p>
+                        <p class="text-xs text-stone-300 font-medium italic print-text-dark" id="outcome-quote">
+                            "By shifting checkout to standard tablets but deploying Vinetelligence as your intelligence layer, you convert baseline operations into active sensory yield engines."
+                        </p>
+                    </div>
+                    <span class="shrink-0 bg-emerald-500 text-stone-900 text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl" id="outcome-metric">
+                        +28% Cellar Margin
+                    </span>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Deep-Dive Article: "Why Hospitality Isn't Transactional" -->
+    <article class="max-w-4xl mx-auto px-6 mt-32 space-y-12">
+        <hr class="border-white/5 print-border" />
+        <div class="space-y-4 text-center">
+            <span class="text-emerald-500 text-[10px] font-black uppercase tracking-[0.4em]">Whitepaper Analysis</span>
+            <h2 class="text-4xl md:text-6xl font-serif font-black italic tracking-tighter text-white leading-none">The Paradigm Shift</h2>
+            <p class="text-stone-400 italic text-sm">Authored by Vinetelligence Strategic Advisory Board</p>
+        </div>
+
+        <div class="space-y-8 text-stone-300 font-medium leading-relaxed italic text-base md:text-lg">
+            <p>
+                Historically, restaurant software has existed to answer a simple, administrative question: <span class="text-white font-bold print-text-dark">"What did table 4 order, and how do we print the guest invoice?"</span>
+            </p>
+            <p>
+                Systems like Toast or Lightspeed executed this mechanical tracking beautifully. They mapped standard quantities, printed slips for chefs, and connected payment gateways. Yet, in fine dining, luxury resorts, and high-frequency cocktail centers, <span class="text-emerald-400 font-semibold">administrative efficiency is merely table stakes</span>. The real value is created during the raw human interaction—the sensory dialogue between staff, guest, and bottle.
+            </p>
+
+            <blockquote class="border-l-4 border-emerald-500 pl-6 my-8 text-xl font-serif font-black text-white italic py-2 print-text-dark">
+                "A guest does not visit an elite venue to complete a transaction. They visit to experience a curated environment. Traditional POS systems optimize the transaction; Vinetelligence structures the curation."
+            </blockquote>
+
+            <h3 class="text-2xl font-serif font-black text-white pt-6 print-text-dark">1. Palate DNA vs. Manual Guest CRM Notes</h3>
+            <p>
+                Incumbents like <span class="text-white font-bold print-text-dark">SevenRooms</span> attempt user personalization by allowing host staff to enter generic text comments. This manual process has massive operational failure points. It relies on distracted floor staff typing, has zero standardization, and fails to identify underlying sensory trends.
+            </p>
+            <p>
+                Vinetelligence maps flavor patterns under our **Organoleptic Graph API**. It handles hundreds of flavor points (tannin levels, acidity, oak treatment, yeast types) to build a mathematical profile. So when the guest returns, the system doesn't just read "likes full body red," it recommends the exact, rare, newly cellared bottle that matches their unique biological palate DNA.
+            </p>
+
+            <h3 class="text-2xl font-serif font-black text-white pt-6 print-text-dark">2. The Disastrous Conflicted Sovereignty of Booking Marketplaces</h3>
+            <p>
+                Establishments relying on consumer discovery networks like <span class="text-white font-bold print-text-dark">OpenTable</span> enter into an adversarial business configuration. These marketplaces monetize your guest's discovery journey. If a guest books your restaurant via an aggregator, that network captures their email, tracks their preferences, and intentionally markets competing dining spaces to them for their next weekend booking.
+            </p>
+            <p>
+                Vinetelligence acts as a closed-loop **Silo Storage Architecture**. Your guest files, transactions, and inventory remain securely partitioned within a private database. We do not monetize your customer data; we isolate it to protect your hard-won guest equity.
+            </p>
+            
+            <h3 class="text-2xl font-serif font-black text-white pt-6 print-text-dark">3. Performance and Floor Friction</h3>
+            <p>
+                In a high-intensity, five-star resort, network delay is a critical workflow bottleneck. A staff member waiting 3 seconds for a browser-based ticket portal to reload is 3 seconds of lost guest contact. Vinetelligence operates under custom edge server configs targeting <span class="text-emerald-400 font-bold">&lt;42ms interface latency</span>. It is responsive, elegant, and designed to match the speed of thought of fine beverage operators.
+            </p>
+        </div>
+
+        <div class="pt-8 border-t border-white/5 print-border text-center md:text-left flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="space-y-2">
+                <p class="text-[9px] font-black uppercase text-stone-500 tracking-widest">Strategic Takeaway</p>
+                <p class="text-sm font-black text-emerald-500 uppercase tracking-widest">Choose Curated Intelligence over Legacy ledgars.</p>
+            </div>
+            <button onclick="window.print()" class="px-8 py-3 bg-white hover:bg-emerald-500 text-stone-950 rounded-full font-black text-[10px] uppercase tracking-widest transition-all shadow-xl">
+                <i class="fas fa-print mr-1"></i> Export Article PDF
+            </button>
+        </div>
+    </article>
+
+    <!-- Footer -->
+    <footer class="max-w-7xl mx-auto px-6 mt-32 border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center gap-6">
+        <p class="text-stone-600 text-[10px] font-black uppercase tracking-widest">© 2026 VINETELLIGENCE SYSTEMS S.A.</p>
+        <div class="flex gap-8">
+            <a href="mailto:business@vinetelligence.live" class="text-stone-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">business@vinetelligence.live</a>
+            <a href="/index.html" class="text-stone-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">Launch Dashboard</a>
+        </div>
+    </footer>
+
+    <!-- JS Logic for matrix presentation -->
+    <script>
+        // Data Structure for Benchmarks
+        const targetData = {
+            toast: {
+                title: "Toast POS",
+                category: "Transaction-First System",
+                definition: "A traditional hardware checkout and ticket entry system. While secure for accounting, it is completely blind to flavor science, guest palate profiles, or active oenology education.",
+                gap1: "No internal oenology engine, requiring wait staff to memorize standard vintage profiles.",
+                gap2: "Guest ticketing does not link to biological sensory graphs—only simple past billing totals.",
+                status: "Legacy Administrative SaaS",
+                header: "Toast POS Stack",
+                outcomeQuote: "Toast handles the invoice, Vinetelligence handles the guest connection. Pairing them creates a high-margin floor engine.",
+                outcomeMetric: "Admin & POS Only",
+                rows: [
+                    { metric: "Palate Flavor Profiling", vinetelligence: "Neural Organoleptic Mapping (Automatic)", competitor: "Manual Notes in guest bill text slot" },
+                    { metric: "Staff Education (Sommelier Node)", vinetelligence: "Direct Voice Scholar & region guide built-in", competitor: "None (External manuals/memory)" },
+                    { metric: "Interface System Latency", vinetelligence: "<42ms Edge Client Sync", competitor: "250ms - 500ms cloud server sync" },
+                    { metric: "Sovereign Customer Protection", vinetelligence: "Zero-Trust Private isolated DB silos", competitor: "Shared tenant processing arrays" },
+                    { metric: "Dynamic Wine Inventory Pricing", vinetelligence: "Automatic supply-demand yield adjustments", competitor: "Static manually entered POS prices" }
+                ]
+            },
+            sevenrooms: {
+                title: "SevenRooms CRM",
+                category: "Guest Intake and Seating SaaS",
+                definition: "An upscale reservation engine and guest data logger. Built for reception tables, SevenRooms captures standard dining logistics without any active database linking to wine composition or beverage chemistry.",
+                gap1: "Personalization depends on floor staff typing manual descriptors like 'likes oaky Cab.'",
+                gap2: "Does not bridge with POS micro-inventories to offer dynamic personalized table cards.",
+                status: "Legacy Guest CRM",
+                header: "SevenRooms System",
+                outcomeQuote: "SevenRooms tells you who is sitting at the table. Vinetelligence tells you exactly what they want to drink.",
+                outcomeMetric: "+35% Personalization ROI",
+                rows: [
+                    { metric: "Palate Flavor Profiling", vinetelligence: "Neural Organoleptic Mapping (Automatic)", competitor: "Manual staff descriptions / keywords" },
+                    { metric: "Staff Education (Sommelier Node)", vinetelligence: "Direct Voice Scholar & region guide built-in", competitor: "None" },
+                    { metric: "Interface System Latency", vinetelligence: "<42ms Edge Client Sync", competitor: "Browser-level slow reload" },
+                    { metric: "Sovereign Customer Protection", vinetelligence: "Zero-Trust Private isolated DB silos", competitor: "Centralized marketing analytics database" },
+                    { metric: "Dynamic Wine Inventory Pricing", vinetelligence: "Automatic supply-demand yield adjustments", competitor: "None" }
+                ]
+            },
+            opentable: {
+                title: "OpenTable Aggregator",
+                category: "Public Marketplace discovery",
+                definition: "A marketing-first reservation engine that focuses on filling open tables through a guest-facing network. This structure leads to an inherent conflict of interest for high-end brands.",
+                gap1: "Captures guest contact info to market alternative restaurants to your visitors.",
+                gap2: "Zero staff context on wine chemistry, regional maps, or mixology.",
+                status: "Leased Marketplace Platform",
+                header: "OpenTable Platform",
+                outcomeQuote: "Stop leasing your guest relationships. Vinetelligence isolates your database to maintain strict client ownership.",
+                outcomeMetric: "Zero Co-mingled Data",
+                rows: [
+                    { metric: "Palate Flavor Profiling", vinetelligence: "Neural Organoleptic Mapping (Automatic)", competitor: "None (Simple Reservation History)" },
+                    { metric: "Staff Education (Sommelier Node)", vinetelligence: "Direct Voice Scholar & region guide built-in", competitor: "None" },
+                    { metric: "Interface System Latency", vinetelligence: "<42ms Edge Client Sync", competitor: "Browser-level web views" },
+                    { metric: "Sovereign Customer Protection", vinetelligence: "Zero-Trust Private isolated DB silos", competitor: "Shares customer info to promote competitors" },
+                    { metric: "Dynamic Wine Inventory Pricing", vinetelligence: "Automatic supply-demand yield adjustments", competitor: "None" }
+                ]
+            },
+            treema: {
+                title: "Treema AI",
+                category: "Basic Statistical Forecasting",
+                definition: "A modular, light AI predictive app that tracks sales trajectories. It relies on standard database regressions but lacks real-time floor terminals, sensory intelligence, or voice onboarding protocols.",
+                gap1: "No regional maps, Scholar sommelier academy, or mixology database.",
+                gap2: "Static charts for owner dashboards without active real-time staff floor enablement.",
+                status: "Basic Analytical Tool",
+                header: "Treema AI Engine",
+                outcomeQuote: "Treema observes historical trends. Vinetelligence actively orchestrates the immediate luxury guest experience.",
+                outcomeMetric: "8x Better Latency Index",
+                rows: [
+                    { metric: "Palate Flavor Profiling", vinetelligence: "Neural Organoleptic Mapping (Automatic)", competitor: "Basic demographic statistics predictions" },
+                    { metric: "Staff Education (Sommelier Node)", vinetelligence: "Direct Voice Scholar & region guide built-in", competitor: "None (Dashboard metrics only)" },
+                    { metric: "Interface System Latency", vinetelligence: "<42ms Edge Client Sync", competitor: "250ms+ Standard cloud server latency" },
+                    { metric: "Sovereign Customer Protection", vinetelligence: "Zero-Trust Private isolated DB silos", competitor: "Standard multi-tenant shared database" },
+                    { metric: "Dynamic Wine Inventory Pricing", vinetelligence: "Automatic supply-demand yield adjustments", competitor: "Static analytical regression chart" }
+                ]
+            }
+        };
+
+        // Render rows dynamically based on selector
+        function renderComparison(key) {
+            const data = targetData[key];
+            if (!data) return;
+
+            // Header Competitor Name
+            document.getElementById('table-comp-header').innerText = data.header;
+
+            // Row rendering
+            const wrapper = document.getElementById('comparison-rows');
+            wrapper.innerHTML = "";
+
+            data.rows.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-white/5 print-border hover:bg-white/5 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-6 text-[11px] font-bold text-stone-300 italic print-text-dark">${row.metric}</td>
+                    <td class="p-6 text-xs font-semibold text-emerald-400">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-check-circle text-emerald-500"></i>
+                            <span>${row.vinetelligence}</span>
+                        </div>
+                    </td>
+                    <td class="p-6 text-xs font-semibold text-stone-500 print-text-muted">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-times text-rose-500/80"></i>
+                            <span>${row.competitor}</span>
+                        </div>
+                    </td>
+                `;
+                wrapper.appendChild(tr);
+            });
+
+            // Populate other slots
+            document.getElementById('comp-title').innerText = data.title;
+            document.getElementById('comp-category-badge').innerText = data.category;
+            document.getElementById('comp-definition').innerText = data.definition;
+            document.getElementById('comp-gap-1').innerText = data.gap1;
+            document.getElementById('comp-gap-2').innerText = data.gap2;
+            document.getElementById('comp-status').innerText = data.status;
+            document.getElementById('outcome-quote').innerText = `"${data.outcomeQuote}"`;
+            document.getElementById('outcome-metric').innerText = data.outcomeMetric;
+        }
+
+        // Active State Tab Switch
+        function showCompetitor(key) {
+            // Update tabs active styles
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('bg-stone-900', 'border', 'border-white/5', 'text-stone-400');
+            });
+
+            const activeBtn = document.getElementById(`tab-${key}`);
+            activeBtn.classList.remove('bg-stone-900', 'border', 'border-white/5', 'text-stone-400');
+            activeBtn.classList.add('active');
+
+            renderComparison(key);
+        }
+
+        // Active state for social tabs
+        function switchSocialTab(postId) {
+            const boxes = document.querySelectorAll('.social-post-box');
+            boxes.forEach(box => box.classList.add('hidden'));
+
+            const selected = document.getElementById(`social-${postId}`);
+            selected.classList.remove('hidden');
+
+            const sBtns = document.querySelectorAll('.social-tab-btn');
+            sBtns.forEach(btn => btn.classList.remove('active', 'border-emerald-500', 'text-white'));
+
+            const activeBtn = document.getElementById(`btn-social-${postId.replace('post-', '')}`);
+            activeBtn.classList.add('active');
+        }
+
+        // Copy Text tool
+        function copySocialText(id) {
+            const elm = document.getElementById(id);
+            const range = document.createRange();
+            range.selectNode(elm);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand("copy");
+            window.getSelection().removeAllRanges();
+
+            const btn = event.target.closest('button');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<i class="fas fa-check"></i> Copied Pitch!`;
+            btn.classList.remove('bg-white', 'text-stone-900');
+            btn.classList.add('bg-emerald-500', 'text-stone-950');
+
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('bg-emerald-500', 'text-stone-950');
+                btn.classList.add('bg-white', 'text-stone-900');
+            }, 2000);
+        }
+
+        // Initial render
+        renderComparison('toast');
+    </script>
+</body>
+</html>

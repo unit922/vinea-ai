@@ -1,6 +1,8 @@
 
-import React from 'react';
-import { StaffShift } from '../../types';
+import React, { useState } from 'react';
+import { StaffShift } from '../../lib/types';
+import { Session } from '@supabase/supabase-js';
+import { supabaseSync } from '../../services/supabaseSync';
 
 interface SecuritySettingsProps {
   currentUserRole: StaffShift['role'];
@@ -8,17 +10,100 @@ interface SecuritySettingsProps {
   authMode: 'demo' | 'secure';
   onUpdateAuthMode: (mode: 'demo' | 'secure') => void;
   onLogout: () => void;
-  userSession?: any;
+  userSession?: Session | null;
+  restaurantId?: string;
 }
 
-const SecuritySettings: React.FC<SecuritySettingsProps> = ({ currentUserRole, onUpdateRole, authMode, onUpdateAuthMode, onLogout, userSession }) => {
+const SecuritySettings: React.FC<SecuritySettingsProps> = ({ 
+  currentUserRole, 
+  onUpdateRole, 
+  authMode, 
+  onUpdateAuthMode, 
+  onLogout, 
+  userSession,
+  restaurantId
+}) => {
   const isDemo = authMode === 'demo';
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<StaffShift['role']>('Server');
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  const staffList: StaffShift[] = JSON.parse(localStorage.getItem('intelligence_staff_list') || localStorage.getItem('oenovia_staff_list') || '[]');
+  const activeNodes = staffList.filter(s => s.accessStatus === 'Active').length;
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restaurantId) {
+      setInviteStatus({ type: 'error', message: 'Establishment ID not found. Please complete setup.' });
+      return;
+    }
+    if (isDemo) {
+      setInviteStatus({ type: 'error', message: 'Cloud invitations are only available in Secure Mode.' });
+      return;
+    }
+
+    setIsInviting(true);
+    setInviteStatus(null);
+    try {
+      await supabaseSync.addToRoster(restaurantId, inviteEmail, inviteRole);
+      
+      // Fetch restaurant name to include in invitation relay
+      const profile = await supabaseSync.getRestaurantProfile(restaurantId);
+      const restaurantName = profile?.name || 'Intelligence establishment';
+      
+      // Dispatch Invitation Email/OTP
+      await supabaseSync.sendInviteEmail(inviteEmail, restaurantName, inviteRole);
+
+      setInviteStatus({ 
+        type: 'success', 
+        message: `Node Authorized: ${inviteEmail} is now cleared for signup as ${inviteRole}. A verification link has been dispatched.` 
+      });
+      setInviteEmail('');
+      setShowInviteForm(false);
+    } catch (error) {
+      console.error("Intelligence: Invite failed", error);
+      const message = error instanceof Error ? error.message : 'Failed to send invitation.';
+      setInviteStatus({ type: 'error', message });
+    } finally {
+      setIsInviting(false);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+       {/* Team Security Summary */}
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-stone-900 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden border border-white/5">
+             <div className="absolute top-0 right-0 p-8 opacity-5"><i className="fas fa-shield-halved text-7xl"></i></div>
+             <p className="text-[9px] font-black uppercase tracking-[0.4em] text-amber-500 mb-4 italic">Security Summary</p>
+             <div className="flex justify-between items-end">
+                <div>
+                   <p className="text-4xl font-serif font-black italic">{activeNodes}</p>
+                   <p className="text-[10px] text-stone-500 uppercase font-black">Authorized Nodes</p>
+                </div>
+                <div className="text-right">
+                   <p className="text-xl font-bold text-stone-300">{staffList.length - activeNodes}</p>
+                   <p className="text-[8px] text-stone-600 uppercase font-black">Revoked / Pending</p>
+                </div>
+             </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-[2.5rem] border border-stone-200 shadow-sm flex flex-col justify-between group hover:border-amber-500 transition-all cursor-pointer">
+             <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-stone-400 mb-2 italic">Roster Command</p>
+                <p className="text-sm font-bold text-stone-800 leading-relaxed italic">"Access the central registry to assign technical roles and manage node clearances."</p>
+             </div>
+             <div className="flex items-center gap-2 text-amber-600 text-[10px] font-black uppercase tracking-widest mt-4">
+                Manage All Nodes <i className="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+             </div>
+          </div>
+       </div>
+
        <div className="bg-white p-8 rounded-[2rem] border border-stone-200 shadow-sm space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-black uppercase tracking-widest text-stone-400">Access Control & Roles</h3>
+            <h3 className="text-sm font-black uppercase tracking-widest text-stone-400">My Personal Protocol</h3>
             <div className="flex gap-3">
                <button 
                   onClick={() => onUpdateAuthMode(isDemo ? 'secure' : 'demo')}
@@ -30,7 +115,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ currentUserRole, on
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {(['Manager', 'Sommelier', 'Mixologist', 'Server'] as const).map(role => (
+            {(['Admin', 'Manager', 'Sommelier', 'Mixologist', 'Server', 'Investor'] as const).map(role => (
               <button
                 key={role}
                 onClick={() => onUpdateRole(role)}
@@ -83,11 +168,70 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ currentUserRole, on
                 </div>
              )}
 
-             <div className="flex items-center justify-center py-8 border-2 border-dashed border-stone-100 rounded-2xl">
-                <button className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors">
-                  <i className="fas fa-plus-circle mr-2"></i> Add Managed User (Invite)
-                </button>
-             </div>
+              {inviteStatus && (
+                <div className={`mb-4 p-4 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                  inviteStatus.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
+                }`}>
+                  {inviteStatus.message}
+                </div>
+              )}
+
+              {showInviteForm ? (
+                <form onSubmit={handleInvite} className="p-6 bg-stone-50 rounded-2xl space-y-4 border border-stone-100">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-400">Email Address</label>
+                    <input 
+                      type="email"
+                      required
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="staff@establishment.com"
+                      className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/5"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-400">Role Assignment</label>
+                    <select 
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value as StaffShift['role'])}
+                      className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/5"
+                    >
+                      <option value="Server">Server</option>
+                      <option value="Mixologist">Mixologist</option>
+                      <option value="Sommelier">Sommelier</option>
+                      <option value="Concierge">Concierge</option>
+                      <option value="Manager">Manager</option>
+                      <option value="Admin">Admin</option>
+                      <option value="Investor">Investor</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button 
+                      type="submit"
+                      disabled={isInviting}
+                      className="flex-1 py-3 bg-stone-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-stone-800 transition-all disabled:opacity-50"
+                    >
+                      {isInviting ? 'Sending...' : 'Send Invite'}
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setShowInviteForm(false)}
+                      className="px-6 py-3 bg-stone-200 text-stone-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-stone-300 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-center justify-center py-8 border-2 border-dashed border-stone-100 rounded-2xl">
+                   <button 
+                    onClick={() => setShowInviteForm(true)}
+                    className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors"
+                   >
+                     <i className="fas fa-plus-circle mr-2"></i> Add Managed User (Invite)
+                   </button>
+                </div>
+              )}
           </div>
        </div>
     </div>

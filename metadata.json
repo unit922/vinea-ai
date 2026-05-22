@@ -1,6 +1,6 @@
 {
-  "name": "Vinea AI Beverage Intelligence & Training",
-  "description": "A comprehensive AI-guided restaurant management platform specializing in beverage intelligence, predictive inventory, and staff training. Built to surpass traditional hospitality systems with deep generative AI integration.",
+  "name": "Vinetelligence",
+  "description": "Neural operating system and beverage intelligence platform for premium establishments. Specializing in predictive inventory, staff mastery, and intelligent operational excellence.",
   "requestFramePermissions": [
     "camera",
     "microphone"

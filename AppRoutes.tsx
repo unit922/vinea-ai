@@ -27,7 +27,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({ onEnterDemo, onStartOnboarding, o
         <Route path="/platform" element={<Platform onEnterDemo={onEnterDemo} onStartOnboarding={onStartOnboarding} />} />
         <Route path="/partners/mews" element={<MewsProposal />} />
         {/* Fallback to Home */}
-        <Route path="*" element={<Home onEnterDemo={onEnterDemo} onStartOnboarding={onStartOnboarding} />} />
+        <Route path="*" element={<Home onEnterDemo={onEnterDemo} onStartOnboarding={onStartOnboarding} onLogin={onLogin} />} />
       </Routes>
     </PublicLayout>
   );

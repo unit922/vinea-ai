@@ -28,19 +28,19 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
     { id: '5', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80', label: 'Analytical' },
   ];
 
-  const [isEssentialTier, setIsEssentialTier] = useState(false);
-
   const handleResetConfig = () => {
     supabaseSync.saveSupabaseConfig('', ''); // Clear manual config
-    const stored = localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
+    const stored = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
     if (stored) {
       try {
         const p = JSON.parse(stored);
         if (p.supabaseUrl) delete p.supabaseUrl;
         if (p.supabaseAnonKey) delete p.supabaseAnonKey;
-        localStorage.setItem('intelligence_profile', JSON.stringify(p));
+        localStorage.setItem('vinetelligence_profile', JSON.stringify(p));
+        localStorage.setItem('vinea_profile', JSON.stringify(p));
       } catch {
-        localStorage.removeItem('intelligence_profile');
+        localStorage.removeItem('vinetelligence_profile');
+        localStorage.removeItem('vinea_profile');
       }
     }
     window.location.reload();
@@ -50,11 +50,10 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
     setMode(initialMode);
     
     // Pre-fill establishment name and email if it's in localStorage (from onboarding)
-    const storedProfile = localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
+    const storedProfile = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
     if (storedProfile) {
       try {
         const p = JSON.parse(storedProfile);
-        setIsEssentialTier(p.edition === 'essential');
         if (p.allowGoogleAuth !== undefined) {
           setGoogleAuthEnabled(!!p.allowGoogleAuth);
         }
@@ -65,7 +64,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
           setEmail(p.ownerEmail);
         }
       } catch (err) {
-        console.error("Intelligence: Profile parse failed", err);
+        console.error("Vinetelligence: Profile parse failed", err);
       }
     }
   }, [initialMode]);
@@ -76,16 +75,19 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
     setError(null);
     try {
       if (mode === 'signup') {
-        const isOenoviaDev = email.toLowerCase().endsWith('@oenovia.ai');
+        const isVinetelligenceDev = email.toLowerCase().endsWith('@vinetelligence.live');
         
         // If they are registering a new establishment from onboarding, they should be Owner
-        // We can check if the establishmentName matches what's in localStorage
-        const storedProfile = localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
+        // We can check if the establishmentName or ownerEmail matches what's in localStorage
+        const storedProfile = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
         const p = storedProfile ? JSON.parse(storedProfile) : null;
-        const isInitialOwner = p && p.name === establishmentName;
+        const isInitialOwner = p && (
+          (p.name && establishmentName && p.name.trim().toLowerCase() === establishmentName.trim().toLowerCase()) ||
+          (p.ownerEmail && email && p.ownerEmail.trim().toLowerCase() === email.trim().toLowerCase())
+        );
 
         const trimmedName = establishmentName.trim();
-        console.log("Intelligence: AuthView submitting signup", { 
+        console.log("Vinetelligence: AuthView submitting signup", { 
           email, 
           establishmentName, 
           trimmedName,
@@ -94,21 +96,21 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
         });
 
         let restaurant = await authService.verifyEstablishment(trimmedName);
-        console.log("Intelligence: AuthView verifyEstablishment result", restaurant);
+        console.log("Vinetelligence: AuthView verifyEstablishment result", restaurant);
         if (restaurant && restaurant.allow_google_auth !== undefined) {
           setGoogleAuthEnabled(!!restaurant.allow_google_auth);
         }
 
         let assignedRole = 'Server';
-        if (isOenoviaDev) assignedRole = 'Developer';
+        if (isVinetelligenceDev) assignedRole = 'Developer';
         else if (isInitialOwner) assignedRole = 'Owner';
 
         // Fallback 1: Try to find establishment by user's email in roster
-        if (!restaurant && !isOenoviaDev) {
-          console.log("Intelligence: Establishment not found by name, trying email lookup in roster...");
+        if (!restaurant && !isVinetelligenceDev) {
+          console.log("Vinetelligence: Establishment not found by name, trying email lookup in roster...");
           const rosterEntry = await supabaseSync.findRosterEntry(email);
           if (rosterEntry && rosterEntry.restaurants) {
-            console.log("Intelligence: Found establishment via roster lookup", rosterEntry.restaurants);
+            console.log("Vinetelligence: Found establishment via roster lookup", rosterEntry.restaurants);
             restaurant = rosterEntry.restaurants;
             // Also store the role from roster for immediate use
             if (rosterEntry.role) {
@@ -121,12 +123,12 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
         // Fallback 2: If we can't find it by name but we have a local ID from onboarding, trust it
         // BUT only if it's a valid UUID (not 'demo-id')
         if (!restaurant && isInitialOwner && p?.id && p.id !== 'demo-id') {
-          console.log("Intelligence: Establishment not found by name lookup, but using local ID from onboarding session", p.id);
+          console.log("Vinetelligence: Establishment not found by name lookup, but using local ID from onboarding session", p.id);
           restaurant = { id: p.id, name: p.name };
         }
 
-        if (!restaurant && !isOenoviaDev) {
-          console.error("Intelligence: Establishment verification failed in AuthView", trimmedName);
+        if (!restaurant && !isVinetelligenceDev) {
+          console.error("Vinetelligence: Establishment verification failed in AuthView", trimmedName);
           const errorMsg = p?.id === 'demo-id' 
             ? `Establishment "${trimmedName}" registration was not completed. Please return to onboarding.`
             : `Establishment "${trimmedName}" (or your email node) was not found in our registries. Ensure the owner has authorized your node in the Roster Command.`;
@@ -161,14 +163,14 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
         if (res.session) {
           // If we have a newly registered establishment in localStorage from onboarding,
           // ensure the user is linked to it if they are logging in with an existing account.
-          const storedProfile = localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile');
+          const storedProfile = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
           if (storedProfile) {
             try {
               const p = JSON.parse(storedProfile);
               if (p.id && p.id !== 'demo-id') {
                 const currentRid = res.session.user.user_metadata?.restaurant_id;
                 if (currentRid !== p.id) {
-                   console.log("Intelligence: User logged in but session restaurant mismatch. Linking to newly registered [", p.name, "]");
+                   console.log("Vinetelligence: User logged in but session restaurant mismatch. Linking to newly registered [", p.name, "]");
                    try {
                      await authService.linkToEstablishment(p.id, email);
                      // Update session object before passing to onSuccess
@@ -177,12 +179,12 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
                        restaurant_id: p.id
                      };
                    } catch (linkErr) {
-                     console.warn("Intelligence: Auto-linking to new establishment failed", linkErr);
+                     console.warn("Vinetelligence: Auto-linking to new establishment failed", linkErr);
                    }
                 }
               }
             } catch (pErr) {
-              console.error("Intelligence: Profile parse error during linking", pErr);
+              console.error("Vinetelligence: Profile parse error during linking", pErr);
             }
           }
           await onSuccess(res.session);
@@ -201,8 +203,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
 
 This happens if:
 1. The URL is incorrect (check for typos).
-2. The endpoint does not use HTTPS (required for oenovia.ai).
-3. The domain 'oenovia.ai' is not added to your Supabase 'Site URL' or 'Allowed Redirects'.
+2. The endpoint does not use HTTPS (required for vinetelligence.live).
+3. The domain 'vinetelligence.live' is not added to your Supabase 'Site URL' or 'Allowed Redirects'.
 
 Please check your console (F12) for detailed Network logs.`;
         setHasConnectivityError(true);
@@ -230,7 +232,7 @@ Please check your console (F12) for detailed Network logs.`;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
-        console.warn("Intelligence: Connection test timed out after 10s");
+        console.warn("Vinetelligence: Connection test timed out after 10s");
       }, 10000);
       
       const res = await fetch(`${cleanUrl}/rest/v1/`, {
@@ -252,7 +254,7 @@ Please check your console (F12) for detailed Network logs.`;
       }
     } catch (err: unknown) {
       const error = err as { message?: string, name?: string };
-      console.error("Intelligence: Connection Test Failure", error);
+      console.error("Vinetelligence: Connection Test Failure", error);
       
       let detail = error.message || 'Unknown Host Exception';
       
@@ -389,10 +391,10 @@ Please check your console (F12) for detailed Network logs.`;
               <p className="text-indigo-500/80 text-[11px] font-serif italic">Finalizing administrative credentials for {establishmentName}</p>
             )}
             <div className="flex flex-col items-center gap-1">
-              <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.3em]">Security Node 3.2.0 Active</p>
+              <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.3em]">Security Node 3.1.0 Active</p>
               {(() => {
                  try {
-                   const profile = JSON.parse(localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
+                   const profile = JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
                    const envUrl = (import.meta.env?.VITE_SUPABASE_URL as string) || 
                                   (typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL) : undefined);
                    const url = envUrl || profile.supabaseUrl;
@@ -404,25 +406,13 @@ Please check your console (F12) for detailed Network logs.`;
          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {isEssentialTier && (
-              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-2 animate-in slide-in-from-top-4 duration-500">
-                <div className="flex items-center gap-2 text-emerald-500 font-black uppercase tracking-widest text-[9px]">
-                  <i className="fas fa-info-circle"></i>
-                  <span>Protocol Synchronization</span>
-                </div>
-                <p className="text-[10px] text-emerald-200/60 font-medium italic leading-relaxed">
-                  As an Essential Node, your administrative credentials are best managed directly via the <span className="text-emerald-400 font-bold">vinea.live</span> platform.
-                </p>
-              </div>
-            )}
-
             {error && (
               <div className={`p-4 border rounded-xl text-xs text-center font-medium space-y-3 ${error.includes('Check your inbox') ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
                 <p>{error}</p>
                 {error.includes("Cloud Silo") && (
                   <div className="space-y-3">
                     <div className="pt-2 border-t border-red-500/20 text-[10px] opacity-70">
-                      Try Demo Admin: <span className="font-mono text-white">admin@oenovia.ai</span> / <span className="font-mono text-white">admin123</span>
+                      Try Demo Admin: <span className="font-mono text-white">admin@vinetelligence.live</span> / <span className="font-mono text-white">admin123</span>
                     </div>
                     {hasConnectivityError && (
                       <button 
@@ -483,7 +473,7 @@ Please check your console (F12) for detailed Network logs.`;
                   <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Assigned Establishment</label>
                   <input 
                     type="text" 
-                    required={!email.toLowerCase().endsWith('@oenovia.ai')}
+                    required={!email.toLowerCase().endsWith('@vinetelligence.live')}
                     value={establishmentName}
                     onChange={e => setEstablishmentName(e.target.value)}
                     placeholder="Exact Name of Establishment"
@@ -529,7 +519,7 @@ Please check your console (F12) for detailed Network logs.`;
             <div className="space-y-2">
               <div className="flex justify-between items-center px-1">
                 <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Command Email</label>
-                {email.toLowerCase().endsWith('@oenovia.ai') && (
+                {email.toLowerCase().endsWith('@vinetelligence.live') && (
                   <span className="text-[8px] font-black uppercase bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded border border-indigo-500/20 animate-pulse">Developer Node</span>
                 )}
               </div>
@@ -538,7 +528,7 @@ Please check your console (F12) for detailed Network logs.`;
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="ops@oenovia.ai"
+                placeholder="ops@vinetelligence.live"
                 className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-stone-700"
               />
             </div>
@@ -562,7 +552,7 @@ Please check your console (F12) for detailed Network logs.`;
             >
               {loading ? <i className="fas fa-spinner fa-spin"></i> : (
                 mode === 'login' ? 'Establish Link' : (
-                  email.toLowerCase().endsWith('@oenovia.ai') ? 'Initialize Dev Node' : 'Register Operator'
+                  email.toLowerCase().endsWith('@vinetelligence.live') ? 'Initialize Dev Node' : 'Register Operator'
                 )
               )}
             </button>
@@ -585,7 +575,7 @@ Please check your console (F12) for detailed Network logs.`;
                     <p className="text-[8px] font-mono text-stone-500">
                       {(() => {
                         try {
-                          const profile = JSON.parse(localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
+                          const profile = JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
                           const envUrl = (import.meta.env?.VITE_SUPABASE_URL as string) || 
                                          (typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL) : undefined);
                           const url = envUrl || profile.supabaseUrl;

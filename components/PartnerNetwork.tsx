@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Share2, Zap, ShieldCheck, Database } from 'lucide-react';
+import AHLALogo from './AHLALogo';
 
 const MEWS_PARTNER_LINK = "https://referrals.mews.com/uU3mdly3";
 
@@ -26,6 +27,7 @@ const PartnerNetwork = () => {
             </div>
 
             <div className="space-y-8">
+              {/* Mews PMS Card */}
               <div className="p-8 bg-white rounded-3xl border border-stone-200 shadow-sm hover:shadow-xl transition-all group">
                 <div className="flex items-center gap-6 mb-6">
                   <div className="w-16 h-16 bg-stone-900 rounded-2xl flex items-center justify-center text-emerald-400 text-3xl font-serif">M</div>
@@ -45,6 +47,20 @@ const PartnerNetwork = () => {
                 >
                   Configure Mews Bridge <i className="fas fa-arrow-right text-emerald-500"></i>
                 </a>
+              </div>
+
+              {/* AHLA Allied Member Card */}
+              <div className="p-8 bg-white rounded-3xl border border-stone-200 shadow-sm hover:shadow-xl transition-all group">
+                <div className="mb-6">
+                  <AHLALogo height={28} theme="color" />
+                </div>
+                <p className="text-stone-500 text-sm leading-relaxed mb-8 italic">
+                  "Vinetelligence is proud to be an Official Allied Member of the American Hotel & Lodging Association (AHLA). We work closely with leading brands to bring autonomous beverage intelligence, compliant guest data synchronizations, and modernized parlor-to-cellar solutions to the nation's premier lodging establishments."
+                </p>
+                <div className="flex items-center gap-3 text-stone-950 font-black text-[10px] uppercase tracking-widest cursor-default">
+                  <span>Certified AHLA Allied Track</span>
+                  <i className="fas fa-certificate text-rose-600 animate-pulse"></i>
+                </div>
               </div>
             </div>
           </div>

@@ -97,6 +97,44 @@ const AppVinea: React.FC = () => {
   const [showDevPortal, setShowDevPortal] = useState(false);
   const [isWelcomeBriefingOpen, setIsWelcomeBriefingOpen] = useState(false);
   
+  const handleInstantDemo = useCallback(() => {
+    console.log("Vinea: Triggering Instant Demo Access");
+    const demoProfile: RestaurantProfile = {
+      id: 'demo-id',
+      name: 'The Nebula Reserve (Demo)',
+      ownerEmail: 'demo@vinetelligence.live',
+      type: 'Restaurant',
+      focus: 'Wine & Spirits',
+      edition: 'demo',
+      tier: 'Explorer',
+      demoMode: 'operator',
+      aiPersona: 'technical',
+      subscriptionStatus: 'active'
+    };
+    
+    localStorage.setItem('vinetelligence_profile', JSON.stringify(demoProfile));
+    sessionStorage.setItem('vinetelligence_demo_active', 'true');
+    setRestaurantProfile(demoProfile);
+    setInventory(INITIAL_INVENTORY);
+    setIsDemoMode(true);
+    setShowOnboarding(true);
+    setAuthMode('demo');
+    
+    if (!session) {
+      authService.signInAnonymously().then(res => {
+        if (res.session) setSession(res.session);
+      });
+    }
+
+    setIsReady(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [session, setRestaurantProfile, setInventory, setSession, setAuthMode, setIsReady]);
+
+  const instantDemoRef = React.useRef(handleInstantDemo);
+  useEffect(() => {
+    instantDemoRef.current = handleInstantDemo;
+  }, [handleInstantDemo]);
+
   const prevStates = React.useRef<Record<string, string | number | boolean | null>>({});
   useEffect(() => {
     const currentStates = {
@@ -163,7 +201,7 @@ const AppVinea: React.FC = () => {
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete('demo');
         window.history.replaceState({}, '', newUrl.toString());
-        handleInstantDemo();
+        instantDemoRef.current();
         return;
       }
 
@@ -194,29 +232,10 @@ const AppVinea: React.FC = () => {
 
       // Handle direct sandbox access via mode=demo parameter
       if (modeParam === 'demo') {
-        const demoProfile: RestaurantProfile = {
-          id: 'demo-id',
-          name: 'The Nebula Reserve (Demo)',
-          ownerEmail: 'demo@vinetelligence.live',
-          type: 'Restaurant',
-          focus: 'Wine & Spirits',
-          edition: 'demo',
-          tier: 'Explorer',
-          demoMode: 'operator',
-          aiPersona: 'technical',
-          subscriptionStatus: 'active'
-        };
-        
-        localStorage.setItem('vinetelligence_profile', JSON.stringify(demoProfile));
-        sessionStorage.setItem('vinetelligence_demo_active', 'true');
-        
-        setRestaurantProfile(demoProfile);
-        setInventory(INITIAL_INVENTORY);
-        setIsDemoMode(true);
-        setShowOnboarding(true);
-        setAuthMode('demo');
-        setIsReady(true);
-        window.history.pushState({}, '', '/');
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('mode');
+        window.history.replaceState({}, '', newUrl.toString());
+        instantDemoRef.current();
         return;
       }
 
@@ -298,9 +317,17 @@ const AppVinea: React.FC = () => {
         console.log("Vinea: Booting application...");
         await supabaseSync.verifySchema().catch(() => {});
 
-        const storedProfile = localStorage.getItem('vinetelligence_profile');
-        const onboarded = localStorage.getItem('vinetelligence_onboarded') === 'true';
-        const demoActive = sessionStorage.getItem('vinetelligence_demo_active') === 'true';
+        const storedProfile = localStorage.getItem('vinetelligence_profile') || 
+                              localStorage.getItem('intelligence_profile') || 
+                              localStorage.getItem('oenovia_profile') || 
+                              localStorage.getItem('vinea_profile');
+        const onboarded = localStorage.getItem('vinetelligence_onboarded') === 'true' || 
+                          localStorage.getItem('intelligence_onboarded') === 'true' || 
+                          localStorage.getItem('oenovia_onboarded') === 'true' || 
+                          localStorage.getItem('vinea_onboarded') === 'true';
+        const demoActive = sessionStorage.getItem('vinetelligence_demo_active') === 'true' || 
+                           sessionStorage.getItem('oenovia_demo_active') === 'true' || 
+                           sessionStorage.getItem('vinea_demo_active') === 'true';
         
         if (storedProfile && (onboarded || demoActive)) {
           let p;
@@ -314,7 +341,7 @@ const AppVinea: React.FC = () => {
           if (p) {
             const isDemo = p.edition === 'demo';
             
-            if (isDemo && !demoActive) {
+            if (isDemo && !demoActive && !onboarded) {
               console.log("Vinea: Demo profile found but inactive. Defaulting to landing.");
               setRestaurantProfile(null);
               setIsReady(true);
@@ -367,6 +394,8 @@ const AppVinea: React.FC = () => {
                 }
               }
             } else {
+              setIsDemoMode(true);
+              sessionStorage.setItem('vinetelligence_demo_active', 'true');
               const currentSession = await authService.getSession().catch(() => null);
               const hasRealSession = currentSession && currentSession.user.user_metadata?.restaurant_id && currentSession.user.user_metadata.restaurant_id !== 'demo-id';
               
@@ -454,6 +483,21 @@ const AppVinea: React.FC = () => {
         const isDev = isSystemAdmin(email) || newSession.user.user_metadata?.role === 'Developer';
         setIsDeveloper(isDev);
         if (isDev) setShowDevPortal(true);
+
+        const rid = newSession.user.user_metadata?.restaurant_id;
+        if (rid && rid !== 'demo-id') {
+          supabaseSync.getRestaurantProfile(rid).then(profile => {
+            if (profile) {
+              setRestaurantProfile(profile);
+              localStorage.setItem('vinetelligence_profile', JSON.stringify(profile));
+              localStorage.setItem('vinetelligence_onboarded', 'true');
+              setAuthMode('secure');
+              window.dispatchEvent(new Event('storage'));
+            }
+          }).catch(err => {
+            console.error("Vinea: error restoring profile in onAuthChange", err);
+          });
+        }
       }
     });
 
@@ -555,39 +599,6 @@ const AppVinea: React.FC = () => {
     }
   };
 
-  const handleInstantDemo = () => {
-    console.log("Vinea: Triggering Instant Demo Access");
-    const demoProfile: RestaurantProfile = {
-      id: 'demo-id',
-      name: 'The Nebula Reserve (Demo)',
-      ownerEmail: 'demo@vinetelligence.live',
-      type: 'Restaurant',
-      focus: 'Wine & Spirits',
-      edition: 'demo',
-      tier: 'Explorer',
-      demoMode: 'operator',
-      aiPersona: 'technical',
-      subscriptionStatus: 'active'
-    };
-    
-    localStorage.setItem('vinetelligence_profile', JSON.stringify(demoProfile));
-    sessionStorage.setItem('vinetelligence_demo_active', 'true');
-    setRestaurantProfile(demoProfile);
-    setInventory(INITIAL_INVENTORY);
-    setIsDemoMode(true);
-    setShowOnboarding(true);
-    setAuthMode('demo');
-    
-    if (!session) {
-      authService.signInAnonymously().then(res => {
-        if (res.session) setSession(res.session);
-      });
-    }
-
-    setIsReady(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const handleRelaunchOnboarding = useCallback(() => {
     setShowOnboarding(true);
     setShowAuth(null);
@@ -660,7 +671,22 @@ const AppVinea: React.FC = () => {
     );
   }
 
-  const isVinetelligenceDomain = typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence.live');
+  if (session && !restaurantProfile && !isDeveloper && !showOnboarding && !showAuth) {
+    return (
+      <div className="fixed inset-0 bg-stone-950 flex flex-col items-center justify-center p-12 text-center font-serif">
+         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center opacity-10"></div>
+         <div className="relative z-10 space-y-8 animate-pulse">
+            <h1 className="text-6xl font-black text-white tracking-tighter italic">Vinea AI</h1>
+            <div className="flex items-center gap-3 justify-center">
+               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
+               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+            </div>
+            <p className="text-stone-400 text-[10px] font-black uppercase tracking-[0.5em]">Synchronizing Corporate Node Settings...</p>
+         </div>
+      </div>
+    );
+  }
 
   // Show Fallback/Multi-Page Website if not logged in and not on an OS route
   if (!session && !isPublicRoute && !showOnboarding && !showAuth) {
@@ -669,18 +695,10 @@ const AppVinea: React.FC = () => {
         <AppRoutes 
           onEnterDemo={handleInstantDemo} 
           onStartOnboarding={() => {
-            if (isVinetelligenceDomain) {
-              window.location.href = 'https://vinea.live?onboarding=true';
-              return;
-            }
             setIsDemoMode(false);
             setShowOnboarding(true);
           }}
           onLogin={() => {
-            if (isVinetelligenceDomain) {
-              window.location.href = 'https://vinea.live?mode=login';
-              return;
-            }
             setShowAuth('login');
           }}
         />

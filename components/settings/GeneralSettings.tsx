@@ -11,7 +11,7 @@ interface GeneralSettingsProps {
 
 const GeneralSettings: React.FC<GeneralSettingsProps> = ({ profile, onUpdate }) => {
   const [tables, setTables] = useState<Table[]>(() => {
-    const savedTables = localStorage.getItem('intelligence_tables') || localStorage.getItem('oenovia_tables');
+    const savedTables = localStorage.getItem('vinetelligence_tables') || localStorage.getItem('vinea_tables');
     return savedTables ? JSON.parse(savedTables) : INITIAL_TABLES;
   });
   const [barCapacity, setBarCapacity] = useState<number>(profile?.barCapacity || 12);
@@ -24,10 +24,11 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ profile, onUpdate }) 
           const cloudTables = await supabaseSync.pullTables(profile.id);
           if (cloudTables && cloudTables.length > 0) {
             setTables(cloudTables);
-            localStorage.setItem('intelligence_tables', JSON.stringify(cloudTables));
+            localStorage.setItem('vinetelligence_tables', JSON.stringify(cloudTables));
+            localStorage.setItem('vinea_tables', JSON.stringify(cloudTables));
           }
         } catch (e) {
-          console.error("Intelligence: Failed to fetch cloud tables for settings", e);
+          console.error("Vinetelligence: Failed to fetch cloud tables for settings", e);
         }
       }
     };
@@ -64,17 +65,17 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ profile, onUpdate }) 
 
   const handleSaveArchitecture = async () => {
     setIsSaving(true);
-    localStorage.setItem('intelligence_tables', JSON.stringify(tables));
+    localStorage.setItem('vinetelligence_tables', JSON.stringify(tables));
+    localStorage.setItem('vinea_tables', JSON.stringify(tables));
     onUpdate('barCapacity', barCapacity);
     
     // Sync to Supabase if in secure mode
-    const profileStr = localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile');
-    const profileToSync = JSON.parse(profileStr || '{}');
+    const profileToSync = JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
     if (profileToSync.id && profileToSync.id !== 'demo-id') {
       try {
         await supabaseSync.bulkUpdateTables(profileToSync.id, tables);
       } catch (e) {
-        console.error("Intelligence: Failed to sync architectural changes", e);
+        console.error("Vinetelligence: Failed to sync architectural changes", e);
       }
     }
 
@@ -104,9 +105,9 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ profile, onUpdate }) 
               <div className="space-y-1">
                  <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Current Plan</p>
                  <p className="text-xl font-black text-stone-900 italic">
-                    {profile?.edition === 'essential' ? 'The Essential' : 
+                    {profile?.edition === 'free' ? 'The Essential' : 
                      profile?.edition === 'demo' ? 'Explorer (Demo)' : 
-                     profile?.edition === 'growth' ? 'The Growth' : 'Enterprise'}
+                     profile?.edition === 'paid' ? 'The Growth' : 'The Enterprise'}
                  </p>
               </div>
               <div className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl">

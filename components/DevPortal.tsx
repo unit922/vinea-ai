@@ -13,7 +13,7 @@ const DevPortal: React.FC<DevPortalProps> = ({ onSelect, userEmail }) => {
   const [purgeResult, setPurgeResult] = useState<{ count: number; message: string } | null>(null);
 
   const handlePurgeOrphans = async () => {
-    const secret = prompt("Intelligence Security Protocol: Enter Administrative Secret (Service Role Key)");
+    const secret = prompt("Vinetelligence Security Protocol: Enter Administrative Secret (Service Role Key)");
     if (!secret) return;
 
     setPurging(true);
@@ -228,7 +228,7 @@ const DevPortal: React.FC<DevPortalProps> = ({ onSelect, userEmail }) => {
           transition={{ delay: 0.9 }}
           className="text-center"
         >
-          <p className="text-[9px] font-black text-stone-700 uppercase tracking-[0.5em]">Intelligence Intelligence Suite // Dev Auth 3.1.0</p>
+          <p className="text-[9px] font-black text-stone-700 uppercase tracking-[0.5em]">Vinetelligence Intelligence Suite // Dev Auth 3.1.0</p>
         </motion.div>
       </div>
     </div>

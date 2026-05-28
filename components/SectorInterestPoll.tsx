@@ -35,7 +35,7 @@ const POLL_CONFIG = [
   { 
     id: 'concierge-hub', 
     label: 'Concierge Hub', 
-    description: 'Neural Hospitality & Guest Journey Management', 
+    description: 'Automated Marketing & Guest Journey Management', 
     icon: <Users className="w-5 h-5" />,
     initialVotes: 31
   }
@@ -43,12 +43,8 @@ const POLL_CONFIG = [
 
 export const SectorInterestPoll: React.FC = () => {
   const [votes, setVotes] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('intelligence_sector_poll_v2');
+    const saved = localStorage.getItem('vinetelligence_sector_poll_v2') || localStorage.getItem('vinea_sector_poll_v2');
     if (saved) return JSON.parse(saved);
-    
-    // Fallback to legacy keys
-    const legacy = localStorage.getItem('oenovia_sector_poll_v2');
-    if (legacy) return JSON.parse(legacy);
     
     const initial: Record<string, number> = {};
     POLL_CONFIG.forEach(opt => {
@@ -58,18 +54,18 @@ export const SectorInterestPoll: React.FC = () => {
   });
 
   const [hasVoted, setHasVoted] = useState(() => {
-    return !!(localStorage.getItem('intelligence_user_voted_sector') || localStorage.getItem('oenovia_user_voted_sector'));
+    return !!(localStorage.getItem('vinetelligence_user_voted_sector') || localStorage.getItem('vinea_user_voted_sector'));
   });
   const [votedId, setVotedId] = useState<string | null>(() => {
-    return localStorage.getItem('intelligence_user_voted_sector') || localStorage.getItem('oenovia_user_voted_sector');
+    return localStorage.getItem('vinetelligence_user_voted_sector') || localStorage.getItem('vinea_user_voted_sector');
   });
 
   useEffect(() => {
     const handleStorage = () => {
-      const saved = localStorage.getItem('intelligence_sector_poll_v2') || localStorage.getItem('oenovia_sector_poll_v2');
+      const saved = localStorage.getItem('vinetelligence_sector_poll_v2') || localStorage.getItem('vinea_sector_poll_v2');
       if (saved) setVotes(JSON.parse(saved));
       
-      const userVoted = localStorage.getItem('intelligence_user_voted_sector') || localStorage.getItem('oenovia_user_voted_sector');
+      const userVoted = localStorage.getItem('vinetelligence_user_voted_sector') || localStorage.getItem('vinea_user_voted_sector');
       if (userVoted) {
         setHasVoted(true);
         setVotedId(userVoted);
@@ -86,8 +82,10 @@ export const SectorInterestPoll: React.FC = () => {
     setVotes(updatedVotes);
     setHasVoted(true);
     setVotedId(id);
-    localStorage.setItem('intelligence_sector_poll_v2', JSON.stringify(updatedVotes));
-    localStorage.setItem('intelligence_user_voted_sector', id);
+    localStorage.setItem('vinetelligence_sector_poll_v2', JSON.stringify(updatedVotes));
+    localStorage.setItem('vinea_sector_poll_v2', JSON.stringify(updatedVotes));
+    localStorage.setItem('vinetelligence_user_voted_sector', id);
+    localStorage.setItem('vinea_user_voted_sector', id);
   };
 
   const totalVotes = Object.values(votes).reduce((sum, v) => sum + v, 0);
@@ -106,7 +104,7 @@ export const SectorInterestPoll: React.FC = () => {
 
         <div className="space-y-2">
           <h3 className="text-3xl font-serif font-black italic leading-[1.1] tracking-tight">
-            Which intelligence core module is most critical for your sector's evolution?
+            Which Vinetelligence core module is most critical for your sector's evolution?
           </h3>
           <p className="text-[10px] font-mono font-bold uppercase opacity-50 italic">
             Synthesizing industry interest to prioritize neural development.
@@ -179,7 +177,7 @@ export const SectorInterestPoll: React.FC = () => {
             <div className="flex items-center gap-2">
               <MessageSquare className="w-3 h-3 text-emerald-500" />
               <span className="text-[9px] font-mono font-bold uppercase text-emerald-500 italic">
-                Data Synced to Intelligence Core
+                Data Synced to Vinetelligence Core
               </span>
             </div>
           )}

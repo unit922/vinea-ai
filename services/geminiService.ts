@@ -5,7 +5,7 @@ import { ServiceOrder, RetailTransaction, InventoryItem, AIPairingSuggestion } f
 
 const getProfile = () => {
   if (typeof window === 'undefined') return { edition: 'demo', aiPersona: 'technical' };
-  const profileKey = localStorage.getItem('intelligence_profile') ? 'intelligence_profile' : (localStorage.getItem('vinetelligence_profile') ? 'vinetelligence_profile' : 'vinea_profile');
+  const profileKey = localStorage.getItem('vinetelligence_profile') ? 'vinetelligence_profile' : 'vinea_profile';
   const profile = localStorage.getItem(profileKey);
   if (profile) {
     try {
@@ -28,7 +28,7 @@ const getPersonaInstruction = (userRole?: string) => {
   let instruction = personas[profile.aiPersona] || personas['technical'];
   
   instruction += `\n\nCORE IDENTITY:
-  - You are the integrated intelligence layer of the Global Network.
+  - You are the integrated intelligence layer of Vinetelligence (vinetelligence.live).
   - Your purpose is to bridge the gap between technical scholarship and world-class hospitality.
   - You operate as a "Nebula" of collective intelligence, drawing from global vintages and operational data.`;
 
@@ -43,7 +43,7 @@ const getPersonaInstruction = (userRole?: string) => {
   - Always provide a clear Rationale for your suggestions to ensure pedagogical value.`;
   
   instruction += `\n\nESTABLISHMENT CONTEXT:
-  - Venue: ${profile.name || 'Hospitality Node'} (${profile.type || 'Luxury Venue'})
+  - Venue: ${profile.name || 'Vinetelligence'} (${profile.type || 'Luxury Venue'})
   - Focus: ${profile.focus || 'General Beverage Excellence'}
   - Philosophy: ${profile.description || 'Precision and scholarship.'}`;
 
@@ -61,23 +61,9 @@ const sanitizeInput = (text: string) => {
 };
 
 export const getApiKey = () => {
-  // Check sessionStorage for pre-loaded server API key first for frictionless sandbox operation
-  try {
-    const serverKey = sessionStorage.getItem('vinetelligence_server_api_key');
-    if (serverKey) return serverKey;
-  } catch (e) {
-    console.error("Failed to read sessionStorage for API key", e);
-  }
-
   // Check localStorage first for manual override
   try {
-    const profileKey = localStorage.getItem('vinetelligence_profile') 
-      ? 'vinetelligence_profile' 
-      : (localStorage.getItem('intelligence_profile') 
-          ? 'intelligence_profile' 
-          : (localStorage.getItem('oenovia_profile') 
-              ? 'oenovia_profile' 
-              : 'vinea_profile'));
+    const profileKey = localStorage.getItem('vinetelligence_profile') ? 'vinetelligence_profile' : 'vinea_profile';
     const profile = JSON.parse(localStorage.getItem(profileKey) || '{}');
     if (profile.geminiApiKey) return profile.geminiApiKey;
   } catch (e) {
@@ -94,7 +80,7 @@ export const getApiKey = () => {
   }
 
   if (!key || key === "undefined" || key === "null") {
-    console.warn("Intelligence: Gemini API Key is missing or invalid in environment.");
+    console.warn("Vinetelligence: Gemini API Key is missing or invalid in environment.");
   }
   
   return key;
@@ -133,7 +119,7 @@ async function saveToCache(category: string, key: string, data: unknown) {
       created_at: new Date().toISOString()
     });
   } catch (e) {
-    console.error("Intelligence: Cache save failed", e);
+    console.error("Vinetelligence: Cache save failed", e);
   }
 }
 
@@ -173,7 +159,7 @@ async function callWithRetry<T>(fn: () => Promise<T>, fallbackData: T, options?:
       
       // Stop retrying if it's a permission/auth issue - these won't fix themselves with retries
       if (errorMsg.includes("permission denied") || errorMsg.includes("API key not valid") || errorMsg.includes("403") || errorMsg.includes("401")) {
-        console.error("System Architecture: Permission Denied for AI Model. Credentials or model access restricted.", error);
+        console.error("Vinetelligence Architecture: Permission Denied for AI Model. Credentials or model access restricted.", error);
         // Throw a specialized error that the UI can catch
         const customError = new Error(`Protocol Permission Denied: ${errorMsg}`);
         (customError as any).isPermissionError = true; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -223,8 +209,8 @@ export const geminiService = {
 
   // Fix: Removed 'responseMimeType' as it is not supported for 'gemini-2.5-flash-image'
   // Added JSON cleaning logic to handle potential Markdown wrapping in the model response
-  async getIntelligencePitch(base64Image: string, mimeType: string) {
-    const fallback = { brandName: "Unknown", pitch: "Intelligence operational. (Protocol limitation in Demo Tier)", tastingNotes: [], pairing: "N/A", trivia: "N/A" };
+  async getVinetelligencePitch(base64Image: string, mimeType: string) {
+    const fallback = { brandName: "Unknown", pitch: "Vinetelligence Intelligence operational. (Protocol limitation in Demo Tier)", tastingNotes: [], pairing: "N/A", trivia: "N/A" };
     return callWithRetry(async () => {
       const apiKey = getApiKey();
       if (!apiKey) return fallback;
@@ -237,7 +223,7 @@ export const geminiService = {
         contents: [{
           parts: [
             { inlineData: { data: base64Image, mimeType: mimeType } },
-            { text: "Assume you are a Master Sommelier with a 'Modern' tone. Analyze this beverage label. Generate an Intelligence Pitch for a guest at a high-end table. The tone should be evocative, technical yet accessible, and deeply storytelling. Include: 1. A poetic yet concise 2-sentence 'narrative hook' about its heritage. 2. Three sophisticated technical tasting notes. 3. A perfect food pairing rationale. 4. A rare 'sommelier secret' trivia fact about this producer." }
+            { text: "Assume you are a Master Sommelier with a 'Modern/Neural' tone. Analyze this beverage label. Generate a 'Vinetelligence Pitch' for a guest at a high-end table. The tone should be evocative, technical yet accessible, and deeply storytelling. Include: 1. A poetic yet concise 2-sentence 'narrative hook' about its heritage. 2. Three sophisticated technical tasting notes. 3. A perfect food pairing rationale. 4. A rare 'sommelier secret' trivia fact about this producer." }
           ]
         }],
         config: {
@@ -270,7 +256,7 @@ export const geminiService = {
         Staff: ${JSON.stringify(staff)}
         Context: ${context}
         
-        Suggest 3 specific training modules from the Academy that would most benefit this operator right now. Provide a rationale for each.` }]
+        Suggest 3 specific training modules from the Vinetelligence Academy that would most benefit this operator right now. Provide a rationale for each.` }]
         }],
         config: {
           responseMimeType: "application/json",
@@ -304,7 +290,7 @@ export const geminiService = {
         Staff Training Data: ${JSON.stringify(staffData)}
         Guest Feedback Data: ${JSON.stringify(feedbackData)}
         
-        Synthesize an 'ROI Report'. Include: 1. Correlation score (0-100). 2. Top performing trained skill. 3. Revenue impact estimate (qualitative). 4. One specific area for improvement.` }]
+        Synthesize an 'Academy ROI Report'. Include: 1. Correlation score (0-100). 2. Top performing trained skill. 3. Revenue impact estimate (qualitative). 4. One specific area for improvement.` }]
         }],
         config: {
           responseMimeType: "application/json",
@@ -396,7 +382,7 @@ export const geminiService = {
           }
         };
       } catch (e) {
-        console.error("Intelligence: Vision parsing failed", e);
+        console.error("Vinetelligence: Vision parsing failed", e);
         throw new Error("Failed to parse beverage data. Please ensure the label is clearly visible.");
       }
     }, fallback);
@@ -414,7 +400,7 @@ export const geminiService = {
         created_at: new Date().toISOString()
       });
     } catch (e) {
-      console.error("Intelligence: Failed to log AI feedback to Supabase", e);
+      console.error("Vinetelligence: Failed to log AI feedback to Supabase", e);
     }
   },
 
@@ -503,7 +489,7 @@ export const geminiService = {
 
   async getTrainingResponse(query: string, history: {role: string, text: string}[], userRole?: string) {
     const contents = history.map(m => ({
-      role: m.role === 'intelligence' ? 'model' : 'user',
+      role: m.role === 'vinetelligence' ? 'model' : 'user',
       parts: [{ text: m.text }]
     }));
     contents.push({ role: 'user', parts: [{ text: sanitizeInput(query) }] });
@@ -531,7 +517,7 @@ export const geminiService = {
          text += `\n\n--- Technical Grounding ---\nVerified via sources: ${sources.join(', ')}`;
       }
       return text;
-    }, "Intelligence operational. (Protocol limitation in Demo Tier)");
+    }, "Vinetelligence Intelligence operational. (Protocol limitation in Demo Tier)");
   },
 
   async getDynamicPricingSuggestions(items: { id: string; name: string; stock: number; unit: string; price: number }[]) {
@@ -570,7 +556,7 @@ export const geminiService = {
   },
 
   async generateSignatureSpecial(theme: string) {
-    const fallback = { recipe: { name: "Signature Special", story: "A concept in synthesis.", ingredients: [], glassware: "Standard", instructions: [] }, imageUrl: "" };
+    const fallback = { recipe: { name: "Vinetelligence Special", story: "A concept in synthesis.", ingredients: [], glassware: "Standard", instructions: [] }, imageUrl: "" };
     return callWithRetry(async () => {
       const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
       
@@ -630,8 +616,8 @@ export const geminiService = {
           systemInstruction: "Be welcoming and professional. Mention the specific venue type and philosophy."
         }
       });
-      return response.text || "Welcome to the Intelligence Node.";
-    }, "Welcome to the Intelligence Node.");
+      return response.text || "Welcome to Vinetelligence.";
+    }, "Welcome to Vinetelligence.");
   },
 
   async getMenuPersonalization(profile: Record<string, unknown>, currentMenu: Record<string, unknown>) {
@@ -1321,6 +1307,30 @@ export const geminiService = {
       });
       return response.text || "Unable to generate churn prediction at this time.";
     }, "Unable to generate churn prediction at this time.");
+  },
+
+  async getOTAReviewResponse(reviewerName: string, rating: number, comment: string, tone: string = 'Sophisticated', language: string = 'English', guestHistory: string = '') {
+    const prompt = `You are the lead sommelier, master mixologist, and guest relations director for an elite luxury fine beverage and culinary establishment.
+    
+    You need to write a personalized, highly high-fidelity response to a guest's OTA review (Online Travel Agency / review portal like Google Reviews, TripAdvisor, or Booking.com). 
+    Unlike lazy agency services that use generic, mechanical, or copy-paste templates (such as Hotel Speaker), you must construct an elite, custom-tailored response that:
+    1. Addresses the guest by name: "${reviewerName}".
+    2. Speaks directly and specifically to their experience (Rating: ${rating}/5 stars, Comment: "${comment}").
+    3. Leverages their known flavor profile / transaction intelligence if available (${guestHistory ? `such as their preference for "${guestHistory}"` : 'grounded in our focus on bespoke oenological and mixology craftsmanship'}).
+    4. Adheres strictly to a "${tone}" tone.
+    5. Is written entirely in "${language}" language.
+    6. Highlights our commitment to premium sensory curation, dynamic oenology pairings, and authentic, human-first luxury experiences.
+    
+    Make the response extremely polished, professional, warm, and genuine. Keep it relatively concise (3-5 sentences), ready to be published, and don't include any draft brackets or placeholders. Do not output any preamble or meta-text—just the exact response text.`;
+
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: prompt,
+      });
+      return response.text || `Dear ${reviewerName}, thank you for sharing your experience. We are honored to have hosted you and look forward to crafting another personalized flavor journey for you soon.`;
+    }, `Dear ${reviewerName}, thank you for sharing your experience. We are honored to have hosted you and look forward to crafting another personalized flavor journey for you soon.`);
   },
 
   async generatePromoCampaign(context: { establishmentName: string, items: string[], theme?: string }) {

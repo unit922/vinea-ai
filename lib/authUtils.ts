@@ -1,6 +1,6 @@
 
 /**
- * System Auth Utilities
+ * Vinetelligence Auth Utilities
  * Centralized logic for administrative and executive access levels.
  */
 
@@ -10,14 +10,15 @@ export const ADMIN_EMAILS = [
 ];
 
 export const ADMIN_DOMAINS = [
-  'beverage-intelligence.com'
+  'vinetelligence.live',
+  'vinea.live'
 ];
 
 /**
- * Checks if an email address belongs to a System Executive/Admin.
+ * Checks if an email address belongs to a Vinetelligence Executive/Admin.
  * Must match the RLS policies defined in Supabase.
  */
-export function isSystemAdmin(email: string | null | undefined): boolean {
+export function isVinetelligenceAdmin(email: string | null | undefined): boolean {
   if (!email) return false;
   const normalizedEmail = email.toLowerCase().trim();
   
@@ -27,3 +28,6 @@ export function isSystemAdmin(email: string | null | undefined): boolean {
   // Check domain matches
   return ADMIN_DOMAINS.some(domain => normalizedEmail.endsWith(`@${domain}`));
 }
+
+export const isSystemAdmin = isVinetelligenceAdmin;
+

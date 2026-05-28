@@ -61,7 +61,7 @@ export const useOperationsLogic = () => {
       const res = await geminiService.getServiceEfficiencyInsights(orders, transactions);
       setServiceInsight(res.narrative);
     } catch (e) {
-      console.error("Intelligence: Failed to synthesize service efficiency", e);
+      console.error("Vinetelligence: Failed to synthesize service efficiency", e);
     } finally {
       setIsSynthesizingService(false);
     }
@@ -104,7 +104,8 @@ export const useOperationsLogic = () => {
       
       if (JSON.stringify(updated) !== JSON.stringify(staff)) {
         setStaff(updated);
-        localStorage.setItem('intelligence_staff_list', JSON.stringify(updated));
+        localStorage.setItem('vinetelligence_staff_list', JSON.stringify(updated));
+        localStorage.setItem('vinea_staff_list', JSON.stringify(updated));
       }
     }, 10000);
     
@@ -114,7 +115,8 @@ export const useOperationsLogic = () => {
   const handleUpdateStaff = async (staffId: string, updates: Partial<StaffShift>) => {
     const updatedStaff = staff.map(s => s.id === staffId ? { ...s, ...updates } : s);
     setStaff(updatedStaff);
-    localStorage.setItem('intelligence_staff_list', JSON.stringify(updatedStaff));
+    localStorage.setItem('vinetelligence_staff_list', JSON.stringify(updatedStaff));
+    localStorage.setItem('vinea_staff_list', JSON.stringify(updatedStaff));
     
     if (isValidUUID(profile?.id)) {
       const profileUpdates: Record<string, string | number> = {};
@@ -127,7 +129,7 @@ export const useOperationsLogic = () => {
         store.setIsSyncing(true);
         await supabaseSync.updateStaffProfile(staffId, profileUpdates);
       } catch (e) {
-        console.error("Intelligence: Failed to sync staff update", e);
+        console.error("Vinetelligence: Failed to sync staff update", e);
       } finally {
         store.setIsSyncing(false);
       }
@@ -160,7 +162,7 @@ export const useOperationsLogic = () => {
       setOrderFeedback('Activation Dispatched');
       setTimeout(() => setOrderFeedback(null), 3000);
     } catch (e) {
-      console.error("Intelligence: Failed to add to roster", e);
+      console.error("Vinetelligence: Failed to add to roster", e);
       setOrderFeedback('Roster update failed');
       setTimeout(() => setOrderFeedback(null), 3000);
     } finally {
@@ -185,13 +187,14 @@ export const useOperationsLogic = () => {
           await supabaseSync.removeStaffFromEstablishment(matchingStaff.id);
           const updatedStaff = staff.filter(s => s.id !== matchingStaff.id);
           setStaff(updatedStaff);
-          localStorage.setItem('intelligence_staff_list', JSON.stringify(updatedStaff));
+          localStorage.setItem('vinetelligence_staff_list', JSON.stringify(updatedStaff));
+          localStorage.setItem('vinea_staff_list', JSON.stringify(updatedStaff));
         }
       }
       setOrderFeedback('Roster Item Removed');
       setTimeout(() => setOrderFeedback(null), 3000);
     } catch (e) {
-      console.error("Intelligence: Failed to remove roster item", e);
+      console.error("Vinetelligence: Failed to remove roster item", e);
     } finally {
       store.setIsSyncing(false);
     }
@@ -202,13 +205,8 @@ export const useOperationsLogic = () => {
     store.setIsSyncing(true);
     setCoverageInsight(null);
     try {
-      const journeyKey = 'intelligence_journeys';
-      let journeys = [];
-      try {
-        journeys = JSON.parse(localStorage.getItem(journeyKey) || '[]');
-      } catch (pe) {
-        console.error("Intelligence: Journey parse error in synthesis", pe);
-      }
+      const journeyKey = localStorage.getItem('vinetelligence_journeys') ? 'vinetelligence_journeys' : 'vinea_journeys';
+      const journeys = JSON.parse(localStorage.getItem(journeyKey) || '[]');
       const allocatableStaff = staff.filter(s => 
         s.accessStatus === 'Active' && 
         (s.availabilityStatus === 'Available' || s.availabilityStatus === 'Busy') &&
@@ -231,7 +229,8 @@ export const useOperationsLogic = () => {
           timestamp: new Date().toISOString()
         }));
         setAssignments(newAssignments);
-        localStorage.setItem('intelligence_assignments', JSON.stringify(newAssignments));
+        localStorage.setItem('vinetelligence_assignments', JSON.stringify(newAssignments));
+        localStorage.setItem('vinea_assignments', JSON.stringify(newAssignments));
         if (isValidUUID(profile?.id)) {
           await supabaseSync.pushAssignments(profile!.id, newAssignments).catch(console.error);
         }
@@ -289,7 +288,8 @@ export const useOperationsLogic = () => {
     try {
       const updatedDrafts = draftOrders.filter(d => d.id !== draftId);
       setDraftOrders(updatedDrafts);
-      localStorage.setItem('intelligence_draft_orders', JSON.stringify(updatedDrafts));
+      localStorage.setItem('vinetelligence_draft_orders', JSON.stringify(updatedDrafts));
+      localStorage.setItem('vinea_draft_orders', JSON.stringify(updatedDrafts));
 
       const firedOrder: ServiceOrder = {
         ...draft,
@@ -299,7 +299,6 @@ export const useOperationsLogic = () => {
 
       addOrder(firedOrder);
       const updatedOrders = [firedOrder, ...orders];
-      localStorage.setItem('oenovia_orders', JSON.stringify(updatedOrders));
       localStorage.setItem('vinetelligence_orders', JSON.stringify(updatedOrders));
       localStorage.setItem('vinea_orders', JSON.stringify(updatedOrders));
 
@@ -343,19 +342,21 @@ export const useOperationsLogic = () => {
       status: isDraft ? 'Draft' : 'Pending',
       source,
       priority,
-      serverName: profile?.name || 'Intelligence Staff'
+      serverName: profile?.name || 'Vinetelligence Staff'
     };
 
     if (isDraft) {
       const updatedDrafts = [...draftOrders, newOrder];
       setDraftOrders(updatedDrafts);
-      localStorage.setItem('intelligence_draft_orders', JSON.stringify(updatedDrafts));
+      localStorage.setItem('vinetelligence_draft_orders', JSON.stringify(updatedDrafts));
+      localStorage.setItem('vinea_draft_orders', JSON.stringify(updatedDrafts));
     } else {
       store.setIsSyncing(true);
       try {
         addOrder(newOrder);
         const updatedOrders = [newOrder, ...orders];
-        localStorage.setItem('intelligence_orders', JSON.stringify(updatedOrders));
+        localStorage.setItem('vinetelligence_orders', JSON.stringify(updatedOrders));
+        localStorage.setItem('vinea_orders', JSON.stringify(updatedOrders));
         if (isValidUUID(profile?.id)) {
           await supabaseSync.saveOrder(profile!.id, newOrder);
         }
@@ -370,9 +371,10 @@ export const useOperationsLogic = () => {
           return inv;
         });
         setInventory(updatedInventory);
-        localStorage.setItem('intelligence_inventory', JSON.stringify(updatedInventory));
+        localStorage.setItem('vinetelligence_inventory', JSON.stringify(updatedInventory));
+        localStorage.setItem('vinea_inventory', JSON.stringify(updatedInventory));
       } catch (e) {
-        console.error("Intelligence: Placement failed", e);
+        console.error("Vinetelligence: Placement failed", e);
         setOrderFeedback('Order failed to sync');
       } finally {
         store.setIsSyncing(false);
@@ -386,7 +388,8 @@ export const useOperationsLogic = () => {
     if (!isDraft && activeTable.status === 'Available') {
       updateTable(activeTable.number, { status: 'Occupied', occupantName: 'Walk-in Party' });
       const updatedTables = tables.map(t => t.number === activeTable.number ? { ...t, status: 'Occupied' as const, occupantName: 'Walk-in Party' } : t);
-      localStorage.setItem('intelligence_tables', JSON.stringify(updatedTables));
+      localStorage.setItem('vinetelligence_tables', JSON.stringify(updatedTables));
+      localStorage.setItem('vinea_tables', JSON.stringify(updatedTables));
     }
   };
 
@@ -404,7 +407,8 @@ export const useOperationsLogic = () => {
     });
     
     setOrders(updatedOrders);
-    localStorage.setItem('intelligence_orders', JSON.stringify(updatedOrders));
+    localStorage.setItem('vinetelligence_orders', JSON.stringify(updatedOrders));
+    localStorage.setItem('vinea_orders', JSON.stringify(updatedOrders));
     
     const order = updatedOrders.find(o => o.id === orderId);
     if (order && isValidUUID(profile?.id)) {
@@ -412,7 +416,7 @@ export const useOperationsLogic = () => {
       try {
         await supabaseSync.saveOrder(profile!.id, order);
       } catch (e) {
-        console.error("Intelligence: Failed to sync order status update", e);
+        console.error("Vinetelligence: Failed to sync order status update", e);
       } finally {
         store.setIsSyncing(false);
       }
@@ -494,7 +498,8 @@ export const useOperationsLogic = () => {
       setActiveTable(updatedTable);
 
       const updatedTables = tables.map(t => t.number === activeTable.number ? updatedTable : t);
-      localStorage.setItem('intelligence_tables', JSON.stringify(updatedTables));
+      localStorage.setItem('vinetelligence_tables', JSON.stringify(updatedTables));
+      localStorage.setItem('vinea_tables', JSON.stringify(updatedTables));
 
       if (isValidUUID(profile?.id)) {
         supabaseSync.pushTables(profile!.id, tables.map(t => 
@@ -531,12 +536,14 @@ export const useOperationsLogic = () => {
 
       const updatedTransactions = [transaction, ...transactions];
       setTransactions(updatedTransactions);
-      localStorage.setItem('intelligence_transactions', JSON.stringify(updatedTransactions));
+      localStorage.setItem('vinetelligence_transactions', JSON.stringify(updatedTransactions));
+      localStorage.setItem('vinea_transactions', JSON.stringify(updatedTransactions));
 
       // Remove orders for this table
       const remainingOrders = orders.filter(o => o.tableNumber !== activeTable.number);
       setOrders(remainingOrders);
-      localStorage.setItem('intelligence_orders', JSON.stringify(remainingOrders));
+      localStorage.setItem('vinetelligence_orders', JSON.stringify(remainingOrders));
+      localStorage.setItem('vinea_orders', JSON.stringify(remainingOrders));
       
       // Complete matching Guest Journey
       const matchingJourney = store.journeys.find(j => 
@@ -553,7 +560,8 @@ export const useOperationsLogic = () => {
           } : j
         );
         setJourneys(updatedJourneys);
-        localStorage.setItem('intelligence_journeys', JSON.stringify(updatedJourneys));
+        localStorage.setItem('vinetelligence_journeys', JSON.stringify(updatedJourneys));
+        localStorage.setItem('vinea_journeys', JSON.stringify(updatedJourneys));
         
         if (isValidUUID(profile?.id)) {
            supabaseSync.saveTransaction(profile!.id, transaction).catch(console.error);
@@ -579,7 +587,8 @@ export const useOperationsLogic = () => {
         paymentStartedAt: undefined,
         settledAt: new Date().toISOString()
       } : t);
-      localStorage.setItem('intelligence_tables', JSON.stringify(updatedTablesRes));
+      localStorage.setItem('vinetelligence_tables', JSON.stringify(updatedTablesRes));
+      localStorage.setItem('vinea_tables', JSON.stringify(updatedTablesRes));
 
       setActiveTable(null);
       setActiveTab('floor');
@@ -588,7 +597,7 @@ export const useOperationsLogic = () => {
       setOrderFeedback('Table Settled');
       setTimeout(() => setOrderFeedback(null), 3000);
     } catch (e) {
-      console.error("Intelligence: Settlement failed", e);
+      console.error("Vinetelligence: Settlement failed", e);
     } finally {
       setIsSettling(false);
     }
@@ -601,11 +610,13 @@ export const useOperationsLogic = () => {
     if (draftOrders.some(d => d.id === id)) {
       const updated = draftOrders.filter(d => d.id !== id);
       setDraftOrders(updated);
-      localStorage.setItem('intelligence_draft_orders', JSON.stringify(updated));
+      localStorage.setItem('vinetelligence_draft_orders', JSON.stringify(updated));
+      localStorage.setItem('vinea_draft_orders', JSON.stringify(updated));
     } else {
       const updated = orders.filter(o => o.id !== id);
       setOrders(updated);
-      localStorage.setItem('intelligence_orders', JSON.stringify(updated));
+      localStorage.setItem('vinetelligence_orders', JSON.stringify(updated));
+      localStorage.setItem('vinea_orders', JSON.stringify(updated));
       // In a real app, we'd also void in Supabase
     }
     setOrderFeedback('Order Voided');
@@ -613,8 +624,8 @@ export const useOperationsLogic = () => {
   };
 
   const handleQuickPay = async (priority: 'Normal' | 'High' | 'VIP') => {
-    if (currentCart.length === 0) return;
-    handlePlaceOrder(currentCart, 'Staff', priority, false);
+    if (cart.length === 0) return;
+    handlePlaceOrder(cart, 'Staff', priority, false);
     setActiveTab('settlement');
   };
 
@@ -638,12 +649,18 @@ export const useOperationsLogic = () => {
       setTables(INITIAL_TABLES);
       
       // Clear localStorage
-      localStorage.removeItem('intelligence_orders');
-      localStorage.removeItem('intelligence_draft_orders');
-      localStorage.removeItem('intelligence_transactions');
-      localStorage.removeItem('intelligence_inventory');
-      localStorage.removeItem('intelligence_assignments');
-      localStorage.removeItem('intelligence_journeys');
+      localStorage.removeItem('vinetelligence_orders');
+      localStorage.removeItem('vinea_orders');
+      localStorage.removeItem('vinetelligence_draft_orders');
+      localStorage.removeItem('vinea_draft_orders');
+      localStorage.removeItem('vinetelligence_transactions');
+      localStorage.removeItem('vinea_transactions');
+      localStorage.removeItem('vinetelligence_inventory');
+      localStorage.removeItem('vinea_inventory');
+      localStorage.removeItem('vinetelligence_assignments');
+      localStorage.removeItem('vinea_assignments');
+      localStorage.removeItem('vinetelligence_journeys');
+      localStorage.removeItem('vinea_journeys');
       
       setCleanFeedback({ success: true, message: 'Operational Silo Purged Successfully' });
       setShowPurgeConfirm(false);
@@ -671,10 +688,11 @@ export const useOperationsLogic = () => {
         const cloudData = await supabaseSync.pullInventory(profile!.id);
         if (cloudData && cloudData.length > 0) {
           setInventory(cloudData);
-          localStorage.setItem('intelligence_inventory', JSON.stringify(cloudData));
+          localStorage.setItem('vinetelligence_inventory', JSON.stringify(cloudData));
+          localStorage.setItem('vinea_inventory', JSON.stringify(cloudData));
         }
       } catch (e) {
-        console.error("Intelligence: Manual inventory refresh failed", e);
+        console.error("Vinetelligence: Manual inventory refresh failed", e);
       } finally {
         store.setIsSyncing(false);
       }
@@ -687,9 +705,10 @@ export const useOperationsLogic = () => {
       await supabaseSync.removeStaffProfile(id);
       const updatedStaff = staff.filter(s => s.id !== id);
       setStaff(updatedStaff);
-      localStorage.setItem('intelligence_staff_list', JSON.stringify(updatedStaff));
+      localStorage.setItem('vinetelligence_staff_list', JSON.stringify(updatedStaff));
+      localStorage.setItem('vinea_staff_list', JSON.stringify(updatedStaff));
     } catch (e) {
-      console.error("Intelligence: Failed to remove staff profile", e);
+      console.error("Vinetelligence: Failed to remove staff profile", e);
     }
   };
 
@@ -702,7 +721,8 @@ export const useOperationsLogic = () => {
     };
     const updated = [...assignments.filter(a => a.staffId !== staffId), newAssignment];
     setAssignments(updated);
-    localStorage.setItem('intelligence_assignments', JSON.stringify(updated));
+    localStorage.setItem('vinetelligence_assignments', JSON.stringify(updated));
+    localStorage.setItem('vinea_assignments', JSON.stringify(updated));
     if (isValidUUID(profile?.id)) {
       supabaseSync.pushAssignments(profile!.id, updated).catch(console.error);
     }

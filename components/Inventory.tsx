@@ -60,7 +60,7 @@ const Inventory: React.FC<{
 
   useEffect(() => {
     const handleStorage = () => {
-      const saved = localStorage.getItem('intelligence_inventory') || localStorage.getItem('oenovia_inventory') || localStorage.getItem('vinetelligence_inventory');
+      const saved = localStorage.getItem('vinetelligence_inventory') || localStorage.getItem('vinea_inventory');
       if (saved) setItems(JSON.parse(saved));
     };
     window.addEventListener('storage', handleStorage);
@@ -69,16 +69,17 @@ const Inventory: React.FC<{
 
   const persistToSilo = useCallback(async (updatedItems: InventoryItem[]) => {
     setItems(updatedItems);
-    localStorage.setItem('intelligence_inventory', JSON.stringify(updatedItems));
+    localStorage.setItem('vinetelligence_inventory', JSON.stringify(updatedItems));
+    localStorage.setItem('vinea_inventory', JSON.stringify(updatedItems));
     
-    const profileToSync = JSON.parse(localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || localStorage.getItem('vinetelligence_profile') || '{}');
+    const profileToSync = JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
     if (profileToSync.edition !== 'demo' && profileToSync.id && profileToSync.id !== 'demo-id') {
       setIsSyncing(true);
-      console.log("Intelligence: Syncing local buffer to Cloud Silo via Bulk Update...");
+      console.log("Vinetelligence: Syncing local buffer to Cloud Silo via Bulk Update...");
       try {
         await supabaseSync.bulkUpdateInventory(profileToSync.id, updatedItems);
       } catch (e) {
-        console.error("Intelligence: Bulk inventory sync failed", e);
+        console.error("Vinetelligence: Bulk inventory sync failed", e);
       } finally {
         setIsSyncing(false);
       }
@@ -96,7 +97,7 @@ const Inventory: React.FC<{
   const handleRunForecast = async () => {
     setIsForecasting(true);
     try {
-      const transactions = JSON.parse(localStorage.getItem('intelligence_transactions') || localStorage.getItem('oenovia_transactions') || localStorage.getItem('vinetelligence_transactions') || '[]');
+      const transactions = JSON.parse(localStorage.getItem('vinetelligence_transactions') || localStorage.getItem('vinea_transactions') || '[]');
       const res = await geminiService.getInventoryIntelligence(items, transactions);
       const updated = items.map(item => {
         const pred = res.predictions.find((p: { itemName: string; suggestedOrder: number }) => p.itemName === item.name);
@@ -189,7 +190,7 @@ const Inventory: React.FC<{
         setShowItemModal(true);
       }
     } catch (e) {
-      console.error("Intelligence: Vision commit failed", e);
+      console.error("Vinetelligence: Vision commit failed", e);
       setNotification({ message: "Vision reconciliation failed.", type: 'error' });
       setTimeout(() => setNotification(null), 5000);
     }
@@ -307,7 +308,7 @@ const Inventory: React.FC<{
       setNotification({ message: `Successfully imported ${newItems.length} items.`, type: 'success' });
       setTimeout(() => setNotification(null), 5000);
     } catch (e) {
-      console.error("Intelligence: Import failed", e);
+      console.error("Vinetelligence: Import failed", e);
       setNotification({ message: "Import failed. Please check your data format.", type: 'error' });
       setTimeout(() => setNotification(null), 5000);
     }
@@ -340,7 +341,7 @@ const Inventory: React.FC<{
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inventory_Template");
-    XLSX.writeFile(wb, "Intelligence_Inventory_Template.xlsx");
+    XLSX.writeFile(wb, "Vinetelligence_Inventory_Template.xlsx");
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -357,7 +358,7 @@ const Inventory: React.FC<{
         const data = XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[];
         handleQuickImport(data);
       } catch (err) {
-        console.error("Intelligence: File parsing failed", err);
+        console.error("Vinetelligence: File parsing failed", err);
         setNotification({ message: "Failed to parse file. Ensure it is a valid Excel or CSV file.", type: 'error' });
         setTimeout(() => setNotification(null), 5000);
       }

@@ -26,7 +26,7 @@ const PLANS = [
   {
     id: 'operator',
     name: 'The Essential',
-    tagline: 'Professional Cloud Intelligence',
+    tagline: 'Essential Cloud Intelligence',
     price: '$149',
     description: 'Perfect for established venues shifting to data-driven operations.',
     features: [
@@ -42,7 +42,7 @@ const PLANS = [
   {
     id: 'visionary',
     name: 'The Growth',
-    tagline: 'Scale AI Suite',
+    tagline: 'Professional AI Suite',
     price: '$499',
     description: 'The industry standard for high-volume, luxury establishments.',
     features: [
@@ -58,9 +58,9 @@ const PLANS = [
   },
   {
     id: 'enterprise',
-    name: 'Architect',
+    name: 'The Enterprise',
     tagline: 'Private Network Silos',
-    price: '$899',
+    price: 'Custom',
     description: 'Custom-tuned intelligence for multi-unit groups and hotels.',
     features: [
       'Private Data Silos',
@@ -117,7 +117,7 @@ export const UpgradeFlow: React.FC<UpgradeFlowProps> = ({ isOpen, onClose, onUpg
                   <div className="space-y-2">
                     <h3 className="text-[10px] font-mono font-black uppercase tracking-[0.3em] text-emerald-500">Neural Efficiency</h3>
                     <p className="text-xs text-stone-400 leading-relaxed font-serif italic text-balance">
-                      Unlocking higher tiers establishes a tighter link with Intelligence's global intelligence network, significantly reducing inventory drift.
+                      Unlocking higher tiers establishes a tighter link with Vinetelligence's global intelligence network, significantly reducing inventory drift.
                     </p>
                   </div>
                   
@@ -259,7 +259,7 @@ export const UpgradeFlow: React.FC<UpgradeFlowProps> = ({ isOpen, onClose, onUpg
                     <h3 className="text-4xl font-serif font-black text-white italic mb-4">Neural Handshake Required</h3>
                     <p className="text-stone-400 text-lg font-serif mb-12 leading-relaxed">
                       You are about to upgrade to the <span className="text-white italic">{planData?.name}</span> tier at {planData?.price}/mo. 
-                      This will initialize real-time cloud synchronization and unlock the full breadth of Intelligence's predictive engines.
+                      This will initialize real-time cloud synchronization and unlock the full breadth of Vinetelligence's predictive engines.
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-4 w-full px-12">
@@ -283,7 +283,7 @@ export const UpgradeFlow: React.FC<UpgradeFlowProps> = ({ isOpen, onClose, onUpg
 
                     <p className="mt-8 text-[9px] font-mono text-stone-600 uppercase tracking-widest flex items-center gap-2">
                       <Lock className="w-3 h-3" />
-                      Encrypted Payment Processing via Intelligence Vault (Stripe)
+                      Encrypted Payment Processing via Vinetelligence Vault (Stripe)
                     </p>
                   </motion.div>
                 )}

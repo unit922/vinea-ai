@@ -45,7 +45,7 @@ const MOCK_GROWTH_DATA = [
 
 const SLIDES = [
   {
-    title: "Intelligence",
+    title: "Vinetelligence",
     subtitle: "The Operating System for Luxury Hospitality",
     content: "Bridging the gap between artisanal craft and predictive intelligence. We are mapping the palate of the world, one transaction at a time.",
     icon: <Globe className="w-12 h-12 text-amber-500" />,
@@ -68,7 +68,7 @@ const SLIDES = [
   {
     title: "The Solution",
     subtitle: "AI-Driven Operational Mastery",
-    content: "Intelligence provides real-time yield logic, multimodal AI coaching (Gemini), and predictive staffing models that transform raw data into high-margin hospitality.",
+    content: "Vinetelligence provides real-time yield logic, multimodal AI coaching (Gemini), and predictive staffing models that transform raw data into high-margin hospitality.",
     icon: <Cpu className="w-12 h-12 text-emerald-500" />,
     bg: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=2000&q=90"
   },
@@ -127,13 +127,13 @@ const InvestorPortal: React.FC<InvestorPortalProps> = ({ profile, transactions, 
   }, [revenueData]);
 
   const handleDownloadProspectus = () => {
-    const content = `Intelligence Investor Prospectus | Q2 2026\n\nEstablishment: ${profile?.name || 'Intelligence Sandbox'}\nValuation: $14.2M (Series A)\n\nKey Performance Indicators:\n- Total Revenue: $${totalRevenue.toLocaleString()}\n- Inventory Yield (Yield Alpha): ${avgEfficiency.toFixed(1)}%\n- LTV/CAC Ratio: ${ltvToCac}x\n- Monthly Burn: $12k (Optimized)\n- Staff Mastery Index: 88%\n- Active Nodes: 142\n\nInvestment Thesis:\nIntelligence is capturing the high-end hospitality market by replacing legacy POS systems with a Cognitive Operating System. By reducing waste by 12% and increasing staff efficiency by 20%, we provide an immediate ROI for luxury venues while building a proprietary dataset of global palate preferences. Our Yield Alpha engine is now the industry standard for predictive logistics in luxury dining.`;
+    const content = `Vinetelligence Investor Prospectus | Q2 2026\n\nEstablishment: ${profile?.name || 'Vinetelligence Sandbox'}\nValuation: $14.2M (Series A)\n\nKey Performance Indicators:\n- Total Revenue: $${totalRevenue.toLocaleString()}\n- Inventory Yield (Yield Alpha): ${avgEfficiency.toFixed(1)}%\n- LTV/CAC Ratio: ${ltvToCac}x\n- Monthly Burn: $12k (Optimized)\n- Staff Mastery Index: 88%\n- Active Nodes: 142\n\nInvestment Thesis:\nVinetelligence is capturing the high-end hospitality market by replacing legacy POS systems with a Cognitive Operating System. By reducing waste by 12% and increasing staff efficiency by 20%, we provide an immediate ROI for luxury venues while building a proprietary dataset of global palate preferences. Our Yield Alpha engine is now the industry standard for predictive logistics in luxury dining.`;
     
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Intelligence_Prospectus_${(profile?.name || 'Intelligence').replace(/\s+/g, '_')}.txt`;
+    link.download = `Vinetelligence_Prospectus_${(profile?.name || 'Vinetelligence').replace(/\s+/g, '_')}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -155,7 +155,7 @@ const InvestorPortal: React.FC<InvestorPortalProps> = ({ profile, transactions, 
             <h2 className="text-sm font-black uppercase tracking-[0.3em] text-white flex items-center gap-2">
               Investor Portal <span className="text-[10px] text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">V2.2</span>
             </h2>
-            <p className="text-[10px] text-stone-500 font-mono">ESTABLISHMENT: {profile?.name?.toUpperCase() || 'INTELLIGENCE SANDBOX'}</p>
+            <p className="text-[10px] text-stone-500 font-mono">ESTABLISHMENT: {profile?.name?.toUpperCase() || 'VINETELLIGENCE SANDBOX'}</p>
           </div>
         </div>
 
@@ -385,7 +385,7 @@ const InvestorPortal: React.FC<InvestorPortalProps> = ({ profile, transactions, 
                     <h3 className="text-2xl font-serif font-black text-white italic">The Investment Thesis</h3>
                   </div>
                   <p className="text-stone-300 text-lg font-light leading-relaxed max-w-3xl">
-                    Intelligence is capturing the high-end hospitality market by replacing legacy POS systems with a <span className="text-white font-bold italic">Cognitive Operating System</span>. 
+                    Vinetelligence is capturing the high-end hospitality market by replacing legacy POS systems with a <span className="text-white font-bold italic">Cognitive Operating System</span>. 
                     By reducing waste by 12% and increasing staff efficiency by 20%, we provide an immediate ROI for luxury venues while building a proprietary dataset of global palate preferences.
                     <span className="block mt-4 text-amber-500 font-bold">Our Yield Alpha engine is now the industry standard for predictive logistics in luxury dining.</span>
                   </p>

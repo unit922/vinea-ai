@@ -89,8 +89,8 @@ const ConnectivitySettings: React.FC<ConnectivitySettingsProps> = ({ profile, on
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {[
               { id: 'demo', label: 'Explorer', icon: 'fa-vial' },
-              { id: 'essential', label: 'Essential', icon: 'fa-seedling' },
-              { id: 'growth', label: 'Growth', icon: 'fa-crown' },
+              { id: 'free', label: 'Operator', icon: 'fa-seedling' },
+              { id: 'paid', label: 'Visionary', icon: 'fa-crown' },
               { id: 'enterprise', label: 'Enterprise', icon: 'fa-building-shield' }
             ].map(tier => (
               <button
@@ -114,7 +114,7 @@ const ConnectivitySettings: React.FC<ConnectivitySettingsProps> = ({ profile, on
             <div>
               <h3 className="text-sm font-black uppercase tracking-widest text-stone-400">POS & Inventory Connectivity</h3>
               <p className="text-[10px] text-stone-500 mt-1">
-                Integrate Intelligence with your existing Point of Sale system to automate inventory and sales reconciliation.
+                Integrate Vinetelligence with your existing Point of Sale system to automate inventory and sales reconciliation.
               </p>
             </div>
             <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
@@ -302,7 +302,7 @@ const ConnectivitySettings: React.FC<ConnectivitySettingsProps> = ({ profile, on
               <p className="text-[10px] text-stone-500 mt-1">
                 {isExplorer 
                   ? 'Explorer tier utilizes localized IndexedDB session storage.' 
-                  : (isArchitectTier ? 'Configure your enterprise private silo integration.' : 'Intelligence Managed Cloud active for your establishment.')}
+                  : (isArchitectTier ? 'Configure your enterprise private silo integration.' : 'Vinetelligence Managed Cloud active for your establishment.')}
               </p>
             </div>
             {isArchitectTier && (
@@ -330,10 +330,10 @@ const ConnectivitySettings: React.FC<ConnectivitySettingsProps> = ({ profile, on
                  </p>
                </div>
                <button 
-                onClick={() => handleUpdateTier('essential')}
+                onClick={() => handleUpdateTier('free')}
                 className="px-8 py-3 bg-stone-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-stone-800 transition-all shadow-lg"
                >
-                 Upgrade to Cloud Essential
+                 Upgrade to Cloud Operator
                </button>
             </div>
           ) : isArchitectTier && useCustomDb ? (
@@ -392,7 +392,7 @@ const ConnectivitySettings: React.FC<ConnectivitySettingsProps> = ({ profile, on
                <div>
                  <p className="text-stone-900 font-bold">Resilient Managed Storage Active</p>
                  <p className="text-xs text-stone-400 max-w-sm mt-1 mx-auto leading-relaxed">
-                   Your establishment data is automatically encrypted and backed up to Intelligence's global cloud network. 
+                   Your establishment data is automatically encrypted and backed up to Vinetelligence's global cloud network. 
                    <span className="block mt-2 font-black text-emerald-600">Enterprise Silos are restricted to the Architect Tier.</span>
                  </p>
                </div>
@@ -417,7 +417,7 @@ const ConnectivitySettings: React.FC<ConnectivitySettingsProps> = ({ profile, on
                <div>
                  <p className="text-stone-900 font-bold">Managed Cloud Node (Architect)</p>
                  <p className="text-xs text-stone-400 max-w-sm mt-1 mx-auto leading-relaxed">
-                   Currently using Intelligence's high-speed global cluster. Toggle 'Custom DB' to point this node to your private enterprise silo.
+                   Currently using Vinetelligence's high-speed global cluster. Toggle 'Custom DB' to point this node to your private enterprise silo.
                  </p>
                </div>
                <button 

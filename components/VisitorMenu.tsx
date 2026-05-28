@@ -24,7 +24,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [showQuickModFor, setShowQuickModFor] = useState<InventoryItem | null>(null);
   const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'intelligence', text: string}[]>([]);
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'vinetelligence', text: string}[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const [isSettlementRequested, setIsSettlementRequested] = useState(false);
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
@@ -67,7 +67,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
           setPairingSuggestions(suggestions);
         }
       } catch (e) {
-        console.error("Intelligence: Failed to fetch pairing suggestions", e);
+        console.error("Vinetelligence: Failed to fetch pairing suggestions", e);
       } finally {
         setIsLoadingPairings(false);
       }
@@ -86,7 +86,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
     try {
       const apiKey = getApiKey();
       if (!apiKey) {
-        console.warn("Intelligence: API Key missing for audio generation");
+        console.warn("Vinetelligence: API Key missing for audio generation");
         setPlayingAudioId(null);
         return;
       }
@@ -121,7 +121,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
         }
       }
     } catch (error) {
-      console.error("Intelligence: Audio generation failed", error);
+      console.error("Vinetelligence: Audio generation failed", error);
       setPlayingAudioId(null);
     }
   };
@@ -216,13 +216,12 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
     setIsProcessingOrder(true);
     try {
       // Update local table occupant if not set
-      const savedTables = localStorage.getItem('intelligence_tables') || localStorage.getItem('oenovia_tables') || localStorage.getItem('vinetelligence_tables') || localStorage.getItem('vinea_tables');
-      const currentTables = JSON.parse(savedTables || '[]');
+      const currentTables = JSON.parse(localStorage.getItem('vinetelligence_tables') || localStorage.getItem('vinea_tables') || '[]');
       const updatedTables = currentTables.map((t: Table) => 
         t.id === table.id ? { ...t, status: 'Occupied', occupantName: t.occupantName || 'Guest (Portal)' } : t
       );
-      localStorage.setItem('intelligence_tables', JSON.stringify(updatedTables));
-      // Migrate old keys if needed by removing them on next logical write cycle
+      localStorage.setItem('vinetelligence_tables', JSON.stringify(updatedTables));
+      localStorage.setItem('vinea_tables', JSON.stringify(updatedTables));
       
       await new Promise(r => setTimeout(r, 1200));
       
@@ -235,7 +234,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
       
       window.dispatchEvent(new Event('storage'));
     } catch (e) {
-      console.error("Intelligence: Checkout failed", e);
+      console.error("Vinetelligence: Checkout failed", e);
     } finally {
       setIsProcessingOrder(false);
     }
@@ -252,9 +251,9 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
 
     try {
       const response = await geminiService.getTrainingResponse(`As an elegant restaurant sommelier, answer this guest question: ${msg}`, []);
-      setChatHistory(prev => [...prev, { role: 'intelligence', text: response }]);
+      setChatHistory(prev => [...prev, { role: 'vinetelligence', text: response }]);
     } catch {
-      setChatHistory(prev => [...prev, { role: 'intelligence', text: "I apologize, my knowledge archives are temporarily unreachable. How else may I assist you?" }]);
+      setChatHistory(prev => [...prev, { role: 'vinetelligence', text: "I apologize, my knowledge archives are temporarily unreachable. How else may I assist you?" }]);
     } finally {
       setIsThinking(false);
     }
@@ -280,7 +279,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
          <div className="relative z-10 space-y-6 md:space-y-12 animate-in fade-in zoom-in duration-1000 w-full max-w-lg my-auto py-8 md:py-12">
             <div className="space-y-4">
                <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.4em] md:tracking-[0.7em] text-indigo-500 block">ESTABLISHED 2025</span>
-               <h1 className="text-4xl sm:text-6xl md:text-9xl font-black text-stone-100 tracking-tighter italic leading-none drop-shadow-2xl">{restaurantProfile?.name || 'Intelligence'}</h1>
+               <h1 className="text-4xl sm:text-6xl md:text-9xl font-black text-stone-100 tracking-tighter italic leading-none drop-shadow-2xl">{restaurantProfile?.name || 'Vinetelligence'}</h1>
                <div className="h-[1px] w-24 md:w-40 bg-indigo-500/40 mx-auto mt-4 md:mt-6"></div>
             </div>
             
@@ -326,16 +325,15 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
         };
 
         // Save to local storage for now (since we're not using Firestore)
-        const savedFeedback = localStorage.getItem('intelligence_feedback') || localStorage.getItem('oenovia_feedback') || localStorage.getItem('vinetelligence_feedback') || localStorage.getItem('vinea_feedback');
-        const existingFeedback = JSON.parse(savedFeedback || '[]');
-        localStorage.setItem('intelligence_feedback', JSON.stringify([...existingFeedback, feedback]));
-        // Migration: explicitly use new intelligence_ key only
+        const existingFeedback = JSON.parse(localStorage.getItem('vinetelligence_feedback') || localStorage.getItem('vinea_feedback') || '[]');
+        localStorage.setItem('vinetelligence_feedback', JSON.stringify([...existingFeedback, feedback]));
+        localStorage.setItem('vinea_feedback', JSON.stringify([...existingFeedback, feedback]));
         
         setFeedbackSubmitted(true);
         await new Promise(r => setTimeout(r, 1500));
         onExit();
       } catch (e) {
-        console.error("Intelligence: Failed to save feedback", e);
+        console.error("Vinetelligence: Failed to save feedback", e);
       } finally {
         setIsSubmittingFeedback(false);
       }
@@ -352,7 +350,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                 </div>
                 <div className="space-y-2 md:space-y-4">
                    <h2 className="text-2xl md:text-5xl font-black text-white italic tracking-tighter">Rate Your Experience</h2>
-                   <p className="text-stone-400 text-[10px] md:text-sm max-w-[250px] md:max-w-xs mx-auto leading-relaxed italic">"Your insights refine our scholarship. How was your journey at {restaurantProfile?.name || 'Intelligence'}?"</p>
+                   <p className="text-stone-400 text-[10px] md:text-sm max-w-[250px] md:max-w-xs mx-auto leading-relaxed italic">"Your insights refine our scholarship. How was your journey at {restaurantProfile?.name || 'Vinetelligence'}?"</p>
                 </div>
 
                 <div className="flex justify-center gap-3 py-2 md:py-4">
@@ -454,13 +452,13 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
             {/* Hero Lifestyle Image */}
             <div className="w-full h-32 md:h-48 rounded-2xl md:rounded-[2rem] overflow-hidden relative group shadow-2xl border border-indigo-900/10">
               <img 
-                src="https://picsum.photos/seed/intelligence-hero/1200/600" 
-                alt="Intelligence Experience" 
+                src="https://picsum.photos/seed/vinetelligence-hero/1200/600" 
+                alt="Vinetelligence Experience" 
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2000ms]"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/80 via-indigo-950/20 to-transparent flex flex-col justify-end p-4 md:p-8">
-                <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] text-indigo-500 mb-1 md:mb-2">The Intelligence Experience</p>
+                <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] text-indigo-500 mb-1 md:mb-2">The Vinetelligence Experience</p>
                 <h2 className="text-xl md:text-3xl font-serif font-bold text-white italic tracking-tighter">Curated Intelligence.</h2>
               </div>
             </div>
@@ -475,7 +473,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                  </button>
                )}
                <h3 className="text-indigo-950/40 font-bold uppercase tracking-[0.3em] md:tracking-[0.5em] text-[8px] md:text-[9px]">Technical Selection</h3>
-               <h1 className="text-2xl md:text-4xl font-black text-indigo-950 tracking-tighter italic">The Intelligence List</h1>
+               <h1 className="text-2xl md:text-4xl font-black text-indigo-950 tracking-tighter italic">The Vinetelligence List</h1>
                <div className="flex justify-center gap-2 mt-1">
                  <span className="text-[6px] md:text-[7px] font-black uppercase tracking-widest text-indigo-600/60 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">v2.1 Refined</span>
                </div>
@@ -600,7 +598,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                   {idx === 1 && selectedCategory === 'All' && (
                     <div className="w-full h-32 rounded-2xl overflow-hidden relative group mb-8 shadow-lg border border-white/10">
                       <img 
-                        src="https://picsum.photos/seed/intelligence-interior/800/400" 
+                        src="https://picsum.photos/seed/vinetelligence-interior/800/400" 
                         alt="Restaurant Interior" 
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
@@ -614,7 +612,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                   {idx === 3 && selectedCategory === 'All' && (
                     <div className="w-full h-32 rounded-2xl overflow-hidden relative group mb-8 shadow-lg border border-white/10">
                       <img 
-                        src="https://picsum.photos/seed/intelligence-drinks/800/400" 
+                        src="https://picsum.photos/seed/vinetelligence-drinks/800/400" 
                         alt="Drinks Sharing" 
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"

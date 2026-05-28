@@ -23,25 +23,25 @@ interface CompetitorIntelligenceProps {
 
 const CompetitorIntelligence: React.FC<CompetitorIntelligenceProps> = ({ inventory }) => {
   const [competitors, setCompetitors] = useState<{ name: string; type: string }[]>(() => {
-    const saved = localStorage.getItem('intelligence_competitors') || localStorage.getItem('oenovia_competitors');
+    const saved = localStorage.getItem('vinetelligence_competitors');
     return saved ? JSON.parse(saved) : [{ name: 'The Golden Cask', type: 'Cocktail Bar' }];
   });
   const [newCompetitorName, setNewCompetitorName] = useState('');
   const [newCompetitorType, setNewCompetitorType] = useState('Cocktail Bar');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [strategy, setStrategy] = useState<MarketStrategy | null>(() => {
-    const saved = localStorage.getItem('intelligence_market_strategy') || localStorage.getItem('oenovia_market_strategy');
+    const saved = localStorage.getItem('vinetelligence_market_strategy');
     return saved ? JSON.parse(saved) : null;
   });
   const [selectedCompetitor, setSelectedCompetitor] = useState<number>(0);
 
   useEffect(() => {
-    localStorage.setItem('intelligence_competitors', JSON.stringify(competitors));
+    localStorage.setItem('vinetelligence_competitors', JSON.stringify(competitors));
   }, [competitors]);
 
   useEffect(() => {
     if (strategy) {
-      localStorage.setItem('intelligence_market_strategy', JSON.stringify(strategy));
+      localStorage.setItem('vinetelligence_market_strategy', JSON.stringify(strategy));
     }
   }, [strategy]);
 
@@ -62,7 +62,7 @@ const CompetitorIntelligence: React.FC<CompetitorIntelligenceProps> = ({ invento
       const result = await geminiService.getCompetitorAnalysis(competitors, inventory);
       setStrategy(result);
     } catch (e) {
-      console.error("Intelligence: Market analysis failed", e);
+      console.error("Vinetelligence: Market analysis failed", e);
     } finally {
       setIsAnalyzing(false);
     }

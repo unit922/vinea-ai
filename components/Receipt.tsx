@@ -13,7 +13,7 @@ interface ReceiptProps {
 
 const Receipt: React.FC<ReceiptProps> = ({ transaction, onClose }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
-  const profile: RestaurantProfile = JSON.parse(localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || '{}');
+  const profile: RestaurantProfile = JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
 
   const handlePrint = () => {
     const printContent = receiptRef.current;
@@ -109,7 +109,7 @@ const Receipt: React.FC<ReceiptProps> = ({ transaction, onClose }) => {
             style={{ minHeight: '400px' }}
           >
             <div className="text-center mb-6 border-b border-dashed border-stone-300 pb-4">
-              <h2 className="text-lg font-black uppercase tracking-tighter">{profile.name || 'VINETELLIGENCE'}</h2>
+              <h2 className="text-lg font-black uppercase tracking-tighter">{profile.name || 'VINETELLIGENCE AI'}</h2>
               <p className="text-[10px] opacity-60">{profile.location || 'GLOBAL OPERATIONS'}</p>
               <p className="text-[10px] opacity-60 mt-1">{new Date(transaction.timestamp).toLocaleString()}</p>
               <p className="text-[10px] font-bold mt-2">TX: {transaction.id}</p>
@@ -157,7 +157,7 @@ const Receipt: React.FC<ReceiptProps> = ({ transaction, onClose }) => {
 
             <div className="mt-8 text-center border-t border-dashed border-stone-300 pt-4">
               <p className="text-[10px] font-bold italic uppercase tracking-widest">Thank You</p>
-              <p className="text-[8px] opacity-50 mt-1 italic">Vinetelligence Beverage Intelligence</p>
+              <p className="text-[8px] opacity-50 mt-1 italic">Vinetelligence AI Beverage Intelligence</p>
             </div>
           </div>
         </div>

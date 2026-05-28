@@ -43,7 +43,7 @@ const WelcomeBriefing: React.FC<WelcomeBriefingProps> = ({
                 <div className="space-y-4">
                   <div className="w-8 h-1 bg-amber-500"></div>
                   <p className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500 leading-relaxed">
-                    Beverage Intelligence & Staff Excellence
+                    Neural Synchronization Initiated
                   </p>
                 </div>
             </div>
@@ -52,7 +52,7 @@ const WelcomeBriefing: React.FC<WelcomeBriefingProps> = ({
             <div className="flex-1 p-10 md:p-14 space-y-8">
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Authentication Success</h4>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-500">Authentication Success</h4>
                   <h2 className="text-3xl font-serif font-bold text-white tracking-tight">Welcome, {userName}</h2>
                 </div>
                 <button onClick={onClose} className="text-stone-500 hover:text-white transition-colors">
@@ -62,22 +62,22 @@ const WelcomeBriefing: React.FC<WelcomeBriefingProps> = ({
 
               <div className="space-y-6">
                 <p className="text-stone-400 text-lg leading-relaxed italic">
-                  "Your establishment's growth is secured by a synthesis of deep beverage intelligence and staff mastery. Your command center is now synchronized."
+                  "The bridge between technical raw data and hospitality mastery is built on intelligence. To maximize your Node's potential, we recommend a brief neural alignment."
                 </p>
 
                 <div className="grid grid-cols-1 gap-4">
                   <button 
                     onClick={onOpenManual}
-                    className="w-full group p-6 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-6 hover:bg-white/10 hover:border-indigo-500/50 transition-all text-left"
+                    className="w-full group p-6 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-6 hover:bg-white/10 hover:border-amber-500/50 transition-all text-left"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 group-hover:scale-110 transition-transform">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
                       <BookOpen className="w-6 h-6" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-white font-bold text-lg leading-none mb-2">Operations Guide</h3>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">Maximize Beverage Profitability</p>
+                      <h3 className="text-white font-bold text-lg leading-none mb-2">Operations Manual</h3>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">Master the Vinetelligence Ecosystem</p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-stone-700 group-hover:text-indigo-500 transition-colors" />
+                    <ChevronRight className="w-5 h-5 text-stone-700 group-hover:text-amber-500 transition-colors" />
                   </button>
 
                   <button 
@@ -88,8 +88,8 @@ const WelcomeBriefing: React.FC<WelcomeBriefingProps> = ({
                       <MessageSquare className="w-6 h-6" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-white font-bold text-lg leading-none mb-2">Staff Training Hub</h3>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">Enable Neural Learning Modules</p>
+                      <h3 className="text-white font-bold text-lg leading-none mb-2">Neural Concierge</h3>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">Instant AI Setup & Support</p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-stone-700 group-hover:text-emerald-500 transition-colors" />
                   </button>
@@ -99,9 +99,9 @@ const WelcomeBriefing: React.FC<WelcomeBriefingProps> = ({
               <div className="pt-4 flex justify-end">
                 <button 
                   onClick={onClose}
-                  className="px-10 py-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 transition-all active:scale-95"
+                  className="px-10 py-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 transition-all active:scale-95"
                 >
-                  Enter Station Alpha
+                  Enter Command Center
                 </button>
               </div>
             </div>

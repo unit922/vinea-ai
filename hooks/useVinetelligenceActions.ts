@@ -35,36 +35,6 @@ export const useVinetelligenceActions = () => {
       localStorage.removeItem('vinetelligence_transactions');
       localStorage.removeItem('vinetelligence_draft_orders');
       
-      localStorage.removeItem('intelligence_profile');
-      localStorage.removeItem('intelligence_onboarded');
-      localStorage.removeItem('intelligence_inventory');
-      localStorage.removeItem('intelligence_orders');
-      localStorage.removeItem('intelligence_journeys');
-      localStorage.removeItem('intelligence_staff_list');
-      localStorage.removeItem('intelligence_tables');
-      localStorage.removeItem('intelligence_transactions');
-      localStorage.removeItem('intelligence_draft_orders');
-      
-      localStorage.removeItem('oenovia_profile');
-      localStorage.removeItem('oenovia_onboarded');
-      localStorage.removeItem('oenovia_inventory');
-      localStorage.removeItem('oenovia_orders');
-      localStorage.removeItem('oenovia_journeys');
-      localStorage.removeItem('oenovia_staff_list');
-      localStorage.removeItem('oenovia_tables');
-      localStorage.removeItem('oenovia_transactions');
-      localStorage.removeItem('oenovia_draft_orders');
-      
-      localStorage.removeItem('vinetelligence_profile');
-      localStorage.removeItem('vinetelligence_onboarded');
-      localStorage.removeItem('vinetelligence_inventory');
-      localStorage.removeItem('vinetelligence_orders');
-      localStorage.removeItem('vinetelligence_journeys');
-      localStorage.removeItem('vinetelligence_staff_list');
-      localStorage.removeItem('vinetelligence_tables');
-      localStorage.removeItem('vinetelligence_transactions');
-      localStorage.removeItem('vinetelligence_draft_orders');
-      
       // Also clear legacy keys
       localStorage.removeItem('vinea_profile');
       localStorage.removeItem('vinea_onboarded');
@@ -88,6 +58,7 @@ export const useVinetelligenceActions = () => {
       setDevToolsUnlocked(false);
       setActiveView(AppView.DASHBOARD);
       
+      localStorage.removeItem('platform_selected_app');
       window.location.reload();
     } catch (e) {
       console.error("Vinetelligence: Logout failed", e);
@@ -100,6 +71,7 @@ export const useVinetelligenceActions = () => {
     const updated = { ...restaurantProfile, [key]: value };
     setRestaurantProfile(updated);
     localStorage.setItem('vinetelligence_profile', JSON.stringify(updated));
+    localStorage.setItem('vinea_profile', JSON.stringify(updated));
     
     if (authMode === 'secure' && restaurantProfile.id) {
       try {
@@ -127,6 +99,7 @@ export const useVinetelligenceActions = () => {
     const updated = [...inventory, newItem];
     setInventory(updated);
     localStorage.setItem('vinetelligence_inventory', JSON.stringify(updated));
+    localStorage.setItem('vinea_inventory', JSON.stringify(updated));
     
     if (authMode === 'secure' && restaurantProfile?.id) {
       supabaseSync.updateInventoryItem(restaurantProfile.id, newItem).catch(e => {
@@ -141,6 +114,7 @@ export const useVinetelligenceActions = () => {
     const updated = inventory.filter(i => i.id !== cocktailId);
     setInventory(updated);
     localStorage.setItem('vinetelligence_inventory', JSON.stringify(updated));
+    localStorage.setItem('vinea_inventory', JSON.stringify(updated));
     
     if (authMode === 'secure' && restaurantProfile?.id) {
       supabaseSync.deleteInventoryItem(restaurantProfile.id, cocktailId).catch(e => {

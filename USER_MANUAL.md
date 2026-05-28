@@ -1,24 +1,29 @@
 # Vinetelligence AI User Manual
 
 ## 1. Introduction
-Vinetelligence AI is the integrated intelligence layer for the modern beverage program. It synthesizes hospitality expertise with predictive logistics and guest intelligence to optimize every aspect of your establishment.
+Vinetelligence is an 80% autonomous, AI-powered system for restaurant and beverage operations. It synthesizes hospitality expertise, predictive logistics, and guest intelligence to optimize your floor, staff, and inventory dynamically without requiring manual demo scheduling.
 
 ## 2. Onboarding & Setup
-To begin using Vinetelligence, you can either launch a demo or register your establishment.
-- **Demo as Operator**: Explore the platform in a sandbox environment with local-first persistence. Note: The "Demo as Guest" option has been removed to focus on operational excellence.
-- **Register Establishment**: Create a permanent cloud-synced profile for your venue.
+To begin using Vinetelligence, non-technical users, owners, and managers can quickly deploy:
+- **Instant Operator Sandbox**: Explores the entire platform inside an preloaded establishment trial using local state persistence.
+- **Venue Registration**: Allows you to connect your real hardware and software databases with secure PostgreSQL/Supabase cloud mirroring.
 
-## 3. AI Avatar Interaction
-Vinetelligence features a multimodal AI Avatar that assists you throughout the platform.
-- **Intro Page (Product Specialist)**: On the introductory and onboarding pages, the AI acts as a Vinetelligence Product Specialist. It can explain platform features like "Yield Alpha" and "Guest Intelligence" but will politely decline specific beverage advice until the establishment is initialized.
-- **In-App (Beverage Intelligence)**: Once inside the app, Vinetelligence becomes your advanced Beverage Intelligence agent, providing real-time inventory insights, staff training, and guest experience optimization.
+## 3. High-Value Portals & Core Modules
+Vinetelligence integrates all key areas of modern service and business operations:
+- **Dashboard**: Real-time operational pacing, zone monitoring, and high-level success signals.
+- **AI Inventory**: Automated, camera-supported bin counts, cellar intelligence, and smart reorder forecasting.
+- **Guest Journey & Profiles**: Track custom visitor palates, guest histories, and loyalty scores.
+- **Bar Station & Sentinel**: A direct coaching interface for staff with mixology reference lookups.
+- **Guest Outreach Desk (Omnichannel Dispatch)**: A centralized communications hub for organizing and broadcasting targeted marketing campaigns and auto-realigning guest notifications.
+- **Connected Software Systems (Integration Hub)**: Link local systems such as QuickBooks and PMS services (e.g., Mews reservation workflows) to establish cohesive real-time data syncs.
+- **Industry Trends Hub (Trend Intelligence)**: Access global industry aggregate insights, community drink trends, and predictive supply recommendations.
+- **Operations & Facility Assets**: Assign tasks to active rosters, manage zones, and monitor live equipment telemetry.
 
-## 4. Core Modules
-- **Dashboard**: Real-time operational overview and performance metrics.
-- **AI Inventory**: Vision-powered inventory audits and demand forecasting.
-- **Guest Journey**: Map guest palates and automate high-value engagement.
-- **Bar Station**: Real-time preparation node with AI coaching.
-- **Operations**: Manage staff shifts, zones, and facility assets.
+## 4. UI Layout & App Switcher
+To maintain streamlined navigation across various viewports:
+- **Floating App Switcher & Comparison Dock**: A dynamic utility located at the page bottom. It is placed at `bottom-24 left-4 font-black` (rising to safe spacing on mobile, and floating at `md:left-[280px]` alongside the desktop sidebar) to ensure it **never** overlaps essential system options, such as the **Logout/Sign Out** action.
+- **Sidebar & Mobile Navigation**: Quickly toggle between individual operational views, admin settings, and global ledgers.
 
-## 5. Settings & Configuration
-Access the Settings menu to configure your establishment's profile, manage team access, and set up manual overrides for portal and menu URLs.
+## 5. Settings, Security & Override Rules
+- **Profile Overrides**: Configure manual portal or public beverage menus via the admin screen.
+- **Automatic RLS Node Protection**: Standard operations run safe Row-Level-Security protocols. Nodes created by administrators or general operators are safely synchronized across servers.

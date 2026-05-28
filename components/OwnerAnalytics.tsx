@@ -8,7 +8,7 @@ interface OwnerAnalyticsProps {
 
 export const OwnerAnalytics: React.FC<OwnerAnalyticsProps> = ({ onNavigateToInvestor }) => {
   const [registry] = useState<EstablishmentRegistry[]>(() => {
-    const saved = localStorage.getItem('intelligence_master_registry') || localStorage.getItem('oenovia_master_registry');
+    const saved = localStorage.getItem('vinetelligence_master_registry') || localStorage.getItem('vinea_master_registry');
     return saved ? JSON.parse(saved) : [
       { id: 'est-001', name: 'The Gilded Shaker', tier: 'Visionary', userLimit: 10, status: 'Active', lastPulse: '2m ago', usageMetric: 88, billingStatus: 'Current', mrr: 199 },
       { id: 'est-002', name: 'Vintage Tokyo', tier: 'Enterprise', userLimit: 999, status: 'Active', lastPulse: '15s ago', usageMetric: 94, billingStatus: 'Current', mrr: 899 },
@@ -29,7 +29,7 @@ export const OwnerAnalytics: React.FC<OwnerAnalyticsProps> = ({ onNavigateToInve
       {/* Header */}
       <div className="p-10 bg-white border-b border-stone-200 flex justify-between items-end shrink-0">
         <div>
-          <h1 className="text-4xl font-serif font-black italic tracking-tighter text-stone-900">Intelligence</h1>
+          <h1 className="text-4xl font-serif font-black italic tracking-tighter text-stone-900">Vinetelligence.live Intelligence</h1>
           <p className="text-[10px] font-black uppercase text-stone-400 tracking-[0.4em] mt-2">Global Network Performance & Owner Analytics</p>
         </div>
         <div className="flex gap-4">
@@ -126,7 +126,7 @@ export const OwnerAnalytics: React.FC<OwnerAnalyticsProps> = ({ onNavigateToInve
                           <i className="fas fa-rocket"></i>
                        </div>
                        <div>
-                          <p className="text-sm font-bold text-white">Intelligence 2.0 Deployment</p>
+                          <p className="text-sm font-bold text-white">Vinetelligence 2.0 Deployment</p>
                           <p className="text-[10px] text-stone-400 italic">Rollout scheduled for Q2. Expected efficiency gain: 18%.</p>
                        </div>
                     </div>

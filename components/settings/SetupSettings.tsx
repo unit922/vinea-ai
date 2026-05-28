@@ -32,20 +32,20 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ onRelaunch, profile, onUp
     setIsCleaning(true);
     setFeedback(null);
     try {
-        const res = await supabaseSync.cleanDemoData(profile.id);
-        setFeedback(res);
-        if (res.success) {
-          // Also clear local storage for these specific items
-          localStorage.removeItem('intelligence_orders');
-          localStorage.removeItem('intelligence_inventory');
-          localStorage.removeItem('intelligence_journeys');
-          localStorage.removeItem('intelligence_transactions');
-          localStorage.removeItem('oenovia_orders');
-          localStorage.removeItem('oenovia_inventory');
-          localStorage.removeItem('oenovia_journeys');
-          localStorage.removeItem('oenovia_transactions');
-          window.dispatchEvent(new Event('storage'));
-        }
+      const res = await supabaseSync.cleanDemoData(profile.id);
+      setFeedback(res);
+      if (res.success) {
+        // Also clear local storage for these specific items
+        localStorage.removeItem('vinetelligence_orders');
+        localStorage.removeItem('vinetelligence_inventory');
+        localStorage.removeItem('vinetelligence_journeys');
+        localStorage.removeItem('vinetelligence_transactions');
+        localStorage.removeItem('vinea_orders');
+        localStorage.removeItem('vinea_inventory');
+        localStorage.removeItem('vinea_journeys');
+        localStorage.removeItem('vinea_transactions');
+        window.dispatchEvent(new Event('storage'));
+      }
     } catch {
       setFeedback({ success: false, message: "System failure during purge sequence." });
     } finally {
@@ -69,8 +69,6 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ onRelaunch, profile, onUp
       if (res.success) {
         // Trigger a data refresh
         window.dispatchEvent(new Event('storage'));
-        window.dispatchEvent(new Event('intelligence_data_update'));
-        window.dispatchEvent(new Event('intelligence_data_update'));
         window.dispatchEvent(new Event('vinetelligence_data_update'));
       }
     } catch (err: unknown) {
@@ -87,7 +85,7 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ onRelaunch, profile, onUp
        <div className="bg-amber-500 text-stone-950 p-10 rounded-[2.5rem] shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 p-10 opacity-10"><i className="fas fa-rocket text-8xl"></i></div>
           <h3 className="text-2xl font-serif font-bold mb-2">Re-initialize Setup</h3>
-          <p className="text-sm font-medium mb-8 max-w-md">Restart the Intelligence onboarding wizard to reconfigure your establishment's core identity and AI modules.</p>
+          <p className="text-sm font-medium mb-8 max-w-md">Restart the Vinetelligence onboarding wizard to reconfigure your establishment's core identity and AI modules.</p>
           <button 
             onClick={onRelaunch}
             className="px-10 py-4 bg-stone-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-stone-800 transition-all active:scale-95"
@@ -103,7 +101,7 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ onRelaunch, profile, onUp
              </div>
              <div>
                 <h4 className="text-xl font-serif font-black italic">System Documentation</h4>
-                <p className="text-xs text-stone-500 font-medium">Access the latest user and technical manuals for the Intelligence Intelligence Suite.</p>
+                <p className="text-xs text-stone-500 font-medium">Access the latest user and technical manuals for the Vinetelligence Intelligence Suite.</p>
              </div>
           </div>
 

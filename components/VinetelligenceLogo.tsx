@@ -1,22 +1,24 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
+import { getPublicBrand } from '../utils/branding';
 
 interface VinetelligenceLogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   withText?: boolean;
   accentColor?: string;
-  orientation?: 'vertical' | 'horizontal';
 }
 
 const VinetelligenceLogo: React.FC<VinetelligenceLogoProps> = ({ 
   className = "", 
   size = "md", 
   withText = true,
-  accentColor = "#0ea5e9", // Sky Blue / Azure Caribbean
-  orientation = 'vertical'
+  accentColor
 }) => {
+  const brand = getPublicBrand();
+  const actualAccentColor = accentColor || (brand.theme === 'vinea' ? "#d97706" : "#4f46e5"); // amber-600 or indigo-600
+
   const sizes = {
     sm: "h-8",
     md: "h-12",
@@ -24,85 +26,75 @@ const VinetelligenceLogo: React.FC<VinetelligenceLogoProps> = ({
     xl: "h-40"
   };
 
-  const containerClasses = orientation === 'horizontal' 
-    ? `flex items-center gap-3 ${className}`
-    : `flex flex-col items-center justify-center gap-2 ${className}`;
-
   return (
-    <div className={containerClasses}>
+    <div className={`flex flex-col items-center justify-center gap-2 ${className}`}>
       <motion.svg 
         viewBox="0 0 160 120" 
         className={`${sizes[size]} w-auto aspect-[4/3]`}
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, ease: "easeOut" }}
       >
         <defs>
-          <linearGradient id="caribbeanGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <linearGradient id="chromeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="50%" stopColor="#7dd3fc" />
-            <stop offset="100%" stopColor="#0ea5e9" />
+            <stop offset="50%" stopColor="#94a3b8" />
+            <stop offset="100%" stopColor="#475569" />
           </linearGradient>
-          <filter id="azureGlow">
-            <feGaussianBlur stdDeviation="3" result="blur" />
+          <filter id="accentGlow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
 
-        {/* Dynamic V-Frame inspired by nautical/vinea architecture */}
+        {/* stylized metallic "V" plates based on the draft */}
+        {/* Left Plate */}
         <motion.path 
-          d="M40,30 L75,30 L65,95 L30,95 Z" 
-          fill="url(#caribbeanGrad)"
-          stroke={accentColor}
+          d="M40,30 L75,30 L60,85 L25,85 Z" 
+          fill="url(#chromeGrad)"
+          stroke={actualAccentColor}
           strokeWidth="0.5"
-          initial={{ x: -5, opacity: 0 }}
+          initial={{ x: -10, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
         />
+        {/* Right Plate */}
         <motion.path 
-          d="M85,30 L120,30 L130,95 L95,95 Z" 
-          fill="url(#caribbeanGrad)"
-          stroke={accentColor}
+          d="M85,30 L120,30 L135,85 L100,85 Z" 
+          fill="url(#chromeGrad)"
+          stroke={actualAccentColor}
           strokeWidth="0.5"
-          initial={{ x: 5, opacity: 0 }}
+          initial={{ x: 10, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
         />
         
-        {/* Coastal Reef / Sand Accent */}
-        <motion.path 
-          d="M30,95 L130,95 L132,98 L28,98 Z" 
-          fill="#fef08a" 
-          filter="url(#azureGlow)"
-          animate={{ opacity: [0.3, 0.6, 0.3] }}
-          transition={{ repeat: Infinity, duration: 4 }}
-        />
+        {/* Glow Accents / Undersides */}
+        <path d="M25,85 L60,85 L58,88 L23,88 Z" fill={actualAccentColor} filter="url(#accentGlow)" />
+        <path d="M100,85 L135,85 L137,88 L102,88 Z" fill={actualAccentColor} filter="url(#accentGlow)" />
 
-        {/* Central Pulse / Neural Vinea Core */}
+        {/* Central Neural Core / Small V */}
         <motion.path 
-          d="M72,60 L80,72 L88,60" 
+          d="M75,55 L80,65 L85,55" 
           fill="none" 
           stroke="white" 
           strokeWidth="3"
           strokeLinecap="round"
-          animate={{ 
-            opacity: [0.6, 1, 0.6],
-            scale: [0.95, 1.05, 0.95]
-          }}
-          transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ repeat: Infinity, duration: 2 }}
         />
       </motion.svg>
 
       {withText && (
-        <div className="flex flex-col items-center">
-          <span className="font-sans font-black text-white uppercase tracking-tight leading-none" style={{ fontSize: size === 'xl' ? '2.2rem' : size === 'lg' ? '1.4rem' : '1.1rem' }}>
-            VINETELLIGENCE AI
+        <div className="flex flex-col items-center" id="logo-branding-wrapper">
+          <span className="font-sans font-black text-white italic tracking-[-0.05em] leading-none text-center" style={{ fontSize: size === 'xl' ? '2.5rem' : size === 'lg' ? '1.5rem' : '1.1rem' }}>
+            {brand.name.toUpperCase()}
           </span>
           <span 
-            className="text-[6px] md:text-[8px] uppercase tracking-[0.6em] font-black mt-1"
-            style={{ color: accentColor }}
+            className="text-[7px] md:text-[9px] uppercase tracking-[0.6em] font-black mt-1 text-center"
+            style={{ color: actualAccentColor }}
           >
-            VINEA CARIBBEAN NODES
+            {brand.theme === 'vinea' ? "HOSPITALITY SERVICE OS" : "BEVERAGES INTELLIGENCE"}
           </span>
         </div>
       )}

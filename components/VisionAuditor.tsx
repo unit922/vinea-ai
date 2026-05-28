@@ -138,14 +138,14 @@ const VisionAuditor: React.FC<VisionAuditorProps> = ({ onCommit, onClose }) => {
                    <i className="fas fa-exclamation-triangle text-3xl"></i>
                 </div>
                 <div className="space-y-3">
-                   <p className="text-red-500 font-black uppercase tracking-widest text-[10px]">Intelligence Neural Link Failed</p>
+                   <p className="text-red-500 font-black uppercase tracking-widest text-[10px]">Vinetelligence Neural Link Failed</p>
                    <p className="text-stone-400 text-[11px] leading-relaxed max-w-[240px] mx-auto">{error}</p>
                 </div>
                 <button 
                   onClick={() => { setError(null); startCamera(); }}
                   className="px-6 py-3 bg-white text-stone-900 rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-amber-50 transition-all active:scale-95"
                 >
-                  Retry Intelligence Neural Link
+                  Retry Vinetelligence Neural Link
                 </button>
              </div>
            ) : isCameraActive ? (

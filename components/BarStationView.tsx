@@ -7,7 +7,7 @@ import { financialEngine } from '../services/FinancialEngine';
 import AdjustablePOS from './AdjustablePOS';
 
 interface BarStationViewProps {
-  setAIChatOpen?: (open: boolean) => void;
+  setIsAIChatOpen?: (open: boolean) => void;
   onNavigateToAcademy?: (tab: 'academy' | 'mixology' | 'signature' | 'roster' | 'pairing') => void;
   orders?: ServiceOrder[];
   inventory?: InventoryItem[];
@@ -15,13 +15,13 @@ interface BarStationViewProps {
 }
 
 const BarStationView: React.FC<BarStationViewProps> = ({ 
-  setAIChatOpen, 
+  setIsAIChatOpen, 
   onNavigateToAcademy,
   orders: propOrders = [],
   inventory: propInventory = [],
   authMode = 'demo'
 }) => {
-  const profile = JSON.parse(localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || '{}');
+  const profile = JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
 
   const [orders, setOrders] = useState<ServiceOrder[]>(propOrders);
   const [inventory, setInventory] = useState<InventoryItem[]>(propInventory);
@@ -89,7 +89,8 @@ const BarStationView: React.FC<BarStationViewProps> = ({
 
     const updatedOrders = [newOrder, ...orders];
     setOrders(updatedOrders);
-    localStorage.setItem('intelligence_orders', JSON.stringify(updatedOrders));
+    localStorage.setItem('vinetelligence_orders', JSON.stringify(updatedOrders));
+    localStorage.setItem('vinea_orders', JSON.stringify(updatedOrders));
 
     // Create Transaction for paid orders (Kiosk or immediate walk-in pay)
     if (showPayment && !isDraft) {
@@ -107,19 +108,20 @@ const BarStationView: React.FC<BarStationViewProps> = ({
         status: 'Settled'
       };
 
-      const savedTransactions = localStorage.getItem('intelligence_transactions') || localStorage.getItem('oenovia_transactions') || localStorage.getItem('vinetelligence_transactions') || '[]';
+      const savedTransactions = localStorage.getItem('vinetelligence_transactions') || localStorage.getItem('vinea_transactions') || '[]';
       const transactions = JSON.parse(savedTransactions);
       const updatedTransactions = [transaction, ...transactions];
-      localStorage.setItem('intelligence_transactions', JSON.stringify(updatedTransactions));
+      localStorage.setItem('vinetelligence_transactions', JSON.stringify(updatedTransactions));
+      localStorage.setItem('vinea_transactions', JSON.stringify(updatedTransactions));
       
       if (profile.id && profile.id !== 'demo-id') {
-        supabaseSync.saveTransaction(profile.id, transaction).catch(e => console.error("Intelligence: Failed to sync transaction", e));
+        supabaseSync.saveTransaction(profile.id, transaction).catch(e => console.error("Vinetelligence: Failed to sync transaction", e));
       }
     }
 
     // Push to Supabase
     if (profile.id && profile.id !== 'demo-id') {
-      supabaseSync.saveOrder(profile.id, newOrder).catch(e => console.error("Intelligence: Failed to sync bar order", e));
+      supabaseSync.saveOrder(profile.id, newOrder).catch(e => console.error("Vinetelligence: Failed to sync bar order", e));
     }
     
     // Clear cart and close
@@ -333,10 +335,10 @@ const BarStationView: React.FC<BarStationViewProps> = ({
 
   useEffect(() => {
     const handleStorageChange = () => {
-      const savedOrders = localStorage.getItem('intelligence_orders') || localStorage.getItem('oenovia_orders') || localStorage.getItem('vinetelligence_orders');
+      const savedOrders = localStorage.getItem('vinetelligence_orders') || localStorage.getItem('vinea_orders');
       if (savedOrders) setOrders(JSON.parse(savedOrders));
       
-      const savedInventory = localStorage.getItem('intelligence_inventory') || localStorage.getItem('oenovia_inventory') || localStorage.getItem('vinetelligence_inventory');
+      const savedInventory = localStorage.getItem('vinetelligence_inventory') || localStorage.getItem('vinea_inventory');
       if (savedInventory) setInventory(JSON.parse(savedInventory));
     };
     window.addEventListener('storage', handleStorageChange);
@@ -354,7 +356,7 @@ const BarStationView: React.FC<BarStationViewProps> = ({
       const guide = await geminiService.getCocktailPreparationGuide(name);
       setPrepGuide(guide);
     } catch (e) {
-      console.error("Intelligence: Failed to fetch prep guide", e);
+      console.error("Vinetelligence: Failed to fetch prep guide", e);
     } finally {
       setLoadingPrepGuide(false);
     }
@@ -437,7 +439,8 @@ const BarStationView: React.FC<BarStationViewProps> = ({
         });
       });
       // Persist inventory
-      localStorage.setItem('intelligence_inventory', JSON.stringify(nextInv));
+      localStorage.setItem('vinetelligence_inventory', JSON.stringify(nextInv));
+      localStorage.setItem('vinea_inventory', JSON.stringify(nextInv));
       return nextInv;
     });
 
@@ -455,32 +458,34 @@ const BarStationView: React.FC<BarStationViewProps> = ({
           items: o.items.map(item => ({ ...item, status: (isWalkInOrPickup ? 'Served' : 'Ready') }))
         };
         // Push to Supabase
-        supabaseSync.saveOrder(profile.id || 'demo', updatedOrder).catch(e => console.error("Intelligence: Failed to sync order update", e));
+        supabaseSync.saveOrder(profile.id || 'demo', updatedOrder).catch(e => console.error("Vinetelligence: Failed to sync order update", e));
         return updatedOrder;
       }
       return o;
     });
     setOrders(updatedOrders);
-    localStorage.setItem('intelligence_orders', JSON.stringify(updatedOrders));
-    
+    localStorage.setItem('vinetelligence_orders', JSON.stringify(updatedOrders));
+    localStorage.setItem('vinea_orders', JSON.stringify(updatedOrders));
+
     // Automatically complete journey for Walk-in/Pickup guests
     const isWalkIn = displayId.includes('Walk-in') || displayId.includes('Pickup') || !displayId.includes('Table');
     if (isWalkIn) {
-      const savedJourneys = localStorage.getItem('intelligence_journeys') || localStorage.getItem('oenovia_journeys');
+      const savedJourneys = localStorage.getItem('vinetelligence_journeys') || localStorage.getItem('vinea_journeys');
       if (savedJourneys) {
         try {
           const journeys: GuestJourney[] = JSON.parse(savedJourneys);
           const tableNum = displayId.includes('Table') ? displayId.replace('Table ', '') : 'Walk-in';
           const journey = journeys.find(j => 
-            (j.tableNumber === tableNum && j.status !== 'Completed' as const) ||
-            (displayId.includes(j.profile.name) && j.status !== 'Completed' as const)
+            (j.tableNumber === tableNum && j.status !== 'Completed') ||
+            (displayId.includes(j.profile.name) && j.status !== 'Completed')
           );
           if (journey) {
             const updatedJourneys = journeys.map(j => j.id === journey.id ? { ...j, status: 'Completed' as const } : j);
-            localStorage.setItem('intelligence_journeys', JSON.stringify(updatedJourneys));
-            supabaseSync.pushJourney(profile.id || 'demo', { ...journey, status: 'Completed' as const }).catch(e => console.error("Intelligence: Failed to sync journey completion", e));
+            localStorage.setItem('vinetelligence_journeys', JSON.stringify(updatedJourneys));
+            localStorage.setItem('vinea_journeys', JSON.stringify(updatedJourneys));
+            supabaseSync.pushJourney(profile.id || 'demo', { ...journey, status: 'Completed' as const }).catch(e => console.error("Vinetelligence: Failed to sync journey completion", e));
           }
-        } catch (e) { console.error("Intelligence: Failed to auto-complete journey", e); }
+        } catch (e) { console.error("Vinetelligence: Failed to auto-complete journey", e); }
       }
     }
 
@@ -499,14 +504,15 @@ const BarStationView: React.FC<BarStationViewProps> = ({
           items: o.items.map(item => ({ ...item, status: 'Completed' }))
         };
         // Sync completion
-        supabaseSync.saveOrder(profile.id || 'demo', updatedOrder).catch(e => console.error("Intelligence: Failed to sync session completion", e));
+        supabaseSync.saveOrder(profile.id || 'demo', updatedOrder).catch(e => console.error("Vinetelligence: Failed to sync session completion", e));
         return updatedOrder;
       }
       return o;
     });
 
     setOrders(updatedOrders);
-    localStorage.setItem('intelligence_orders', JSON.stringify(updatedOrders));
+    localStorage.setItem('vinetelligence_orders', JSON.stringify(updatedOrders));
+    localStorage.setItem('vinea_orders', JSON.stringify(updatedOrders));
     window.dispatchEvent(new Event('storage'));
   };
 
@@ -646,7 +652,7 @@ const BarStationView: React.FC<BarStationViewProps> = ({
             </div>
             <div>
               <h3 className="text-2xl font-serif font-bold italic tracking-tight">Guest Ordering Terminal</h3>
-              <p className="text-[8px] font-black uppercase tracking-widest opacity-60 mt-0.5">Silo: {profile.establishmentName || 'Intelligence Main'}</p>
+              <p className="text-[8px] font-black uppercase tracking-widest opacity-60 mt-0.5">Silo: {profile.establishmentName || 'Vinetelligence Main'}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
@@ -702,7 +708,7 @@ const BarStationView: React.FC<BarStationViewProps> = ({
           {!isKioskMode && (
             <div className="flex items-center gap-3">
                <button 
-                  onClick={() => setAIChatOpen?.(true)}
+                  onClick={() => setIsAIChatOpen?.(true)}
                   className="hidden sm:flex items-center gap-3 px-6 py-3 bg-stone-900 text-white rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 hover:bg-stone-800 border border-white/10 group"
                >
                   <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
@@ -1051,7 +1057,7 @@ const BarStationView: React.FC<BarStationViewProps> = ({
       {/* Floating AI Coach Trigger - Mobile/Compact */}
       {!isKioskMode && (
         <button 
-          onClick={() => setAIChatOpen?.(true)}
+          onClick={() => setIsAIChatOpen?.(true)}
           className="fixed bottom-8 right-8 z-[100] w-16 h-16 bg-stone-900 text-white rounded-full shadow-2xl flex items-center justify-center border border-white/10 hover:bg-stone-800 active:scale-90 transition-all sm:hidden"
         >
           <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">

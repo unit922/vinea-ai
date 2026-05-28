@@ -129,7 +129,7 @@ const SustainabilityNode: React.FC = () => {
                     <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.4em] mt-2">AI-Driven Spoilage Mitigation</p>
                  </div>
                  <p className="text-stone-400 text-sm font-medium leading-relaxed max-w-xl">
-                    The platform is now monitoring inventory age and temperature telemetry. 
+                    Vinetelligence is now monitoring inventory age and temperature telemetry. 
                     The system will automatically suggest "Sustainability Flights" or discounted 
                     pairing menus before products cross the neural freshness threshold.
                  </p>

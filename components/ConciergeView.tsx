@@ -44,7 +44,7 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
   const isGeneratingRef = useRef(false);
   const lastBriefRef = useRef<string | null>(null);
 
-  const inventory: InventoryItem[] = JSON.parse(localStorage.getItem('intelligence_inventory') || localStorage.getItem('vinea_inventory') || '[]');
+  const inventory: InventoryItem[] = JSON.parse(localStorage.getItem('vinetelligence_inventory') || localStorage.getItem('vinea_inventory') || '[]');
   const activeJourney = journeys.find(j => j.id === selectedId);
 
   const generateAIToolkit = useCallback(async () => {
@@ -145,24 +145,24 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
         const cloudTables = await supabaseSync.pullTables(profile.id);
         if (cloudTables && cloudTables.length > 0) {
           setTables(cloudTables);
-          localStorage.setItem('intelligence_tables', JSON.stringify(cloudTables));
+          localStorage.setItem('vinetelligence_tables', JSON.stringify(cloudTables));
           localStorage.setItem('vinea_tables', JSON.stringify(cloudTables));
         } else {
           // Fallback to local/initial if cloud is empty
-          const savedTables = localStorage.getItem('intelligence_tables') || localStorage.getItem('vinea_tables');
+          const savedTables = localStorage.getItem('vinetelligence_tables') || localStorage.getItem('vinea_tables');
           const tableData = savedTables ? (JSON.parse(savedTables) as Table[]) : INITIAL_TABLES;
           setTables(tableData);
           if (!savedTables) {
-            localStorage.setItem('intelligence_tables', JSON.stringify(INITIAL_TABLES));
+            localStorage.setItem('vinetelligence_tables', JSON.stringify(INITIAL_TABLES));
             localStorage.setItem('vinea_tables', JSON.stringify(INITIAL_TABLES));
           }
         }
       } else {
-        const savedTables = localStorage.getItem('intelligence_tables') || localStorage.getItem('vinea_tables');
+        const savedTables = localStorage.getItem('vinetelligence_tables') || localStorage.getItem('vinea_tables');
         const tableData = savedTables ? (JSON.parse(savedTables) as Table[]) : INITIAL_TABLES;
         setTables(tableData);
         if (!savedTables) {
-          localStorage.setItem('intelligence_tables', JSON.stringify(INITIAL_TABLES));
+          localStorage.setItem('vinetelligence_tables', JSON.stringify(INITIAL_TABLES));
           localStorage.setItem('vinea_tables', JSON.stringify(INITIAL_TABLES));
         }
       }
@@ -171,11 +171,11 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
       const initialJourneys = await supabaseSync.pullJourneys(profile?.id || 'demo');
       if (initialJourneys && initialJourneys.length > 0) {
         setJourneys(initialJourneys);
-        localStorage.setItem('intelligence_journeys', JSON.stringify(initialJourneys));
+        localStorage.setItem('vinetelligence_journeys', JSON.stringify(initialJourneys));
         localStorage.setItem('vinea_journeys', JSON.stringify(initialJourneys));
       }
     } catch (e) {
-      console.error("Intelligence: Sync failed", e);
+      console.error("Vinetelligence: Sync failed", e);
     }
 
     setIsRefreshing(false);
@@ -204,12 +204,12 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
     const updatedJourney = { ...journey, status: 'Completed' as const };
     const updatedJourneys = journeys.map(j => j.id === id ? updatedJourney : j);
     setJourneys(updatedJourneys);
-    localStorage.setItem('intelligence_journeys', JSON.stringify(updatedJourneys));
+    localStorage.setItem('vinetelligence_journeys', JSON.stringify(updatedJourneys));
     localStorage.setItem('vinea_journeys', JSON.stringify(updatedJourneys));
 
     // Free the table if they were seated
     if (journey.tableNumber && journey.tableNumber !== 'Pending' && journey.tableNumber !== 'Walk-in') {
-      const savedTables = localStorage.getItem('intelligence_tables') || localStorage.getItem('vinea_tables');
+      const savedTables = localStorage.getItem('vinetelligence_tables') || localStorage.getItem('vinea_tables');
       if (savedTables) {
         const tables: Table[] = JSON.parse(savedTables);
         const updatedTables = tables.map(t => t.number === journey.tableNumber ? { 
@@ -219,13 +219,13 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
           occupantCount: 0
         } : t);
         setTables(updatedTables);
-        localStorage.setItem('intelligence_tables', JSON.stringify(updatedTables));
+        localStorage.setItem('vinetelligence_tables', JSON.stringify(updatedTables));
         localStorage.setItem('vinea_tables', JSON.stringify(updatedTables));
         
         // Sync table to Supabase
         const updatedTable = updatedTables.find(t => t.number === journey.tableNumber);
         if (updatedTable) {
-          supabaseSync.saveTable(profile?.id || 'demo', updatedTable).catch(e => console.error("Intelligence: Failed to sync table status", e));
+          supabaseSync.saveTable(profile?.id || 'demo', updatedTable).catch(e => console.error("Vinetelligence: Failed to sync table status", e));
         }
       }
     }
@@ -234,7 +234,7 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
     try {
       await supabaseSync.pushJourney(profile?.id || 'demo', updatedJourney);
     } catch (e) {
-      console.error("Intelligence: Failed to sync completion", e);
+      console.error("Vinetelligence: Failed to sync completion", e);
     }
     
     window.dispatchEvent(new Event('storage'));
@@ -247,14 +247,14 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
     const updatedJourney = { ...journey, status, facialId: facialId || journey.facialId };
     const updated = journeys.map(j => j.id === id ? updatedJourney : j);
     setJourneys(updated);
-    localStorage.setItem('intelligence_journeys', JSON.stringify(updated));
+    localStorage.setItem('vinetelligence_journeys', JSON.stringify(updated));
     localStorage.setItem('vinea_journeys', JSON.stringify(updated));
     
     // Push to Supabase
     try {
       await supabaseSync.pushJourney(profile?.id || 'demo', updatedJourney);
     } catch (e) {
-      console.error("Intelligence: Failed to sync journey update", e);
+      console.error("Vinetelligence: Failed to sync journey update", e);
     }
     
     window.dispatchEvent(new Event('storage'));
@@ -285,13 +285,13 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
 
     const updated = [newJourney, ...journeys];
     setJourneys(updated);
-    localStorage.setItem('intelligence_journeys', JSON.stringify(updated));
+    localStorage.setItem('vinetelligence_journeys', JSON.stringify(updated));
     localStorage.setItem('vinea_journeys', JSON.stringify(updated));
     setSelectedId(newJourney.id);
     setIsSeating(true);
     
     // Push to Supabase
-    supabaseSync.pushJourney(profile?.id || 'demo', newJourney).catch(e => console.error("Intelligence: Failed to sync new journey", e));
+    supabaseSync.pushJourney(profile?.id || 'demo', newJourney).catch(e => console.error("Vinetelligence: Failed to sync new journey", e));
     window.dispatchEvent(new Event('storage'));
   };
 
@@ -311,14 +311,14 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
       
       const updatedJourneys = journeys.map(j => j.id === activeJourney.id ? updatedJourney : j);
       setJourneys(updatedJourneys);
-      localStorage.setItem('intelligence_journeys', JSON.stringify(updatedJourneys));
+      localStorage.setItem('vinetelligence_journeys', JSON.stringify(updatedJourneys));
       localStorage.setItem('vinea_journeys', JSON.stringify(updatedJourneys));
 
       // Push to Supabase
       try {
         await supabaseSync.pushJourney(profile?.id || 'demo', updatedJourney);
       } catch (e) {
-        console.error("Intelligence: Failed to sync seating update", e);
+        console.error("Vinetelligence: Failed to sync seating update", e);
       }
 
       const updatedTables = tables.map(t => t.id === selectedTableForSeating.id ? { 
@@ -328,13 +328,13 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
         occupantCount: activeJourney.partySize || 1
       } : t);
       setTables(updatedTables);
-      localStorage.setItem('intelligence_tables', JSON.stringify(updatedTables));
+      localStorage.setItem('vinetelligence_tables', JSON.stringify(updatedTables));
       localStorage.setItem('vinea_tables', JSON.stringify(updatedTables));
 
       // Push to Supabase
       const updatedTable = updatedTables.find(t => t.id === selectedTableForSeating.id);
       if (updatedTable) {
-        supabaseSync.saveTable(profile?.id || 'demo', updatedTable).catch(e => console.error("Intelligence: Failed to sync table status", e));
+        supabaseSync.saveTable(profile?.id || 'demo', updatedTable).catch(e => console.error("Vinetelligence: Failed to sync table status", e));
       }
 
       setIsSeating(false);
@@ -430,7 +430,7 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
       });
       setTimeout(() => setNotification(null), 5000);
     } catch (err) { 
-      console.error("Intelligence: Campaign dispatch failed", err);
+      console.error("Vinetelligence: Campaign dispatch failed", err);
       setNotification({ 
         message: "Dispatch Error: System failed to bridge the communication gap.", 
         type: 'error' 
@@ -459,7 +459,7 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
       const { html } = await response.json();
       setPreviewHtml(html);
     } catch (err) {
-      console.error("Intelligence: Preview synthesis error", err);
+      console.error("Vinetelligence: Preview synthesis error", err);
       setNotification({ message: "Neural Synthesis Error: Failed to generate visual preview.", type: 'error' });
     } finally {
       setIsPreviewLoading(false);
@@ -510,7 +510,7 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
                 <i className="fas fa-link text-2xl"></i>
               </div>
               <div>
-                <h3 className="text-2xl font-serif font-black italic">Hospitality & Access Hub</h3>
+                <h3 className="text-2xl font-serif font-black italic">Marketing & Access Hub</h3>
                 <p className="text-stone-500 text-sm mt-2 leading-relaxed">Deploy these links across your digital presence to initialize guest journeys.</p>
               </div>
               <div className="space-y-6">
@@ -672,7 +672,7 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
            <button onClick={() => setActiveTab('arrivals')} className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all px-2 ${activeTab === 'arrivals' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-stone-400 hover:text-stone-600'}`}>Arrival Hub</button>
            {!isOperator && (
              <>
-               <button onClick={() => setActiveTab('campaigns')} className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all px-2 ${activeTab === 'campaigns' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-stone-400 hover:text-stone-600'}`}>Hospitality Engines</button>
+               <button onClick={() => setActiveTab('campaigns')} className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all px-2 ${activeTab === 'campaigns' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-stone-400 hover:text-stone-600'}`}>Marketing Engines</button>
                <button onClick={() => setActiveTab('intelligence')} className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all px-2 ${activeTab === 'intelligence' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-stone-400 hover:text-stone-600'}`}>Intelligence Hub</button>
              </>
            )}
@@ -932,7 +932,7 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
                                               const updatedJourney = { ...activeJourney, pacingMode: mode };
                                               const updated = journeys.map(j => j.id === activeJourney.id ? updatedJourney : j);
                                               setJourneys(updated);
-                                              localStorage.setItem('intelligence_journeys', JSON.stringify(updated));
+                                              localStorage.setItem('vinetelligence_journeys', JSON.stringify(updated));
                                               if (profile?.id) {
                                                 await supabaseSync.pushJourney(profile.id, updatedJourney);
                                               }
@@ -1057,7 +1057,7 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
               <div className="lg:col-span-2 bg-white p-10 rounded-[3rem] border border-stone-200 shadow-xl space-y-8 relative overflow-hidden">
                  <div className="absolute top-0 right-0 p-8 opacity-5"><i className="fas fa-bullhorn text-9xl"></i></div>
                  <div className="space-y-2">
-                    <h3 className="text-3xl font-serif font-black italic tracking-tighter text-stone-900">Palate Insight Synthesis</h3>
+                    <h3 className="text-3xl font-serif font-black italic tracking-tighter text-stone-900">Palate Marketing Synthesis</h3>
                     <p className="text-stone-500 text-sm font-medium italic">Create targeted campaigns for guest clusters matching specific palate fingerprints.</p>
                  </div>
                  <div className="flex gap-4">
@@ -1364,7 +1364,7 @@ const ConciergeView: React.FC<ConciergeViewProps> = ({ journeys, setJourneys, pr
             <div className="flex-1 bg-stone-100 p-8 overflow-hidden flex justify-center">
                <div className="w-full max-w-[640px] bg-white shadow-2xl rounded-xl overflow-auto h-full border border-stone-200">
                   <iframe 
-                    title="Intelligence Synthesis Preview"
+                    title="Vinetelligence Synthesis Preview"
                     srcDoc={previewHtml} 
                     className="w-full h-full border-none"
                   />

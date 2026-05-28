@@ -1,8 +1,11 @@
 {
-  "name": "Vinetelligence",
-  "description": "Neural operating system and beverage intelligence platform for premium establishments. Specializing in predictive inventory, staff mastery, and intelligent operational excellence.",
+  "name": "Vinetelligence | AI Beverage Intelligence & SaaS Node",
+  "description": "Vinetelligence v3.1.0: A comprehensive AI-directed hospitality management platform with dynamic branding and a new Lite Mode for simplified staff interaction. Specialized in beverage intelligence, predictive inventory, and neural training protocols.",
   "requestFramePermissions": [
     "camera",
     "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

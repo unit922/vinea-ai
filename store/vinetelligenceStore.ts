@@ -1,8 +1,8 @@
 
 import { create } from 'zustand';
 import { RestaurantProfile, InventoryItem, ServiceOrder, Table, GuestJourney, AppView, RetailTransaction, StaffShift, StaffAssignment, StaffRosterItem, SubscriptionTier, TierConfig, TIER_CONFIGS } from '../lib/types';
-import { isSystemAdmin } from '../lib/authUtils';
-import { Session } from '../services/authService';
+import { isVinetelligenceAdmin } from '../lib/authUtils';
+import { VinetelligenceSession } from '../services/authService';
 
 interface VinetelligenceState {
   // Core State
@@ -20,7 +20,7 @@ interface VinetelligenceState {
   staffRoster: StaffRosterItem[];
   assignments: StaffAssignment[];
   activeView: AppView;
-  session: Session | null;
+  session: VinetelligenceSession | null;
   isReady: boolean;
   isOnline: boolean;
   isDatabaseConnected: boolean;
@@ -30,8 +30,8 @@ interface VinetelligenceState {
   isDeveloper: boolean;
   devToolsUnlocked: boolean;
   ownedCount: number;
-  isAIChatOpen: boolean;
   serviceAlerts: { id: string; message: string; type: 'delay' | 'payment'; severity: 'warning' | 'critical' }[];
+  isAIChatOpen: boolean;
   
   // Actions
   setRestaurantProfile: (profile: RestaurantProfile | null) => void;
@@ -45,7 +45,7 @@ interface VinetelligenceState {
   setStaffRoster: (roster: StaffRosterItem[]) => void;
   setAssignments: (assignments: StaffAssignment[]) => void;
   setActiveView: (view: AppView) => void;
-  setSession: (session: Session | null) => void;
+  setSession: (session: VinetelligenceSession | null) => void;
   setIsReady: (isReady: boolean) => void;
   setIsOnline: (isOnline: boolean) => void;
   setIsDatabaseConnected: (isConnected: boolean) => void;
@@ -55,8 +55,8 @@ interface VinetelligenceState {
   setIsDeveloper: (isDev: boolean) => void;
   setDevToolsUnlocked: (unlocked: boolean) => void;
   setOwnedCount: (count: number) => void;
-  setAIChatOpen: (isOpen: boolean) => void;
   setServiceAlerts: (alerts: { id: string; message: string; type: 'delay' | 'payment'; severity: 'warning' | 'critical' }[]) => void;
+  setAIChatOpen: (isOpen: boolean) => void;
   
   // Helpers
   updateInventoryItem: (id: string, updates: Partial<InventoryItem>) => void;
@@ -87,64 +87,37 @@ export const useVinetelligenceStore = create<VinetelligenceState>((set, get) => 
   },
   canAccess: (view: AppView) => {
     const state = get();
-    const role = state.currentUserRole;
+    
+    // Staff bypass
     const email = state.session?.user?.email || '';
+    const isOwnerOrDev = ['Owner', 'Developer'].includes(state.currentUserRole || '');
+    const isStaffRole = ['Server', 'Sommelier', 'Mixologist', 'Concierge'].includes(state.currentUserRole || '');
+    const isStaff = isVinetelligenceAdmin(email) || isOwnerOrDev || isStaffRole;
     
-    const isOwnerOrDev = ['Owner', 'Developer'].includes(role || '');
-    const isAdminOrManager = ['Admin', 'Manager'].includes(role || '');
-    const isAdministrative = isOwnerOrDev || isAdminOrManager || isSystemAdmin(email);
-    
-    const isInvestor = role === 'Investor';
-    const isStaffRole = ['Server', 'Sommelier', 'Mixologist', 'Concierge'].includes(role || '');
-
-    // Master/SaaS Admin views - Only Owner/Dev with Admin credentials
-    if (view === AppView.NETWORK_ADMIN || view === AppView.GLOBAL_LEDGER) {
-      return isOwnerOrDev && (isSystemAdmin(email) || role === 'Developer');
+    if (isStaff) {
+      // Even staff might not see internal master-only views
+      if (view === AppView.NETWORK_ADMIN || view === AppView.GLOBAL_LEDGER) {
+        return isOwnerOrDev && (isVinetelligenceAdmin(email) || state.currentUserRole === 'Developer');
+      }
+      return true;
     }
-
-    // Administrative roles have full base establishment access
-    if (isAdministrative) {
+    
+    // Feature based access
+    const config = state.getTierConfig();
+    const hasAccess = config?.features?.includes(view) || false;
+    
+    // Explicitly allow TRAINING, BAR_STATION, SUSTAINABILITY, SUPPLY_CHAIN, REVENUE_OPTIMIZER, SENTIMENT, EXPERIENCE_SENTINEL, and COMPETITORS for Operators
+    if ((view === AppView.TRAINING || view === AppView.BAR_STATION || view === AppView.SUSTAINABILITY || view === AppView.SUPPLY_CHAIN || view === AppView.REVENUE_OPTIMIZER || view === AppView.SENTIMENT || view === AppView.EXPERIENCE_SENTINEL || view === AppView.COMPETITORS) && (state.restaurantProfile?.tier === SubscriptionTier.OPERATOR || !state.restaurantProfile?.tier)) {
       return true;
     }
 
-    // Investor access - Restricted to analytics and high-level views
-    if (isInvestor) {
-      return [
-        AppView.DASHBOARD,
-        AppView.FINANCIAL_HUB,
-        AppView.INVESTOR,
-        AppView.OWNER_ANALYTICS,
-        AppView.SETTINGS,
-        AppView.REVENUE_OPTIMIZER,
-        AppView.SENTIMENT,
-        AppView.COMPETITORS
-      ].includes(view);
-    }
-
-    // Staff access - Restricted to operational views
-    if (isStaffRole) {
-      return [
-        AppView.DASHBOARD,
-        AppView.BAR_STATION,
-        AppView.CONCIERGE,
-        AppView.TRAINING,
-        AppView.GUEST_PROFILE,
-        AppView.DISPATCH_DESK,
-        AppView.INVENTORY,
-        AppView.VISION_AUDITOR,
-        AppView.FACILITY_ASSETS,
-        AppView.SETTINGS
-      ].includes(view);
-    }
-
-    // Fallback to Tier based access for any other case (e.g. Guest or unassigned)
-    const config = state.getTierConfig();
-    return config?.features?.includes(view) || false;
+    console.log("Vinetelligence Store: canAccess", { view, hasAccess, tier: state.restaurantProfile?.tier });
+    return hasAccess;
   },
   isDevOrStaff: () => {
     const state = useVinetelligenceStore.getState();
     const email = state.session?.user?.email || '';
-    return isSystemAdmin(email) || state.currentUserRole === 'Developer';
+    return isVinetelligenceAdmin(email) || state.currentUserRole === 'Developer';
   },
   inventory: [],
   orders: [],
@@ -155,7 +128,7 @@ export const useVinetelligenceStore = create<VinetelligenceState>((set, get) => 
   staff: [],
   staffRoster: [],
   assignments: [],
-  activeView: AppView.DASHBOARD,
+  activeView: (typeof window !== 'undefined' && localStorage.getItem('vinetelligence_active_view') as AppView) || AppView.DASHBOARD,
   session: null,
   isReady: false,
   isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -166,8 +139,8 @@ export const useVinetelligenceStore = create<VinetelligenceState>((set, get) => 
   isDeveloper: false,
   devToolsUnlocked: false,
   ownedCount: 0,
-  isAIChatOpen: false,
   serviceAlerts: [],
+  isAIChatOpen: false,
 
   setRestaurantProfile: (profile) => set({ restaurantProfile: profile }),
   setInventory: (inventory) => set({ inventory }),
@@ -179,19 +152,24 @@ export const useVinetelligenceStore = create<VinetelligenceState>((set, get) => 
   setStaff: (staff) => set({ staff }),
   setStaffRoster: (staffRoster) => set({ staffRoster }),
   setAssignments: (assignments) => set({ assignments }),
-  setActiveView: (view) => set({ activeView: view }),
+  setActiveView: (view) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vinetelligence_active_view', view);
+    }
+    set({ activeView: view });
+  },
   setSession: (session) => set({ session }),
   setIsReady: (isReady) => set({ isReady }),
   setIsOnline: (isOnline) => set({ isOnline }),
   setIsDatabaseConnected: (isDatabaseConnected) => set({ isDatabaseConnected }),
   setIsSyncing: (isSyncing) => set({ isSyncing }),
   setAuthMode: (mode) => set({ authMode: mode }),
-  setIsDeveloper: (isDeveloper) => set({ isDeveloper }),
-  setDevToolsUnlocked: (devToolsUnlocked) => set({ devToolsUnlocked }),
   setCurrentUserRole: (role) => set({ currentUserRole: role }),
+  setIsDeveloper: (isDev) => set({ isDeveloper: isDev }),
+  setDevToolsUnlocked: (unlocked) => set({ devToolsUnlocked: unlocked }),
   setOwnedCount: (count) => set({ ownedCount: count }),
-  setAIChatOpen: (isAIChatOpen) => set({ isAIChatOpen }),
   setServiceAlerts: (serviceAlerts) => set({ serviceAlerts }),
+  setAIChatOpen: (isOpen) => set({ isAIChatOpen: isOpen }),
 
   updateInventoryItem: (id, updates) => set((state) => ({
     inventory: state.inventory.map((item) => 

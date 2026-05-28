@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Zap, Activity, Info, AlertCircle, Database, LayoutGrid, Users, CreditCard, ExternalLink, RefreshCw, ArrowRight } from 'lucide-react';
+import { Zap, Activity, Info, Database, LayoutGrid, Users, CreditCard, ExternalLink, RefreshCw, ArrowRight } from 'lucide-react';
 import { mewsService } from '../services/mewsService';
 
 const IntegrationHubView: React.FC = () => {
@@ -14,13 +14,44 @@ const IntegrationHubView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'mews' | 'pos' | 'quickbooks' | 'logs'>('mews');
   const [selectedPosSystem, setSelectedPosSystem] = useState<'oracle' | 'lightspeed'>('oracle');
 
+  // Mews Manual Configuration States
+  const [formEndpoint, setFormEndpoint] = useState('api.mews.com');
+  const [formClientToken, setFormClientToken] = useState('');
+  const [formAccessToken, setFormAccessToken] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   useEffect(() => {
+    const saved = localStorage.getItem('vinetelligence_mews_config');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.endpoint) setFormEndpoint(parsed.endpoint);
+        if (parsed.clientToken) setFormClientToken(parsed.clientToken);
+        if (parsed.accessToken) setFormAccessToken(parsed.accessToken);
+      } catch (e) {
+        console.error('Failed to parse loaded Mews local config:', e);
+      }
+    }
     checkStatus();
   }, []);
 
   const checkStatus = async () => {
     const status = await mewsService.getStatus();
     setMewsStatus(status);
+  };
+
+  const handleSaveMewsConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    const config = {
+      endpoint: formEndpoint || 'api.mews.com',
+      clientToken: formClientToken,
+      accessToken: formAccessToken
+    };
+    localStorage.setItem('vinetelligence_mews_config', JSON.stringify(config));
+    setSaveSuccess(true);
+    addLog(`Mews connection configuration preserved locally.`);
+    checkStatus();
+    setTimeout(() => setSaveSuccess(false), 3000);
   };
 
   const addLog = (msg: string) => {
@@ -306,37 +337,74 @@ const IntegrationHubView: React.FC = () => {
                         </p>
                      </div>
                      
-                     {!mewsStatus.configured && (
-                       <div className="space-y-4">
-                          <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-3">
-                             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-500">
-                                <AlertCircle className="w-3 h-3" />
-                                Action Required
-                             </div>
-                             <p className="text-[10px] text-amber-200 leading-relaxed italic">
-                                Environment variables are missing. Please set `MEWS_CLIENT_TOKEN` and `MEWS_ACCESS_TOKEN` in your server configuration.
-                             </p>
-                          </div>
-                          
-                          <div className="p-6 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl space-y-4">
-                             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-400">
-                                <Zap className="w-3 h-3" />
-                                Ecosystem Partner
-                             </div>
-                             <p className="text-[10px] text-indigo-200 leading-relaxed italic">
-                                Not using Mews yet? Join the world's most advanced cloud PMS ecosystem through our partner channel.
-                             </p>
-                             <a 
-                               href="https://referrals.mews.com/uU3mdly3" 
-                               target="_blank" 
-                               rel="noopener noreferrer"
-                               className="flex items-center justify-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-indigo-600 transition-all shadow-lg shadow-indigo-900/20"
-                             >
-                               Join Mews Ecosystem <ArrowRight className="w-3 h-3" />
-                             </a>
-                          </div>
-                       </div>
-                     )}
+                     <form onSubmit={handleSaveMewsConfig} className="p-6 bg-white/5 border border-white/10 rounded-[2rem] space-y-4">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                           <Zap className="w-3.5 h-3.5" />
+                           Credentials Setup Desk
+                        </div>
+                        
+                        <div className="space-y-1">
+                           <label className="text-[8px] font-black uppercase text-stone-400 tracking-wider">Mews API Endpoint</label>
+                           <input 
+                              type="text"
+                              value={formEndpoint}
+                              onChange={(e) => setFormEndpoint(e.target.value)}
+                              placeholder="e.g. api.mews.com / api.demo.mews.com"
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
+                           />
+                        </div>
+
+                        <div className="space-y-1">
+                           <label className="text-[8px] font-black uppercase text-stone-400 tracking-wider">Client Token</label>
+                           <input 
+                              type="password"
+                              value={formClientToken}
+                              onChange={(e) => setFormClientToken(e.target.value)}
+                              placeholder="Input Token"
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+                           />
+                        </div>
+
+                        <div className="space-y-1">
+                           <label className="text-[8px] font-black uppercase text-stone-400 tracking-wider">Access Token</label>
+                           <input 
+                              type="password"
+                              value={formAccessToken}
+                              onChange={(e) => setFormAccessToken(e.target.value)}
+                              placeholder="Input Access Token"
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+                           />
+                        </div>
+
+                        <button 
+                           type="submit"
+                           className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-stone-100 hover:text-indigo-900 transition-all shadow-md active:scale-95"
+                        >
+                           {saveSuccess ? "✓ Configurations Saved!" : "Save Credentials"}
+                        </button>
+                        
+                        <p className="text-[8px] text-stone-400 text-center italic leading-relaxed">
+                           Type <strong className="text-white">demo</strong> to simulated test of neural handshake.
+                        </p>
+                     </form>
+
+                     <div className="p-6 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl space-y-3">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                           <Zap className="w-3 h-3" />
+                           Ecosystem Partner
+                        </div>
+                        <p className="text-[10px] text-indigo-200 leading-relaxed italic border-stone-200">
+                           Not using Mews yet? Join the world's most advanced cloud PMS ecosystem through our partner channel.
+                        </p>
+                        <a 
+                          href="https://referrals.mews.com/uU3mdly3" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-indigo-600 transition-all shadow-lg"
+                        >
+                          Join Mews Ecosystem <ArrowRight className="w-3 h-3" />
+                        </a>
+                     </div>
                   </div>
 
                   <div className="pt-6 border-t border-white/10">

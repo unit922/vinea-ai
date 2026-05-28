@@ -11,8 +11,6 @@ interface OnboardingProps {
   onComplete: (profile: RestaurantProfile) => void;
   onSelectAuth: (mode: 'login' | 'signup') => void;
   currentUserEmail?: string;
-  isDemo?: boolean;
-  source?: string;
 }
 
 const PRIMARY_VENUE_TYPES = [
@@ -30,48 +28,48 @@ const EDITIONS = [
   {
     id: 'demo',
     title: 'The Explorer',
-    badge: 'Caribbean Demo',
-    desc: 'Full Vinetelligence suite using local session persistence. Strictly anonymous, no account required.',
+    badge: 'Local Demo',
+    desc: 'Full intelligence suite using local session persistence. Strictly anonymous, no account required.',
     price: 'Free',
     icon: 'fa-vial',
-    features: ['No Sign-Up Required', 'Local Secure Storage', 'Bar Station Control', 'Operational Knowledge Base', 'Sandbox Mode'],
-    accent: 'border-slate-500'
+    features: ['No Sign-Up Required', 'Local Data Storage', 'Bar Station Control'],
+    accent: 'border-stone-500'
   },
   {
-    id: 'essential',
+    id: 'free',
     title: 'The Essential',
-    badge: 'Boutique Access',
-    desc: 'For boutique establishments looking to refine their brand and operations.',
+    badge: 'Managed Cloud',
+    desc: 'Essential AI for small teams with cloud backups. Fully featured 14-day trial.',
     price: '$149/mo',
     subPrice: '14-Day Free Trial',
     icon: 'fa-seedling',
-    features: ['14-Day Free Trial', 'Full Bar Station & Inventory', 'Guest Intelligence Node', 'Operational Performance Sync', 'Standard Support'],
-    accent: 'border-sky-500/30'
+    features: ['14-Day Free Trial', 'Cloud Profiles', 'Basic Inventory AI', 'Standard Coach', 'Staff Monitoring'],
+    accent: 'border-indigo-500/30'
   },
   {
-    id: 'growth',
+    id: 'paid',
     title: 'The Growth',
-    badge: 'Scaling Hub',
-    desc: 'For scaling groups and boutique hotels requiring deep analytics.',
+    badge: 'Pro Suite',
+    desc: 'Advanced predictive suite for professional venues. Includes multimodal vision audits.',
     price: '$499/mo',
     subPrice: '14-Day Free Trial',
     icon: 'fa-crown',
-    features: ['14-Day Free Trial', 'Specialized Global Trend Node', 'Predictive Supply Chain Node', 'Revenue Optimization Engine', 'Dedicated Success Manager'],
-    accent: 'border-sky-500 shadow-sky-500/20'
+    features: ['14-Day Free Trial', 'Predictive Analytics', 'Signature Lab', 'Guest Journey AI', 'Vision Audits'],
+    accent: 'border-indigo-500 shadow-indigo-500/20'
   },
   {
     id: 'enterprise',
     title: 'The Enterprise',
-    badge: 'Global Archive',
-    desc: 'The definitive solution for global hospitality leaders and portfolios.',
+    badge: 'Enterprise Silo',
+    desc: 'The definitive solution for hospitality groups and multi-venue portfolios. Secured institutional data silos with centralized network control and neural tuning.',
     price: 'Custom',
     icon: 'fa-building-shield',
-    features: ['Full Brand Integration', 'Custom API Solutions', 'White-label Growth Portal', 'On-site Strategic Direction', 'Governance Advisory'],
-    accent: 'border-azure-500 shadow-azure-500/20'
+    features: ['Multi-Venue Central Hub', 'Private Data Silos', 'Global Roster Sync', 'Custom Model Tuning', 'White-label Portal', 'Priority Response Support'],
+    accent: 'border-blue-500 shadow-blue-500/20'
   }
 ];
 
-const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, currentUserEmail, isDemo, source }) => {
+const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, currentUserEmail }) => {
   const [step, setStep] = useState(0); 
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -80,14 +78,14 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
     name: ((import.meta.env?.VITE_ESTABLISHMENT_NAME as string) || 
           (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_NAME : undefined) || 'Vinetelligence').trim(),
     tagline: ((import.meta.env?.VITE_ESTABLISHMENT_TAGLINE as string) || 
-             (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_TAGLINE : undefined) || 'Caribbean AI Hospitality Ecosystem').trim(),
+             (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_TAGLINE : undefined) || 'Beverage Intelligence Platform').trim(),
     heroImage: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=2000&q=90',
     description: (import.meta.env?.VITE_ESTABLISHMENT_DESC as string) || 
-                 (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_DESC : undefined) || "The most advanced Caribbean AI ecosystem for high-end hospitality—mapping palates, predicting inventory supply, and coaching mastery."
+                 (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_DESC : undefined) || "The world's most advanced AI ecosystem for high-end hospitality—mapping palates, predicting supply, and coaching mastery."
   });
 
   const [profile, setProfile] = useState(() => {
-    const stored = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile');
+    const stored = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -101,7 +99,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
       type: 'Restaurant',
       customType: '',
       focus: 'Wine & Spirits',
-      description: 'Experimental local Caribbean sandbox environment.',
+      description: 'Experimental local sandbox environment.',
       edition: 'demo',
       supabaseUrl: '',
       supabaseAnonKey: '',
@@ -140,7 +138,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
 
   useEffect(() => {
     const handleStorageChange = () => {
-      const stored = localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
+      const stored = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
       if (stored) {
         try {
           const p = JSON.parse(stored);
@@ -155,7 +153,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
           }
 
           // Check for AI signals to advance onboarding
-          const signal = localStorage.getItem('intelligence_ai_signal') || localStorage.getItem('oenovia_ai_signal') || localStorage.getItem('vinetelligence_ai_signal');
+          const signal = localStorage.getItem('vinetelligence_ai_signal');
           if (signal === 'advance') {
             setStep(prev => {
               // Only advance from steps where it makes sense (Hero or Data entry steps)
@@ -164,10 +162,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
               }
               return prev;
             });
-            localStorage.removeItem('intelligence_ai_signal');
+            localStorage.removeItem('vinetelligence_ai_signal');
           }
         } catch (err) {
-          console.error("Intelligence: Sync with storage failed", err);
+          console.error("Vinetelligence: Sync with storage failed", err);
         }
       }
     };
@@ -178,7 +176,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
 
   useEffect(() => {
     const envConfig = getSupabaseConfig();
-    console.log("Intelligence: Initial environment config check", { hasConfig: !!envConfig, source: envConfig?.source });
+    console.log("Vinetelligence: Initial environment config check", { hasConfig: !!envConfig, source: envConfig?.source });
     if (envConfig && envConfig.source === 'env') {
       setIsProductionMode(true);
       if (isLocalEnvironment()) {
@@ -186,7 +184,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
       }
 
       if (!isDemoMode) {
-        console.log("Intelligence: Setting isEnvManaged to true based on environment variables");
+        console.log("Vinetelligence: Setting isEnvManaged to true based on environment variables");
         setProfile(prev => ({
           ...prev,
           supabaseUrl: envConfig.url,
@@ -197,28 +195,27 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
     }
   }, [isDemoMode]);
 
+  const handleLaunchDemo = (mode: 'operator' | 'guest' = 'operator') => {
+    const demoProfile = {
+      ...profile,
+      name: branding.name + ' Local Sandbox',
+      edition: 'demo',
+      demoMode: mode
+    };
+    onComplete(demoProfile);
+  };
+
   const handleNext = useCallback(() => {
     const currentProfile = profileRef.current;
     if (step === 5 && currentProfile.supabaseUrl && currentProfile.supabaseAnonKey) {
       supabaseSync.saveSupabaseConfig(currentProfile.supabaseUrl, currentProfile.supabaseAnonKey);
     }
     
-    localStorage.setItem('intelligence_profile', JSON.stringify(currentProfile));
+    localStorage.setItem('vinetelligence_profile', JSON.stringify(currentProfile));
+    localStorage.setItem('vinea_profile', JSON.stringify(currentProfile));
     
-    if (step === 2 && isDemoMode) {
-      // Fast track for demo
-      setProfile(prev => ({
-        ...prev, 
-        name: prev.name || 'Caribbean Virtual Sandbox',
-        ownerEmail: prev.ownerEmail || 'demo@vinetelligence.ai',
-        description: prev.description || 'Virtual Caribbean beverage program sandbox for operational training.'
-      }));
-      setStep(9);
-      return;
-    }
-
-    if (step === 2 && (currentProfile.edition === 'essential' || currentProfile.edition === 'growth')) {
-      setStep(4); // Skip payment for professional trials
+    if (step === 2 && (isDemoMode || currentProfile.edition === 'free' || currentProfile.edition === 'paid')) {
+      setStep(4); // Skip payment for demo and all professional trials
       return;
     }
 
@@ -245,32 +242,33 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
   const autoProvisionAttempted = useRef(false);
 
   const validateAndProvision = useCallback(async () => {
-    console.log("Intelligence: validateAndProvision triggered", { isEnvManaged: dbStatus.isEnvManaged, showManualConfig });
+    console.log("Vinetelligence: validateAndProvision triggered", { isEnvManaged: dbStatus.isEnvManaged, showManualConfig });
     setDbStatus(prev => ({ ...prev, loading: true, error: undefined, statusText: 'Initializing Connection...' }));
     
     // Save config if provided manually
     if (profile.supabaseUrl && profile.supabaseAnonKey) {
-      console.log("Intelligence: Saving Supabase config to local storage");
+      console.log("Vinetelligence: Saving Supabase config to local storage");
       supabaseSync.saveSupabaseConfig(profile.supabaseUrl, profile.supabaseAnonKey);
     }
     
-    localStorage.setItem('intelligence_profile', JSON.stringify(profile));
+    localStorage.setItem('vinetelligence_profile', JSON.stringify(profile));
+    localStorage.setItem('vinea_profile', JSON.stringify(profile));
     await new Promise(r => setTimeout(r, 800));
 
     try {
       setDbStatus(prev => ({ ...prev, statusText: 'Verifying Cloud Schema...' }));
       const schemaResult = await supabaseSync.verifySchema();
       if (!schemaResult.success) {
-        console.error("Intelligence: Schema verification failed", schemaResult.message);
+        console.error("Vinetelligence: Schema verification failed", schemaResult.message);
         throw new Error(schemaResult.message);
       }
 
       setDbStatus(prev => ({ ...prev, statusText: 'Synchronizing Node Registry...' }));
-      console.log("Intelligence: Schema verified, checking establishment existence:", profile.name);
+      console.log("Vinetelligence: Schema verified, checking establishment existence:", profile.name);
       const existing = await supabaseSync.checkEstablishmentExists(profile.name);
       
       if (existing) {
-        console.log("Intelligence: Establishment exists", existing);
+        console.log("Vinetelligence: Establishment exists", existing);
         setProfile(prev => ({ ...prev, id: existing.id }));
         setDbStatus(prev => ({ 
           ...prev, 
@@ -281,7 +279,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
           statusText: 'Connection Established' 
         }));
       } else {
-        console.log("Intelligence: Establishment does not exist, needs registration");
+        console.log("Vinetelligence: Establishment does not exist, needs registration");
         setDbStatus(prev => ({ 
           ...prev, 
           loading: false, 
@@ -298,7 +296,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
       else if (typeof e === 'string') errorMessage = e;
       else if (e && typeof e === 'object' && 'message' in e) errorMessage = String((e as { message: unknown }).message);
 
-      console.error("Intelligence: validateAndProvision failed", e);
+      console.error("Vinetelligence: validateAndProvision failed", e);
       setDbStatus(prev => ({ 
         ...prev, 
         loading: false, 
@@ -318,10 +316,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
         supabaseSync.saveSupabaseConfig(currentProfile.supabaseUrl, currentProfile.supabaseAnonKey);
       }
       
-      console.log("Intelligence: Registering establishment:", currentProfile.name);
+      console.log("Vinetelligence: Registering establishment:", currentProfile.name);
       
       // Handle Trial for All Cloud Tiers
-      const isTrialTier = currentProfile.edition === 'essential' || currentProfile.edition === 'growth';
+      const isTrialTier = currentProfile.edition === 'free' || currentProfile.edition === 'paid';
       const trialEndsAt = isTrialTier 
         ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() 
         : undefined;
@@ -336,11 +334,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
       
       // Add owner to staff roster automatically
       if (currentProfile.ownerEmail) {
-        console.log("Intelligence: Adding owner to roster:", currentProfile.ownerEmail);
+        console.log("Vinetelligence: Adding owner to roster:", currentProfile.ownerEmail);
         try {
           await supabaseSync.addToRoster(data.id, currentProfile.ownerEmail, 'Owner');
         } catch (rosterError: unknown) {
-          console.warn("Intelligence: Background roster registration restricted by RLS. Proceeding with secondary identity verification.", rosterError);
+          console.warn("Vinetelligence: Background roster registration restricted by RLS. Proceeding with secondary identity verification.", rosterError);
           // Allow progression if establishment was successfully created. 
           // Identity will be verified via primary ownerEmail field in restaurants table.
           const error = rosterError as { message?: string; code?: string };
@@ -356,7 +354,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
       setProfile(updatedProfile);
       
       // CRITICAL: Save to localStorage immediately so subsequent steps/views have the latest data
-      localStorage.setItem('intelligence_profile', JSON.stringify(updatedProfile));
+      localStorage.setItem('vinetelligence_profile', JSON.stringify(updatedProfile));
+      localStorage.setItem('vinea_profile', JSON.stringify(updatedProfile));
 
       setDbStatus(prev => ({ 
         ...prev, 
@@ -371,13 +370,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
       setTimeout(handleNext, 1500);
     } catch (e: unknown) {
       const error = e as Error;
-      console.error("Intelligence: handleRegisterEstablishment failed", error);
+      console.error("Vinetelligence: handleRegisterEstablishment failed", error);
       setDbStatus(prev => ({ ...prev, loading: false, error: error.message, statusText: undefined }));
     }
   }, [handleNext]);
 
   useEffect(() => {
-    console.log("Intelligence: Step 5 Effect Check", { 
+    console.log("Vinetelligence: Step 5 Effect Check", { 
       step, 
       isEnvManaged: dbStatus.isEnvManaged, 
       success: dbStatus.success, 
@@ -386,7 +385,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
       autoProvisionAttempted: autoProvisionAttempted.current 
     });
     if (step === 5 && dbStatus.isEnvManaged && !dbStatus.success && !dbStatus.loading && !dbStatus.error && !autoProvisionAttempted.current) {
-      console.log("Intelligence: Triggering auto-provisioning for step 5");
+      console.log("Vinetelligence: Triggering auto-provisioning for step 5");
       autoProvisionAttempted.current = true;
       validateAndProvision();
     }
@@ -400,10 +399,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
     setPaymentError(null);
     setIsProcessingPayment(true);
     
-    const isStaff = currentUserEmail?.endsWith('@vinetelligence.live');
-    const isHighTier = profile.edition === 'enterprise';
+    const isStaff = currentUserEmail?.endsWith('@vinetelligence.com') || currentUserEmail?.endsWith('@vinea.live');
+    const isHighTier = profile.edition === 'paid' || profile.edition === 'enterprise';
 
-    // Allow staff to bypass for testing, but others must pay for Enterprise
+    // Allow staff to bypass for testing, but others must pay
     if (isHighTier && !isStaff) {
       try {
         const response = await fetch('/api/create-checkout-session', {
@@ -430,7 +429,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
       }
     }
 
-    // For 'essential' (Operator Trial), we just proceed
+    // For 'free' (Operator Trial), we just proceed
     setIsProcessingPayment(false);
     setStep(4); // Proceed to Venue Designation
   };
@@ -458,99 +457,42 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                 <VinetelligenceLogo size="sm" withText={true} />
               </div>
               <div className="flex gap-4">
-                <button 
-                  onClick={() => !isDemo && onSelectAuth('login')} 
-                  disabled={isDemo}
-                  className={`px-4 md:px-6 py-2 border rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all ${isDemo ? 'border-white/5 text-stone-700 cursor-not-allowed bg-stone-950' : 'border-white/20 text-slate-300 hover:text-white hover:border-white'}`}
-                >
-                  Sign In
-                </button>
+                <button onClick={() => onSelectAuth('login')} className="px-4 md:px-6 py-2 border border-white/20 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest text-stone-300 hover:text-white hover:border-white transition-all">Sign In</button>
               </div>
             </nav>
 
             {/* Hero Section */}
             <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 py-20 overflow-hidden">
                <div className="absolute inset-0 z-0">
-                  <div className="absolute inset-0 bg-gradient-to-b from-slate-950/60 via-slate-950/40 to-slate-950 z-10"></div>
+                  <div className="absolute inset-0 bg-gradient-to-b from-stone-950/60 via-stone-950/40 to-stone-950 z-10"></div>
                   <img src={branding.heroImage} className="w-full h-full object-cover scale-110" alt="Venue Experience" />
                </div>
                
                <div className="relative z-20 max-w-5xl space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-10 duration-1000">
-                  {source?.startsWith('demo') && (
-                    <div className="flex justify-center mb-4">
-                      <div className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3 backdrop-blur-md animate-bounce">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">
-                          Neural Session Synced. Explore our protocols to initialize your node.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                   <div className="flex justify-center">
-                    <span className="bg-sky-500/10 text-sky-500 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] px-4 py-2 rounded-full border border-sky-500/20 mb-2 md:mb-4 inline-block">{branding.tagline}</span>
+                    <span className="bg-indigo-500/10 text-indigo-500 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] px-4 py-2 rounded-full border border-indigo-500/20 mb-2 md:mb-4 inline-block">{branding.tagline}</span>
                   </div>
                   <h1 className="text-4xl sm:text-6xl md:text-9xl font-serif font-black italic tracking-tighter text-white leading-[0.9]">
-                    Caribbean Hospitality,<br/><span className="text-slate-400">Synthesized.</span>
+                    Hospitality,<br/><span className="text-stone-400">Synthesized.</span>
                   </h1>
-                  
-                  {/* Mobile Tip */}
-                  <div className="md:hidden inline-flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl mx-auto backdrop-blur-md">
-                     <i className="fas fa-desktop text-indigo-500"></i>
-                     <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">
-                       Pro Tip: Use a larger screen for better control.
-                     </p>
-                  </div>
-
-                  <p className="text-base md:text-2xl text-slate-300 max-w-2xl mx-auto font-medium italic leading-relaxed opacity-80 px-4">
+                  <p className="text-base md:text-2xl text-stone-300 max-w-2xl mx-auto font-medium italic leading-relaxed opacity-80 px-4">
                     "{branding.description}"
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center pt-8 items-center px-4">
                      {isProductionMode ? (
-                        <>
+                       <>
                          <button 
-                          onClick={() => !isDemo && onSelectAuth('login')}
-                          disabled={isDemo}
-                          className={`w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 rounded-full font-black text-[10px] md:text-xs uppercase tracking-[0.3em] md:tracking-[0.4em] transition-all shadow-[0_0_40px_rgba(14,165,233,0.3)] active:scale-95 ${isDemo ? 'bg-stone-900 text-stone-700 border border-white/5 cursor-not-allowed opacity-40' : 'bg-sky-600 text-slate-950 hover:bg-white'}`}
+                          onClick={() => onSelectAuth('login')}
+                          className="w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 bg-indigo-500 text-stone-950 rounded-full font-black text-[10px] md:text-xs uppercase tracking-[0.3em] md:tracking-[0.4em] hover:bg-white transition-all shadow-[0_0_40px_rgba(79,70,229,0.3)] active:scale-95"
                          >
-                           Caribbean Staff Portal
+                           Staff Portal
                          </button>
-                         {isDemo && (
-                            <div className="flex flex-col gap-3 w-full sm:w-auto">
-                              <button 
-                                onClick={() => {
-                                  setProfile({...profile, aesthetic: 'elite', brandVoice: 'luxury', name: branding.name + ' Explorer', edition: 'demo', demoMode: 'operator'});
-                                  onComplete({...profile, aesthetic: 'elite', brandVoice: 'luxury', name: branding.name + ' Explorer', edition: 'demo', demoMode: 'operator'});
-                                }}
-                                className="w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 bg-emerald-500 text-[#141414] rounded-full font-black text-[10px] md:text-xs uppercase tracking-[0.3em] md:tracking-[0.4em] hover:bg-white transition-all shadow-[0_0_40px_rgba(16,185,129,0.4)] active:scale-95 border-2 border-emerald-400/30"
-                              >
-                                Launch Free Explorer
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence.live')) {
-                                    window.location.href = 'https://vinea.live';
-                                    return;
-                                  }
-                                  window.location.href = './index.html';
-                                }}
-                                className="text-[10px] font-black uppercase tracking-widest text-stone-500 hover:text-white transition-all underline underline-offset-8"
-                              >
-                                Return to Vinea App Platform
-                              </button>
-                            </div>
-                         )}
-                         <div className="flex flex-col gap-3 w-full sm:w-auto relative">
+                         <div className="flex flex-col gap-3 w-full sm:w-auto">
                            <button 
-                             onClick={() => document.getElementById('protocols')?.scrollIntoView({ behavior: 'smooth' })}
-                             className={`w-full px-8 md:px-10 py-3 md:py-4 border border-white/20 text-white rounded-full font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-white/10 transition-all active:scale-95 ${isDemo ? 'opacity-50' : ''} ${source?.startsWith('demo') ? 'ring-2 ring-emerald-500 animate-pulse bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.3)]' : ''}`}
+                             onClick={() => handleLaunchDemo('operator')}
+                             className="w-full px-8 md:px-10 py-3 md:py-4 border border-white/20 text-white rounded-full font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-white/10 transition-all active:scale-95"
                            >
-                             {source?.startsWith('demo') && (
-                               <div className="absolute -top-14 left-1/2 -translate-x-1/2 whitespace-nowrap bg-emerald-500 text-stone-950 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-                                 Step 1: Discover Protocols
-                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-emerald-500" />
-                               </div>
-                             )}
-                             Explore Protocols
+                             Demo as Operator
                            </button>
                          </div>
                        </>
@@ -564,68 +506,30 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                              }}
                              className="w-full px-8 md:px-10 py-3 md:py-4 bg-indigo-500 text-stone-900 rounded-full font-black text-[8px] md:text-[10px] uppercase tracking-[0.3em] md:tracking-[0.4em] hover:bg-white transition-all shadow-[0_0_40px_rgba(79,70,229,0.3)] active:scale-95"
                            >
-                             Demo Elite Sandbox
+                             Demo Elite Mode
+                           </button>
+                           <button 
+                             onClick={() => {
+                               setProfile({...profile, aesthetic: 'light', brandVoice: 'casual', name: branding.name + ' Light Sandbox', edition: 'demo', demoMode: 'operator'});
+                               onComplete({...profile, aesthetic: 'light', brandVoice: 'casual', name: branding.name + ' Light Sandbox', edition: 'demo', demoMode: 'operator'});
+                             }}
+                             className="w-full px-8 md:px-10 py-3 md:py-4 border border-indigo-500/30 text-indigo-500 rounded-full font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-indigo-500 hover:text-stone-950 transition-all active:scale-95"
+                           >
+                             Demo Light Mode
                            </button>
                          </div>
                          <button onClick={() => setStep(1)} className="w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 border border-white/20 text-white rounded-full font-black text-[10px] md:text-xs uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-white/10 transition-all active:scale-95">Register Establishment</button>
                        </>
                      )}
                   </div>
-
-                  {/* Lead Capture Pulse */}
-                  <div className="pt-20 max-w-xl mx-auto space-y-8 animate-in fade-in duration-1000 delay-500">
-                    <div className="p-8 bg-stone-900/50 border border-white/10 rounded-[2.5rem] backdrop-blur-md space-y-6">
-                      <div className="flex items-center gap-4 justify-center">
-                        <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-500">
-                          <i className="fas fa-paper-plane"></i>
-                        </div>
-                        <h3 className="text-sm font-black uppercase tracking-widest text-white italic">Knowledge Synthesis Briefing</h3>
-                      </div>
-                      <p className="text-[10px] text-stone-400 font-medium italic leading-relaxed">
-                        Input your professional identifier to receive the "2026 Caribbean AI Hospitality Roadmap" and early access to our private node network.
-                      </p>
-                      <form 
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          const form = e.currentTarget;
-                          const emailInput = form.elements.namedItem('email') as HTMLInputElement;
-                          if (emailInput && emailInput.value) {
-                            localStorage.setItem('vinetelligence_lead_email', emailInput.value);
-                            alert('Synthesis request received. Your roadmap is being prepared.');
-                            form.reset();
-                          }
-                        }}
-                        className="flex flex-col sm:flex-row gap-3"
-                      >
-                        <input 
-                          type="email" 
-                          name="email"
-                          required
-                          placeholder="professional@establishment.com" 
-                          className="flex-1 px-6 py-4 bg-stone-950 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-indigo-500 transition-all"
-                        />
-                        <button 
-                          type="submit"
-                          className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-stone-950 transition-all shadow-xl active:scale-95"
-                        >
-                          Request Brief
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-               </div>
-
-               <div className="pt-12 text-center">
-                 <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest flex items-center gap-2 justify-center opacity-60">
-                   <i className="fas fa-desktop text-xs"></i>
-                   Experience optimization: Laptop or Tablet recommended
-                 </p>
                </div>
 
                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 animate-bounce text-stone-500">
                   <i className="fas fa-chevron-down text-xl"></i>
                </div>
-            </section>            {/* Core Modules Showcase */}
+            </section>
+
+            {/* Core Modules Showcase */}
             <section className="py-40 px-8 bg-stone-950 relative overflow-hidden">
                <div className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[120px]"></div>
                <div className="max-w-7xl mx-auto">
@@ -634,22 +538,22 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center mb-40">
                      <div className="space-y-10">
                         <div className="space-y-4">
-                           <h2 className="text-6xl font-serif font-black italic text-white tracking-tighter leading-none">The Caribbean Academy</h2>
-                           <p className="text-sky-500 text-[10px] font-black uppercase tracking-[0.4em]">Vinetelligence Scholar Node</p>
+                           <h2 className="text-6xl font-serif font-black italic text-white tracking-tighter leading-none">The Scholar Node</h2>
+                           <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em]">Intelligence Academy</p>
                         </div>
-                        <p className="text-slate-400 text-xl leading-relaxed font-medium italic">
-                           "Eliminate technical friction. Intelligence provides your team with a high-fidelity knowledge base covering global vintages, spirit chemistry, and cultural etiquette—delivered in real-time via hands-free AI coaching."
+                        <p className="text-stone-400 text-xl leading-relaxed font-medium italic">
+                           "Eliminate technical friction. Vinetelligence provides your team with a high-fidelity knowledge base covering global vintages, spirit chemistry, and cultural etiquette—delivered in real-time via hands-free AI coaching."
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                           <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-4 hover:border-sky-500/30 transition-all">
-                              <i className="fas fa-brain-circuit text-sky-500 text-2xl"></i>
+                           <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-4 hover:border-indigo-500/30 transition-all">
+                              <i className="fas fa-brain-circuit text-indigo-500 text-2xl"></i>
                               <h4 className="font-bold text-lg italic">Hands-Free Coaching</h4>
-                              <p className="text-xs text-slate-500 leading-relaxed font-medium italic">Voice-activated technical support for sommeliers and mixologists during service rush.</p>
+                              <p className="text-xs text-stone-500 leading-relaxed font-medium italic">Voice-activated technical support for sommeliers and mixologists during peak service.</p>
                            </div>
-                           <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-4 hover:border-sky-500/30 transition-all">
-                              <i className="fas fa-bolt text-sky-500 text-2xl"></i>
+                           <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-4 hover:border-indigo-500/30 transition-all">
+                              <i className="fas fa-bolt text-indigo-500 text-2xl"></i>
                               <h4 className="font-bold text-lg italic">Tactical Drills</h4>
-                              <p className="text-xs text-slate-500 leading-relaxed font-medium italic">Daily skill verification micro-modules synced with your actual inventory list.</p>
+                              <p className="text-xs text-stone-500 leading-relaxed font-medium italic">Daily skill verification micro-modules synced with your actual inventory list.</p>
                            </div>
                         </div>
                      </div>
@@ -660,10 +564,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                           className="relative z-10 w-full aspect-[4/5] object-cover rounded-[3rem] border border-white/10 grayscale group-hover:grayscale-0 transition-all duration-1000 shadow-2xl" 
                           alt="Training Experience" 
                         />
-                        <div className="absolute bottom-10 right-10 z-20 bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/10 shadow-2xl animate-float">
+                        <div className="absolute bottom-10 right-10 z-20 bg-stone-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/10 shadow-2xl animate-float">
                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-sky-500">Live Synthesis active</span>
+                              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Live Synthesis active</span>
                            </div>
                            <p className="text-xs font-bold text-white mt-2">"Describe the terroir of Côte de Nuits..."</p>
                         </div>
@@ -676,10 +580,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                      <div className="space-y-10">
                         <div className="space-y-4">
                            <h2 className="text-6xl font-serif font-black italic text-white tracking-tighter leading-none">{getBrandedTerm('guest_journey', profile)}</h2>
-                           <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em]">Guest Palate Sync</p>
+                           <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em]">Palate Sync Protocol</p>
                         </div>
                         <p className="text-stone-400 text-xl leading-relaxed font-medium italic">
-                           "The guest experience begins before they arrive. Vinetelligence's Guest Intelligence Node captures palate DNA and preferences, allowing your team to prepare bespoke pairings that resonate with every individual."
+                           "The guest experience begins before they arrive. Vinetelligence's Guest Intelligence Node captures palate DNA and dietary constraints, allowing your team to prepare bespoke pairings that resonate with every individual."
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                            <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-4 hover:border-indigo-500/30 transition-all">
@@ -711,47 +615,47 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                               <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
                               <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Palate Match: 94%</span>
                            </div>
-                           <p className="text-xs font-bold text-white mt-2">"Preparing Sommelier Selection for Table 4..."</p>
+                           <p className="text-xs font-bold text-white mt-2">"Preparing Barolo 2016 for Table 4..."</p>
                         </div>
                      </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center mb-40">
                      <div className="order-2 lg:order-1 relative group">
-                        <div className="absolute -inset-4 bg-azure-500/10 rounded-[3rem] blur-2xl opacity-50"></div>
+                        <div className="absolute -inset-4 bg-blue-500/10 rounded-[3rem] blur-2xl opacity-50"></div>
                         <img 
                           src="https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1200&q=80" 
                           className="relative z-10 w-full aspect-[4/5] object-cover rounded-[3rem] border border-white/10 grayscale hover:grayscale-0 transition-all duration-1000 shadow-2xl" 
                           alt="Inventory Vision" 
                         />
-                        <div className="absolute top-10 left-10 z-20 bg-indigo-900/80 backdrop-blur-md p-6 rounded-3xl border border-indigo-500/20 shadow-2xl">
-                           <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-1">Vision Audit Node</p>
+                        <div className="absolute top-10 left-10 z-20 bg-blue-900/80 backdrop-blur-md p-6 rounded-3xl border border-blue-500/20 shadow-2xl">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-1">Vision Audit Node</p>
                            <p className="text-xs font-bold text-white italic leading-none">Confidence Index: 98.4%</p>
-                           <div className="w-full h-1 bg-indigo-500/20 rounded-full mt-3 overflow-hidden">
-                              <div className="h-full bg-indigo-500 w-[98%]"></div>
+                           <div className="w-full h-1 bg-blue-500/20 rounded-full mt-3 overflow-hidden">
+                              <div className="h-full bg-blue-500 w-[98%]"></div>
                            </div>
                         </div>
                      </div>
                      <div className="space-y-10 order-1 lg:order-2">
                         <div className="space-y-4 text-right lg:text-left">
                            <h2 className="text-6xl font-serif font-black italic text-white tracking-tighter leading-none">{getBrandedTerm('yield_alpha', profile)}</h2>
-                           <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em]">Predictive Logistics</p>
+                           <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.4em]">Predictive Logistics</p>
                         </div>
                         <p className="text-stone-400 text-xl leading-relaxed font-medium italic">
-                           "Stop reacting to shortages. Vinetelligence's predictive engine uses local demand patterns and multimodal vision audits to automate your supply chain."
+                           "Stop reacting to shortages. Vinetelligence's predictive engine uses local demand patterns and multimodal vision audits to automate your supply chain and increase net margins by up to 14.2%."
                         </p>
                         <div className="grid grid-cols-1 gap-6 pt-4">
-                           <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 flex items-center gap-6 group hover:border-indigo-500/30 transition-all">
-                              <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-500 text-2xl group-hover:bg-indigo-500 group-hover:text-white transition-all"><i className="fas fa-expand"></i></div>
+                           <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 flex items-center gap-6 group hover:border-blue-500/30 transition-all">
+                              <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-500 text-2xl group-hover:bg-blue-500 group-hover:text-white transition-all"><i className="fas fa-expand"></i></div>
                               <div>
                                  <h4 className="font-bold text-lg italic">Vision Audit</h4>
-                                 <p className="text-xs text-stone-500 leading-relaxed font-medium italic">Automatic bottle identification, fill-level parsing, and ESG scoring via camera nodes.</p>
+                                 <p className="text-xs text-stone-500 leading-relaxed font-medium italic">Automatic bottle identification, fill-level parsing, and ESG scoring via camera.</p>
                               </div>
                            </div>
-                           <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 flex items-center gap-6 group hover:border-indigo-500/30 transition-all">
+                           <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 flex items-center gap-6 group hover:border-blue-500/30 transition-all">
                               <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-500 text-2xl group-hover:bg-indigo-500 group-hover:text-white transition-all"><i className="fas fa-chart-line-up"></i></div>
                               <div>
-                                 <h4 className="font-bold text-lg italic">Predictive Demand Forecasting</h4>
+                                 <h4 className="font-bold text-lg italic">Demand Forecasting</h4>
                                  <p className="text-xs text-stone-500 leading-relaxed font-medium italic">Analyzes historical velocity to suggest exact reorder nodes for the next 72 hours.</p>
                               </div>
                            </div>
@@ -762,29 +666,29 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
             </section>
 
             {/* Security & Access Integrity */}
-            <section className="py-40 px-8 bg-[#0c0e0e]/40 border-y border-white/5 relative overflow-hidden">
+            <section className="py-40 px-8 bg-stone-900/40 border-y border-white/5 relative overflow-hidden">
                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5"></div>
                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
                   <div className="relative order-2 lg:order-1">
-                     <div className="absolute -inset-10 bg-indigo-500/10 rounded-full blur-3xl"></div>
+                     <div className="absolute -inset-10 bg-blue-500/10 rounded-full blur-3xl"></div>
                      <div className="relative z-10 p-12 glass rounded-[3rem] border border-white/10 space-y-8 shadow-2xl">
                         <div className="flex items-center gap-4">
-                           <div className="w-16 h-16 bg-indigo-500/20 text-indigo-500 rounded-2xl flex items-center justify-center">
+                           <div className="w-16 h-16 bg-blue-500/20 text-blue-500 rounded-2xl flex items-center justify-center">
                               <i className="fas fa-shield-halved text-3xl"></i>
                            </div>
                            <div className="space-y-1">
                               <h3 className="text-2xl font-serif font-black italic text-white leading-none">Vinetelligence Fortress</h3>
-                              <p className="text-indigo-500 text-[10px] font-black uppercase tracking-widest leading-none mt-2">Zero-Trust Protection</p>
+                              <p className="text-blue-500 text-[10px] font-black uppercase tracking-widest leading-none mt-2">Zero-Trust Data Protection</p>
                            </div>
                         </div>
                         <div className="space-y-6">
                            {[
                               { title: "Hardened Bytecode", desc: "Production application logic is obfuscated and hardened to prevent unauthorized inspection of proprietary node architecture." },
                               { title: "Private Silo Synchronization", desc: "Establishment records are isolated into cryptographically secure data silos with 256-bit AES protection." },
-                              { title: "Identity Nodes", desc: "Integrates directly with Google Workspace and identity providers for multi-factor staff authentication." }
+                              { title: "Biometric & OAuth Identity", desc: "Integrates directly with Google Workspace and enterprise identity providers for multi-factor staff authentication." }
                            ].map((item, i) => (
                               <div key={i} className="flex gap-4 group">
-                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 shrink-0 group-hover:scale-150 transition-transform"></div>
+                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 shrink-0 group-hover:scale-150 transition-transform"></div>
                                  <div className="space-y-1">
                                     <h4 className="text-sm font-bold text-white uppercase tracking-widest">{item.title}</h4>
                                     <p className="text-xs text-stone-500 italic leading-relaxed">{item.desc}</p>
@@ -797,10 +701,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                   <div className="space-y-10 order-1 lg:order-2">
                      <div className="space-y-4">
                         <h2 className="text-6xl font-serif font-black italic text-white tracking-tighter leading-none">Immutable Trust.</h2>
-                        <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em]">Integrated Architecture</p>
+                        <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.4em]">Integrated Security Architecture</p>
                      </div>
                      <p className="text-stone-400 text-xl leading-relaxed font-medium italic">
-                        "Modern hospitality is built on discretion. Vinetelligence is engineered to exceed banking-grade security standards, ensuring your menu engineering, guest palates, and financial nodes remain strictly within your establishment's control."
+                        "Hospitality is built on discretion. Vinetelligence is engineered to exceed banking-grade security standards, ensuring your menu engineering, guest palates, and financial nodes remain strictly within your establishment's control."
                      </p>
                      <div className="pt-8 flex gap-8">
                         <div className="flex-1 p-8 bg-white/5 rounded-3xl border border-white/5 space-y-2 text-center">
@@ -826,12 +730,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {EDITIONS.map((ed) => (
-                      <div key={ed.id} className={`bg-white/5 backdrop-blur-sm p-10 rounded-[3rem] border flex flex-col space-y-10 group hover:border-indigo-500/30 transition-all hover:bg-white/[0.07] shadow-2xl relative overflow-hidden ${ed.id === (source === 'demo_essential' ? 'essential' : source === 'demo_growth' ? 'growth' : '') ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-500/5 shadow-[0_0_50px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
-                         {ed.id === (source === 'demo_essential' ? 'essential' : source === 'demo_growth' ? 'growth' : '') && (
-                            <div className="absolute top-0 right-0 bg-emerald-500 px-6 py-2 rounded-bl-3xl z-10">
-                               <span className="text-[10px] font-black uppercase tracking-widest text-stone-950">Recommended For You</span>
-                            </div>
-                         )}
+                      <div key={ed.id} className="bg-white/5 backdrop-blur-sm p-10 rounded-[3rem] border border-white/5 flex flex-col space-y-10 group hover:border-indigo-500/30 transition-all hover:bg-white/[0.07] shadow-2xl relative overflow-hidden">
                          <div className="flex justify-between items-start">
                             <i className={`fas ${ed.icon} text-indigo-500 text-3xl`}></i>
                             <div className="flex flex-col items-end">
@@ -852,21 +751,15 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                               </div>
                             ))}
                          </div>
-                          <button 
-                            onClick={() => { 
-                               const tierMap: Record<string, string> = {
-                                 'demo': 'Operator',
-                                 'essential': 'Operator',
-                                 'growth': 'Visionary',
-                                 'enterprise': 'Enterprise'
-                               };
-                               setProfile({...profile, edition: ed.id, tier: tierMap[ed.id] || 'Operator'}); 
-                               setStep(1); 
-                            }} 
-                            className="w-full py-5 bg-white/5 rounded-2xl group-hover:bg-indigo-500 group-hover:text-stone-900 transition-all font-black text-[10px] uppercase tracking-widest text-stone-400"
-                          >
-                            Initialize Node
-                          </button>
+                         <button 
+                          onClick={() => { 
+                             setProfile({...profile, edition: ed.id, tier: ed.title.replace('The ', '')}); 
+                             setStep(1); 
+                          }} 
+                          className="w-full py-5 bg-white/5 rounded-2xl group-hover:bg-indigo-500 group-hover:text-stone-900 transition-all font-black text-[10px] uppercase tracking-widest text-stone-400"
+                         >
+                           Initialize Node
+                         </button>
                       </div>
                     ))}
                   </div>
@@ -878,67 +771,71 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
             <section className="py-32 px-8">
                <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
                   <div className="space-y-2">
-                     <p className="text-5xl font-serif font-black italic text-sky-500">42ms</p>
-                     <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">AI Latency Index</p>
+                     <p className="text-5xl font-serif font-black italic text-indigo-500">42ms</p>
+                     <p className="text-[10px] font-black uppercase text-stone-500 tracking-widest">AI Latency Index</p>
                   </div>
                   <div className="space-y-2">
-                     <p className="text-5xl font-serif font-black italic text-sky-500">50k+</p>
-                     <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Verified Vintages</p>
+                     <p className="text-5xl font-serif font-black italic text-indigo-500">50k+</p>
+                     <p className="text-[10px] font-black uppercase text-stone-500 tracking-widest">Verified Vintages</p>
                   </div>
                   <div className="space-y-2">
-                     <p className="text-5xl font-serif font-black italic text-sky-500">14.2%</p>
-                     <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Average Yield Delta</p>
+                     <p className="text-5xl font-serif font-black italic text-indigo-500">14.2%</p>
+                     <p className="text-[10px] font-black uppercase text-stone-500 tracking-widest">Average Yield Delta</p>
                   </div>
                   <div className="space-y-2">
-                     <p className="text-5xl font-serif font-black italic text-sky-500">99.9%</p>
-                     <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Network Uptime</p>
+                     <p className="text-5xl font-serif font-black italic text-indigo-500">99.9%</p>
+                     <p className="text-[10px] font-black uppercase text-stone-500 tracking-widest">Network Uptime</p>
                   </div>
                </div>
             </section>
 
-            <footer className="py-40 px-8 border-t border-white/5 text-center bg-[#0c0e0e]">
+            <footer className="py-40 px-8 border-t border-white/5 text-center bg-stone-950">
                <div className="max-w-md mx-auto space-y-16">
                   <div className="space-y-6">
-                    <h1 className="font-serif text-8xl font-black text-sky-500 italic tracking-tighter uppercase leading-none">Vinetelligence</h1>
+                    <h1 className="font-serif text-8xl font-black text-indigo-500 italic tracking-tighter uppercase leading-none">Vinetelligence</h1>
                     <p className="text-stone-400 text-xl font-medium leading-relaxed italic">"Realizing the integrated intelligence layer for the modern beverage program."</p>
                   </div>
                   <div className="space-y-6 pt-10">
-                    <div className="flex flex-col gap-4 text-slate-500 font-black uppercase text-[9px] tracking-[0.2em] mb-8">
-                       <a href="mailto:business@vinetelligence.live" className="hover:text-sky-500 transition-colors flex items-center justify-center gap-2">
+                    <div className="flex flex-col gap-4 text-stone-500 font-black uppercase text-[9px] tracking-[0.2em] mb-8">
+                       <a href="mailto:support@vinetelligence.com" className="hover:text-indigo-500 transition-colors flex items-center justify-center gap-2">
                           <i className="fas fa-envelope text-[10px]"></i>
-                          business@vinetelligence.live
+                          support@vinetelligence.com
+                       </a>
+                       <a href="mailto:business@vinetelligence.com" className="hover:text-indigo-500 transition-colors flex items-center justify-center gap-2">
+                          <i className="fas fa-briefcase text-[10px]"></i>
+                          business@vinetelligence.com
                        </a>
                     </div>
-                    <div className="flex gap-10 justify-center text-slate-700 text-xl mb-10">
-                       <i className="fab fa-instagram hover:text-sky-500 transition-colors cursor-pointer"></i>
-                       <i className="fab fa-linkedin hover:text-sky-500 transition-colors cursor-pointer"></i>
-                       <i className="fab fa-twitter hover:text-sky-500 transition-colors cursor-pointer"></i>
+                    <div className="flex gap-10 justify-center text-stone-700 text-xl mb-10">
+                       <i className="fab fa-instagram hover:text-indigo-500 transition-colors cursor-pointer"></i>
+                       <i className="fab fa-linkedin hover:text-indigo-500 transition-colors cursor-pointer"></i>
+                       <i className="fab fa-twitter hover:text-indigo-500 transition-colors cursor-pointer"></i>
                     </div>
 
                     {/* Glossary Section */}
                     <div className="pt-20 border-t border-white/5 text-left max-w-4xl mx-auto space-y-10">
-                      <h3 className="text-2xl font-serif font-black italic text-slate-500 uppercase tracking-tighter">Vinetelligence Glossary</h3>
+                      <h3 className="text-2xl font-serif font-black italic text-stone-500 uppercase tracking-tighter">Intelligence Glossary</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         <div className="space-y-2">
                           <h4 className="text-indigo-500 text-[10px] font-black uppercase tracking-widest">Synthesized</h4>
-                          <p className="text-xs text-stone-500 italic leading-relaxed">The AI combines multiple data streams (inventory, guest history, staff patterns) to create a single, actionable response.</p>
+                          <p className="text-xs text-stone-500 italic leading-relaxed">The AI combines multiple data streams (inventory, guest history, staff patterns) to create a single, actionable response or task.</p>
                         </div>
                         <div className="space-y-2">
                           <h4 className="text-indigo-500 text-[10px] font-black uppercase tracking-widest">{getBrandedTerm('neural_link', profile)}</h4>
-                          <p className="text-xs text-stone-500 italic leading-relaxed">The real-time secure communication bridge between your facility's local data and our cloud models.</p>
+                          <p className="text-xs text-stone-500 italic leading-relaxed">The real-time secure communication bridge between your facility's local data and our cloud-based intelligence models.</p>
                         </div>
                         <div className="space-y-2">
                           <h4 className="text-indigo-500 text-[10px] font-black uppercase tracking-widest">Lattice</h4>
-                          <p className="text-xs text-stone-500 italic leading-relaxed">The interconnected web of hospitality knowledge that powers our technical training.</p>
+                          <p className="text-xs text-stone-500 italic leading-relaxed">The interconnected web of hospitality knowledge that powers our technical training and service coaching.</p>
                         </div>
                         <div className="space-y-2">
                           <h4 className="text-indigo-500 text-[10px] font-black uppercase tracking-widest">{getBrandedTerm('yield_alpha', profile)}</h4>
-                          <p className="text-xs text-stone-500 italic leading-relaxed">Our predictive algorithm that identifies the exact path to maximizing hospitality profit margins.</p>
+                          <p className="text-xs text-stone-500 italic leading-relaxed">Our predictive algorithm that identifies the exact path to maximizing profit margins and minimizing waste.</p>
                         </div>
                       </div>
                     </div>
 
-                    <p className="text-stone-800 text-[10px] font-black uppercase tracking-[0.5em] mt-20">© 2026 VINETELLIGENCE AI</p>
+                    <p className="text-stone-800 text-[10px] font-black uppercase tracking-[0.5em] mt-20">© 2026 VINETELLIGENCE INTELLIGENCE SUITE</p>
                     <p className="text-stone-900 text-[8px] font-black uppercase tracking-[0.2em]">Designed for hospitality mastery.</p>
                   </div>
                </div>
@@ -1042,10 +939,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                </div>
                <div className="flex justify-between items-center">
                   <span className="text-stone-400 font-bold uppercase text-[10px] tracking-widest">
-                    {(profile.edition === 'essential' || profile.edition === 'growth') ? 'Trial Period' : 'Amount Due'}
+                    {profile.edition === 'free' ? 'Trial Period' : 'Amount Due'}
                   </span>
                   <span className="text-indigo-500 font-serif font-black italic text-3xl">
-                    {(profile.edition === 'essential' || profile.edition === 'growth') ? '14 Days Free' : (EDITIONS.find(e => e.id === profile.edition)?.price || '')}
+                    {profile.edition === 'free' ? '14 Days Free' : EDITIONS.find(e => e.id === profile.edition)?.price}
                   </span>
                </div>
                
@@ -1070,7 +967,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
               ) : (
                 <>
                   <i className="fas fa-lock"></i>
-                  {(profile.edition === 'essential' || profile.edition === 'growth') ? 'Start 14-Day Free Trial' : 'Complete Secure Payment'}
+                  {profile.edition === 'free' ? 'Start 14-Day Free Trial' : 'Complete Secure Payment'}
                 </>
               )}
             </button>
@@ -1167,8 +1064,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                  <div className="flex-1">
                    <p className="text-sm text-blue-100 font-medium italic leading-relaxed">
                      {dbStatus.isEnvManaged 
-                       ? "Managed Cloud detected. Intelligence is ready to register your establishment in the global registry."
-                       : "As a cloud-enabled node, you can connect Intelligence to your private Supabase instance for data sovereignty and cloud backups."}
+                       ? "Managed Cloud detected. Vinetelligence is ready to register your establishment in the global registry."
+                       : "As a cloud-enabled node, you can connect Vinetelligence to your private Supabase instance for data sovereignty and cloud backups."}
                    </p>
                    {dbStatus.isEnvManaged && !showManualConfig && !dbStatus.success && (
                      <button 
@@ -1240,7 +1137,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                     </button>
                     <button 
                       onClick={() => {
-                        console.log("Intelligence: User chose to skip schema verification");
+                        console.log("Vinetelligence: User chose to skip schema verification");
                         setDbStatus(prev => ({ 
                           ...prev, 
                           success: true, 
@@ -1362,7 +1259,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                    <p className="text-indigo-500 text-[10px] font-black uppercase tracking-widest mt-1">High-Luxury Aesthetic</p>
                  </div>
                  <p className="text-xs text-stone-500 leading-relaxed italic">
-                   "The traditional Intelligence experience. Uses technical jargon like 'Neural Link', 'Intelligence Node', and 'Scholar Lattice' for a high-performance, polished feel."
+                   "The traditional Vinetelligence experience. Uses technical jargon like 'Neural Link', 'Intelligence Node', and 'Scholar Lattice' for a high-performance, polished feel."
                  </p>
                </button>
 
@@ -1481,41 +1378,27 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                       ? "Explorer tier node initialized. Database set to local-first sandbox mode. No account required."
                       : (isEnterpriseTier 
                           ? "Architect node identified. Private Silo activated for this facility."
-                          : "Establishment identified. Intelligence Managed Cloud node activated for your tier.")}
+                          : "Establishment identified. Vinetelligence Managed Cloud node activated for your tier.")}
                   </p>
                 </div>
-                  <div className="space-y-8 flex flex-col items-center">
-                    {profile.edition === 'essential' && (
-                      <div className="max-w-md p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <div className="flex items-center gap-3 mb-2">
-                          <i className="fas fa-info-circle text-emerald-500"></i>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Essential Protocol Note</p>
-                        </div>
-                        <p className="text-[10px] text-emerald-100/70 font-medium italic leading-relaxed text-left">
-                          To maintain operational efficiency on the Essential tier, your administrative node is hosted on the centralized platform. Please use <span className="text-emerald-400 font-bold">vinea.live</span> for future logins and facility management.
-                        </p>
+                <div className="space-y-6 flex flex-col items-center">
+                  <div className="flex flex-col items-center gap-6 mb-4">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div 
+                        onClick={() => setHasAcceptedTerms(!hasAcceptedTerms)}
+                        className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${hasAcceptedTerms ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/20' : 'border-white/10 group-hover:border-white/20 bg-white/5'}`}
+                      >
+                        {hasAcceptedTerms && <i className="fas fa-check text-stone-950 text-xs"></i>}
                       </div>
-                    )}
-                    <div className="flex flex-col items-center gap-6 mb-4 p-8 bg-white/5 border border-white/10 rounded-[2.5rem]">
-                      <label className="flex items-center gap-4 cursor-pointer group">
-                        <div 
-                          onClick={() => setHasAcceptedTerms(!hasAcceptedTerms)}
-                          className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all ${hasAcceptedTerms ? 'bg-emerald-500 border-emerald-500 shadow-xl shadow-emerald-500/20' : 'border-white/20 group-hover:border-white/40 bg-white/5'}`}
-                        >
-                          {hasAcceptedTerms && <i className="fas fa-check text-stone-950 text-sm"></i>}
-                        </div>
-                        <div className="text-left">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-white leading-none mb-1">Authorization</p>
-                          <span className="text-[10px] font-mono font-bold text-stone-500 group-hover:text-stone-300 transition-colors">
-                            I acknowledge the <button onClick={(e) => { e.stopPropagation(); setShowTerms(true); }} className="text-emerald-500 hover:underline font-bold">Neural Protocols & Service Terms</button>
-                          </span>
-                        </div>
-                      </label>
-                    </div>
+                      <span className="text-[10px] font-mono font-black uppercase tracking-widest text-stone-500 group-hover:text-stone-300 transition-colors">
+                        I acknowledge the <button onClick={(e) => { e.stopPropagation(); setShowTerms(true); }} className="text-emerald-500 hover:underline">Vinetelligence Neural Protocols</button>
+                      </span>
+                    </label>
+                  </div>
 
-                    <button 
-                      onClick={() => onComplete(profile)}
-                      disabled={!hasAcceptedTerms}
+                  <button 
+                    onClick={() => onComplete(profile)}
+                    disabled={!hasAcceptedTerms}
                     className="group px-16 py-7 bg-white text-stone-900 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] hover:bg-indigo-500 hover:text-white transition-all transform active:scale-95 shadow-2xl flex items-center gap-4 disabled:opacity-30 disabled:cursor-not-allowed disabled:grayscale"
                   >
                     {isDemoMode ? 'Launch Dashboard' : 'Finalize & Sign Up'}

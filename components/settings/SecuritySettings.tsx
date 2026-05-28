@@ -30,7 +30,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
   const [isInviting, setIsInviting] = useState(false);
   const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
-  const staffList: StaffShift[] = JSON.parse(localStorage.getItem('intelligence_staff_list') || localStorage.getItem('oenovia_staff_list') || '[]');
+  const staffList: StaffShift[] = JSON.parse(localStorage.getItem('vinetelligence_staff_list') || localStorage.getItem('vinea_staff_list') || '[]');
   const activeNodes = staffList.filter(s => s.accessStatus === 'Active').length;
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -51,7 +51,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
       
       // Fetch restaurant name to include in invitation relay
       const profile = await supabaseSync.getRestaurantProfile(restaurantId);
-      const restaurantName = profile?.name || 'Intelligence establishment';
+      const restaurantName = profile?.name || 'Vinetelligence establishment';
       
       // Dispatch Invitation Email/OTP
       await supabaseSync.sendInviteEmail(inviteEmail, restaurantName, inviteRole);
@@ -63,7 +63,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
       setInviteEmail('');
       setShowInviteForm(false);
     } catch (error) {
-      console.error("Intelligence: Invite failed", error);
+      console.error("Vinetelligence: Invite failed", error);
       const message = error instanceof Error ? error.message : 'Failed to send invitation.';
       setInviteStatus({ type: 'error', message });
     } finally {
@@ -115,7 +115,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {(['Admin', 'Manager', 'Sommelier', 'Mixologist', 'Server', 'Investor'] as const).map(role => (
+            {(['Manager', 'Sommelier', 'Mixologist', 'Server'] as const).map(role => (
               <button
                 key={role}
                 onClick={() => onUpdateRole(role)}
@@ -199,9 +199,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
                       <option value="Server">Server</option>
                       <option value="Mixologist">Mixologist</option>
                       <option value="Sommelier">Sommelier</option>
-                      <option value="Concierge">Concierge</option>
                       <option value="Manager">Manager</option>
-                      <option value="Admin">Admin</option>
                       <option value="Investor">Investor</option>
                     </select>
                   </div>

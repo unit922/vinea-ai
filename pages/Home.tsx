@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, ArrowRight, ShieldCheck, Mail, Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import VinetelligenceLogo from '../components/VinetelligenceLogo';
+import AHLALogo from '../components/AHLALogo';
+import { getPublicBrand } from '../utils/branding';
 
 interface HomeProps {
   onLogin?: () => void;
@@ -10,7 +12,10 @@ interface HomeProps {
   onStartOnboarding?: () => void;
 }
 
-const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding }) => {
+const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) => {
+  const brand = getPublicBrand();
+  const primaryText = brand.theme === 'vinea' ? 'text-amber-600' : 'text-indigo-600';
+
   const [activeModal, setActiveModal] = useState<'demo' | 'contact' | 'success' | 'verify' | null>(null);
   const [leadForm, setLeadForm] = useState({ name: '', email: '', establishment: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,7 +77,7 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding }) => {
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 md:gap-20 items-center">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-black uppercase tracking-widest">
+              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full ${brand.theme === 'vinea' ? 'bg-amber-50 border-amber-100 text-amber-600' : 'bg-indigo-50 border-indigo-100 text-indigo-600'} text-[10px] font-black uppercase tracking-widest`}>
                 <i className="fas fa-chart-line"></i>
                 Direct Sandbox Access — No Signup Required
               </div>
@@ -83,10 +88,12 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding }) => {
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif font-black leading-tight tracking-tighter text-stone-900">
               Transform your <br />
-              <span className="text-indigo-600 italic">Establishment in 48h.</span>
+              <span className={`${primaryText} italic`}>Establishment in 48h.</span>
             </h1>
             <p className="text-lg md:text-xl text-stone-600 leading-relaxed max-w-xl font-medium">
-              Vinetelligence is an 80% autonomous Neural Operating System. Skip the demo calls—launch our instant sandbox and see how predictive intelligence optimizes your floor, staff, and inventory right now.
+              {brand.theme === 'vinea'
+                ? "Vinea AI is an 80% autonomous, AI-powered fine-wine and hospitality service platform. Skip the demo calls—launch our instant sandbox and see how sommelier intelligence optimizes your floor, staff, and beverage inventory right now."
+                : "Vinetelligence is an 80% autonomous, AI-powered system for restaurant and beverage operations. Skip the demo calls—launch our instant sandbox and see how predictive intelligence optimizes your floor, staff, and inventory right now."}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
@@ -116,8 +123,12 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding }) => {
                  <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Already a Partner?</p>
                  <button 
                    onClick={() => {
-                     if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence.live')) {
-                       window.location.href = 'https://vinea.live?mode=login';
+                     if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence')) {
+                       localStorage.setItem('platform_selected_app', 'vinetelligence');
+                        const hUrl = new URL(window.location.href);
+                        hUrl.searchParams.set('mode', 'login');
+                        window.history.replaceState({}, '', hUrl.toString());
+                        window.location.reload();
                        return;
                      }
                      onLogin?.();
@@ -239,8 +250,11 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding }) => {
             
       {/* Trust & Interop Bar */}
       <section className="bg-stone-50 border-y border-stone-100 py-6 px-6">
-        <div className="max-w-7xl mx-auto flex flex-wrap justify-center md:justify-between items-center gap-8 opacity-60 grayscale">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto flex flex-wrap justify-center md:justify-between items-center gap-8">
+          <div className="flex items-center gap-3 border-r border-stone-200 pr-6 grayscale hover:grayscale-0 opacity-80 hover:opacity-100 transition-all">
+            <AHLALogo height={18} theme="color" />
+          </div>
+          <div className="flex items-center gap-3 opacity-60 grayscale">
             <ShieldCheck className="w-5 h-5 text-indigo-600" />
             <span className="text-[10px] font-black uppercase tracking-widest leading-tight">GDPR <br/> Compliant</span>
           </div>

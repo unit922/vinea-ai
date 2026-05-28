@@ -21,18 +21,18 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
   const hasLoadedRef = useRef(false);
   const hasFetchedDirectRef = useRef<string | null>(null);
   const [venueName, setVenueName] = useState(() => {
-    if (rid === 'demo' || rid === 'demo-id') return 'Intelligence Explorer (Demo)';
+    if (rid === 'demo' || rid === 'demo-id') return 'Vinetelligence Explorer (Demo)';
     if (rid) return 'Connecting to Establishment...';
     try {
-      const profileStr = localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile');
+      const profileStr = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
       if (profileStr) {
         const profile = JSON.parse(profileStr);
-        return profile.name || 'Intelligence Venue';
+        return profile.name || 'Vinetelligence Venue';
       }
     } catch (e) {
-      console.error("Intelligence: Failed to parse local profile for venue name", e);
+      console.error("Vinetelligence: Failed to parse local profile for venue name", e);
     }
-    return 'Intelligence Venue';
+    return 'Vinetelligence Venue';
   });
 
   // Sync selectedRid with rid prop if it changes (React recommended pattern)
@@ -40,7 +40,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
     setPrevRid(rid);
     setSelectedRid(rid);
     if (rid === 'demo' || rid === 'demo-id') {
-      setVenueName('Intelligence Explorer (Demo)');
+      setVenueName('Vinetelligence Explorer (Demo)');
     } else if (rid) {
       setVenueName('Connecting to Establishment...');
     }
@@ -78,28 +78,28 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
       // Safety timeout for fetching venue name
       const timeout = setTimeout(() => {
         setVenueName(prev => {
-          if (prev === 'Connecting to Establishment...') return 'Intelligence Venue';
+          if (prev === 'Connecting to Establishment...') return 'Vinetelligence Venue';
           return prev;
         });
-      }, 8000);
+      }, 8000); // Increased to 8s to give more time for the cloud fetch
 
       try {
-        console.log("Intelligence: Direct fetch starting for rid:", ridToFetch);
+        console.log("Vinetelligence: Direct fetch starting for rid:", ridToFetch);
         const venue = await supabaseSync.getRestaurantProfile(ridToFetch);
         clearTimeout(timeout);
         if (venue) {
           const v = venue as RestaurantProfile;
-          console.log("Intelligence: Direct fetch success:", v.name);
-          setVenueName(String(v.name || 'Intelligence Venue'));
+          console.log("Vinetelligence: Direct fetch success:", v.name);
+          setVenueName(String(v.name || 'Vinetelligence Venue'));
           setCurrentVenue(v);
         } else {
-          console.warn("Intelligence: Direct fetch returned no data for rid:", ridToFetch);
-          setVenueName('Intelligence Venue');
+          console.warn("Vinetelligence: Direct fetch returned no data for rid:", ridToFetch);
+          setVenueName('Vinetelligence Venue');
         }
       } catch (e) {
         clearTimeout(timeout);
-        console.error("Intelligence: Direct fetch failed", e);
-        setVenueName('Intelligence Venue');
+        console.error("Vinetelligence: Direct fetch failed", e);
+        setVenueName('Vinetelligence Venue');
       }
     };
 
@@ -108,24 +108,24 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
       hasLoadedRef.current = true; // Set immediately to prevent race condition
       const loadVenues = async () => {
         try {
-          console.log("Intelligence: Loading establishments for guest portal...");
+          console.log("Vinetelligence: Loading establishments for guest portal...");
           const data = await supabaseSync.pullRegistry();
-          console.log("Intelligence: Registry data received:", data.length, "items");
+          console.log("Vinetelligence: Registry data received:", data.length, "items");
           
           const activeVenues = (data as VenueWithStatus[]).filter((v: VenueWithStatus) => {
             // Log each item's status for debugging
-            console.log(`Intelligence: Venue ${v.name} status: ${v.status}`);
+            console.log(`Vinetelligence: Venue ${v.name} status: ${v.status}`);
             // Be more robust with status check - only filter if explicitly 'Inactive'
             return v.status !== 'Inactive' && v.status !== 'inactive';
           });
-          console.log("Intelligence: Active venues found:", activeVenues.length);
+          console.log("Vinetelligence: Active venues found:", activeVenues.length);
           
           // If empty and we're in a demo/dev context, add a demo venue
           if (activeVenues.length === 0) {
-            console.log("Intelligence: No active establishments found, adding demo fallback.");
+            console.log("Vinetelligence: No active establishments found, adding demo fallback.");
             activeVenues.push({
               id: 'demo-id',
-              name: 'Intelligence Explorer (Demo)',
+              name: 'Vinetelligence Explorer (Demo)',
               type: 'Restaurant',
               focus: 'General',
               description: 'Demo environment',
@@ -139,32 +139,32 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
           
           // If a rid was provided, try to find its name in the loaded venues
           if (selectedRid) {
-            console.log("Intelligence: Searching for venue name for rid:", selectedRid);
+            console.log("Vinetelligence: Searching for venue name for rid:", selectedRid);
             const matchedVenue = activeVenues.find(v => v.id === selectedRid);
             if (matchedVenue) {
-              console.log("Intelligence: Found matched venue:", matchedVenue.name);
+              console.log("Vinetelligence: Found matched venue:", matchedVenue.name);
               setVenueName(matchedVenue.name);
               setCurrentVenue(matchedVenue);
             } else if (selectedRid === 'demo-id' || selectedRid === 'demo') {
-              setVenueName('Intelligence Explorer (Demo)');
+              setVenueName('Vinetelligence Explorer (Demo)');
             } else {
-              console.log("Intelligence: Rid not found in registry, will attempt direct fetch.");
+              console.log("Vinetelligence: Rid not found in registry, will attempt direct fetch.");
               // Trigger direct fetch
               fetchDirectVenue(selectedRid);
             }
           } else if (activeVenues.length === 1) {
             // Auto-select if only one venue exists and no rid provided
-            console.log("Intelligence: Auto-selecting single venue:", activeVenues[0].name);
+            console.log("Vinetelligence: Auto-selecting single venue:", activeVenues[0].name);
             setSelectedRid(activeVenues[0].id);
             setVenueName(activeVenues[0].name);
             setCurrentVenue(activeVenues[0]);
           }
         } catch (e) {
-          console.error("Intelligence: Failed to load establishments", e);
+          console.error("Vinetelligence: Failed to load establishments", e);
           // Fallback to demo on error
           const fallbackVenues = [{
             id: 'demo-id',
-            name: 'Intelligence Explorer (Demo)',
+            name: 'Vinetelligence Explorer (Demo)',
             type: 'Restaurant',
             focus: 'General',
             description: 'Demo environment',
@@ -176,7 +176,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
           
           if (!selectedRid || selectedRid === 'demo-id') {
             setSelectedRid('demo-id');
-            setVenueName('Intelligence Explorer (Demo)');
+            setVenueName('Vinetelligence Explorer (Demo)');
           }
         }
       };
@@ -197,7 +197,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
   };
 
   const performAvailabilityCheck = async () => {
-    const targetRid = selectedRid || JSON.parse(localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || '{}').id;
+    const targetRid = selectedRid || JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}').id;
     
     if (!targetRid || targetRid === 'demo' || targetRid === 'demo-id') {
       // Mock availability for demo mode
@@ -216,7 +216,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
         supabaseSync.pullJourneys(targetRid)
       ]);
 
-      console.log(`Intelligence: Found ${tables.length} tables and ${journeys.length} journeys for availability check.`);
+      console.log(`Vinetelligence: Found ${tables.length} tables and ${journeys.length} journeys for availability check.`);
 
       if (tables.length === 0) {
         setAvailabilityResult({ available: false, alternatives: [] });
@@ -264,7 +264,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
         setBookingError("The requested time slot is currently fully committed. Please try another time.");
       }
     } catch (e) {
-      console.error("Intelligence: Availability check failed", e);
+      console.error("Vinetelligence: Availability check failed", e);
       setBookingError("Unable to verify table availability. Please try again.");
     } finally {
       setIsCheckingAvailability(false);
@@ -277,7 +277,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
     
     try {
       // Final availability double-check in case someone booked in the meantime
-      const targetRid = selectedRid || JSON.parse(localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || '{}').id || 'demo-id';
+      const targetRid = selectedRid || JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}').id || 'demo-id';
       
       // Map to finalized table number from previous check if available
       const confirmedTable = availabilityResult?.tableNumber || '??';
@@ -319,13 +319,13 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
               venueName,
               establishment: currentVenue
             })
-          }).catch(err => console.error("Intelligence: Email trigger failed", err));
+          }).catch(err => console.error("Vinetelligence: Email trigger failed", err));
           
         } catch (e) {
-          console.error("Intelligence: Failed to sync journey to cloud", e);
+          console.error("Vinetelligence: Failed to sync journey to cloud", e);
         }
       } else {
-        console.warn("Intelligence: Skipping Supabase sync - invalid establishment ID format", targetRid);
+        console.warn("Vinetelligence: Skipping Supabase sync - invalid establishment ID format", targetRid);
         
         // Even in non-UUID (demo/local) mode, try to trigger the email if we have details
         if (booking.email) {
@@ -337,15 +337,16 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
                venueName,
                establishment: currentVenue
              })
-           }).catch(err => console.error("Intelligence: Email trigger failed", err));
+           }).catch(err => console.error("Vinetelligence: Email trigger failed", err));
         }
       }
 
       // Local Fallback for Browser Feedback (Guest side)
       if (!isPublic) {
-        const saved = localStorage.getItem('intelligence_journeys') || localStorage.getItem('oenovia_journeys');
+        const saved = localStorage.getItem('vinetelligence_journeys') || localStorage.getItem('vinea_journeys');
         const journeys = saved ? (JSON.parse(saved) as GuestJourney[]) : [];
-        localStorage.setItem('intelligence_journeys', JSON.stringify([...journeys, localJourney]));
+        localStorage.setItem('vinetelligence_journeys', JSON.stringify([...journeys, localJourney]));
+        localStorage.setItem('vinea_journeys', JSON.stringify([...journeys, localJourney]));
         window.dispatchEvent(new Event('storage'));
       }
 
@@ -353,7 +354,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
       setIsSubmitting(false);
       setStep(3);
     } catch (e) {
-      console.error("Intelligence: Reservation failed", e);
+      console.error("Vinetelligence: Reservation failed", e);
       setBookingError("We encountered an error processing your reservation. Please try again or contact the venue directly.");
       setIsSubmitting(false);
     }
@@ -376,7 +377,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
       const { html } = await response.json();
       setPreviewHtml(html);
     } catch (err) {
-      console.error("Intelligence: Preview synthesis error", err);
+      console.error("Vinetelligence: Preview synthesis error", err);
     } finally {
       setIsPreviewLoading(false);
     }
@@ -730,7 +731,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
             <div className="flex-1 bg-stone-100 p-8 overflow-hidden flex justify-center">
                <div className="w-full max-w-[640px] bg-white shadow-2xl rounded-xl overflow-auto h-full border border-stone-200">
                   <iframe 
-                    title="Intelligence Confirmation Preview"
+                    title="Vinetelligence Confirmation Preview"
                     srcDoc={previewHtml} 
                     className="w-full h-full border-none"
                   />

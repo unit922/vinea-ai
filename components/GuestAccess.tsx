@@ -70,7 +70,7 @@ const GuestAccess: React.FC<GuestAccessProps> = ({ restaurantProfile }) => {
                   level="H"
                   includeMargin={false}
                   imageSettings={{
-                    src: "https://vinetelligence.live/favicon.ico", // Placeholder or app logo
+                    src: "https://vinetelligence.com/favicon.ico", // Placeholder or app logo
                     x: undefined,
                     y: undefined,
                     height: 40,
@@ -180,7 +180,7 @@ const GuestAccess: React.FC<GuestAccessProps> = ({ restaurantProfile }) => {
         {/* Print Preview Helper */}
         <div className="hidden print:block fixed inset-0 bg-white z-[2000] p-20 text-center space-y-10">
           <div className="border-8 border-stone-900 p-20 rounded-[5rem] inline-block">
-            <h1 className="text-6xl font-serif font-black italic mb-10">Vinetelligence.live</h1>
+            <h1 className="text-6xl font-serif font-black italic mb-10">Vinetelligence.com</h1>
             <div className="bg-white p-10 inline-block border-4 border-stone-100 rounded-[3rem]">
                <QRCodeSVG value={guestUrl} size={400} level="H" />
             </div>

@@ -6,6 +6,32 @@ import { ensureISOString } from '../utils';
 let supabaseInstance: SupabaseClient | null = null;
 let currentConfig: { url: string, anonKey: string } | null = null;
 
+// Throttling function to prevent rapid back-to-back API calls from Postgres subscriptions
+export function throttle<Args extends unknown[], Return>(
+  func: (...args: Args) => Return,
+  limit: number
+): (...args: Args) => void {
+  let inThrottle = false;
+  let lastArgs: Args | null = null;
+  
+  return (...args: Args) => {
+    if (!inThrottle) {
+      func(...args);
+      inThrottle = true;
+      setTimeout(() => {
+        inThrottle = false;
+        if (lastArgs) {
+          const nextArgs = lastArgs;
+          lastArgs = null;
+          func(...nextArgs);
+        }
+      }, limit);
+    } else {
+      lastArgs = args;
+    }
+  };
+}
+
 export const isLocalEnvironment = () => {
   if (typeof window === 'undefined') return true;
   return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -14,7 +40,7 @@ export const isLocalEnvironment = () => {
 export const getSupabaseConfig = () => {
   // 1. Check Local Storage (Manual user config / Overrides) - HIGHEST PRIORITY
   if (typeof window !== 'undefined') {
-    const profileKey = 'intelligence_profile';
+    const profileKey = localStorage.getItem('vinetelligence_profile') ? 'vinetelligence_profile' : 'vinea_profile';
     const stored = localStorage.getItem(profileKey);
     if (stored) {
       try {
@@ -25,7 +51,7 @@ export const getSupabaseConfig = () => {
           return { url: cleanUrl, anonKey: cleanKey, isEnvManaged: false, source: 'storage' };
         }
       } catch (e) {
-        console.error("Intelligence: Failed to parse stored profile for Supabase config", e);
+        console.error("Vinetelligence: Failed to parse stored profile for Supabase config", e);
       }
     }
   }
@@ -37,7 +63,7 @@ export const getSupabaseConfig = () => {
   
   if (viteUrl && viteKey) {
     const config = { url: viteUrl, anonKey: viteKey, isEnvManaged: true, source: 'env' };
-    console.log(`Intelligence: Initializing with Env Config: ${config.url} (Type: ${config.source})`);
+    console.log(`Vinetelligence: Initializing with Env Config: ${config.url} (Type: ${config.source})`);
     return config;
   }
 
@@ -59,7 +85,7 @@ export const getSupabaseClient = () => {
   const config = getSupabaseConfig();
 
   if (!config) {
-    console.warn("Oenovía: No Supabase configuration found");
+    console.warn("Vinetelligence: No Supabase configuration found");
     return null;
   }
 
@@ -69,7 +95,7 @@ export const getSupabaseClient = () => {
     
     // SSL Enforcement: Mixed Content Guard
     if (typeof window !== 'undefined' && window.location.protocol === 'https:' && cleanUrl.startsWith('http:')) {
-      console.warn("Intelligence: SSL Mismatch detected. Enforcing HTTPS for Cloud Silo connection.");
+      console.warn("Vinetelligence: SSL Mismatch detected. Enforcing HTTPS for Cloud Silo connection.");
       const secureUrl = cleanUrl.replace('http:', 'https:');
       currentConfig = { url: secureUrl, anonKey: cleanKey };
     } else {
@@ -80,12 +106,12 @@ export const getSupabaseClient = () => {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        storageKey: 'intelligence_auth_session'
+        storageKey: 'vinetelligence_auth_session'
       }
     });
     return supabaseInstance;
   } catch (e) {
-    console.error("Oenovía: Failed to initialize Supabase client", e);
+    console.error("Vinetelligence: Failed to initialize Supabase client", e);
     return null;
   }
 };
@@ -128,12 +154,12 @@ function sanitizeCategory(category: unknown): string {
 
 export const supabaseSync = {
   saveSupabaseConfig(url: string, anonKey: string) {
-    const profileKey = 'intelligence_profile';
+    const profileKey = localStorage.getItem('vinetelligence_profile') ? 'vinetelligence_profile' : 'vinea_profile';
     const profile = localStorage.getItem(profileKey);
     const p = profile ? JSON.parse(profile) : {};
     p.supabaseUrl = url;
     p.supabaseAnonKey = anonKey;
-    localStorage.setItem('intelligence_profile', JSON.stringify(p));
+    localStorage.setItem('vinetelligence_profile', JSON.stringify(p));
     
     // Reset instance to force re-initialization only if config actually changed
     if (currentConfig?.url !== url || currentConfig?.anonKey !== anonKey || !supabaseInstance) {
@@ -142,7 +168,7 @@ export const supabaseSync = {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
-          storageKey: 'intelligence_auth_session'
+          storageKey: 'vinetelligence_auth_session'
         }
       });
     }
@@ -156,7 +182,7 @@ export const supabaseSync = {
   },
 
   async runDiagnostics() {
-    console.log("Intelligence: Starting Supabase diagnostics...");
+    console.log("Vinetelligence: Starting Supabase diagnostics...");
     const supabase = getSupabaseClient();
     const config = getSupabaseConfig();
     
@@ -170,7 +196,7 @@ export const supabaseSync = {
 
     try {
       // 1. Check Schema Existence
-      console.log("Intelligence: Diagnostics - Checking schema...");
+      console.log("Vinetelligence: Diagnostics - Checking schema...");
       const schema = await this.verifySchema();
       if (!schema.success) {
         return { 
@@ -181,7 +207,7 @@ export const supabaseSync = {
       }
 
       // 2. Check Public Read Access (Restaurants)
-      console.log("Intelligence: Diagnostics - Checking public read access...");
+      console.log("Vinetelligence: Diagnostics - Checking public read access...");
       const { error: readError } = await supabase.from('restaurants').select('id').limit(1);
       if (readError) {
         let msg = `Could not read from 'restaurants' table: ${readError.message}`;
@@ -198,13 +224,13 @@ export const supabaseSync = {
       // 3. Check Write Access (Staff Roster - requires RLS to allow anon insert for registration)
       // We'll try to insert a dummy record with a non-existent restaurant_id and then delete it
       // Note: This might fail if RLS is strict, which is good to know.
-      console.log("Intelligence: Diagnostics - Checking write access (anon)...");
+      console.log("Vinetelligence: Diagnostics - Checking write access (anon)...");
       const dummyId = '00000000-0000-0000-0000-000000000000';
       const { error: writeError } = await supabase
         .from('staff_roster')
         .insert([{ 
           restaurant_id: dummyId, 
-          email: 'diagnostics@intelligence.test', 
+          email: 'diagnostics@vinetelligence.test', 
           role: 'Diagnostic' 
         }])
         .select();
@@ -233,12 +259,12 @@ export const supabaseSync = {
   async verifySchema() {
     const supabase = getSupabaseClient();
     if (!supabase) {
-      console.error("Intelligence: verifySchema failed - Supabase client not initialized");
+      console.error("Vinetelligence: verifySchema failed - Supabase client not initialized");
       return { success: false, message: 'Supabase configuration is missing or invalid.' };
     }
     
     try {
-      console.log("Intelligence: Verifying Cloud Silo schema...");
+      console.log("Vinetelligence: Verifying Cloud Silo schema...");
       const requiredTables = ['restaurants', 'profiles', 'staff_roster', 'inventory', 'orders', 'order_items', 'guest_journeys'];
       
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -250,7 +276,7 @@ export const supabaseSync = {
         try {
           // Verify all tables in parallel for maximum efficiency
           const checks = requiredTables.map(async (table) => {
-            console.log(`Intelligence: Checking table '${table}'...`);
+            console.log(`Vinetelligence: Checking table '${table}'...`);
             try {
               const { error } = await supabase.from(table).select('id').limit(1);
               
@@ -269,7 +295,7 @@ export const supabaseSync = {
                    throw new Error(`Connectivity Error: Unable to reach Cloud Silo at ${currentConfig?.url}. Please verify your network and project URL.`);
                 }
 
-                console.error(`Intelligence: Schema verification failed for table ${table}`, error);
+                console.error(`Vinetelligence: Schema verification failed for table ${table}`, error);
                 throw new Error(`Table '${table}' is missing or inaccessible. (${error.message})`);
               }
             } catch (innerError: unknown) {
@@ -283,7 +309,7 @@ export const supabaseSync = {
               }
               throw innerError;
             }
-            console.log(`Intelligence: Table '${table}' verified.`);
+            console.log(`Vinetelligence: Table '${table}' verified.`);
           });
           
           await Promise.all(checks);
@@ -298,9 +324,9 @@ export const supabaseSync = {
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Unknown schema verification error';
       if (!message.includes('Connectivity Error')) {
-        console.error("Intelligence: Schema verification exception", e);
+        console.error("Vinetelligence: Schema verification exception", e);
       } else {
-        console.warn("Intelligence: Silo connectivity offline during schema verification.");
+        console.warn("Vinetelligence: Silo connectivity offline during schema verification.");
       }
       return { success: false, message };
     }
@@ -310,19 +336,19 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
     const trimmedName = name.trim();
-    console.log("Intelligence: Checking if establishment exists:", trimmedName);
+    console.log("Vinetelligence: Checking if establishment exists:", trimmedName);
     
     const { data, error } = await supabase
       .from('restaurants')
-      .select('id, name, slug, tagline, description, type, owner_email, edition, created_at, status, tier, focus, billing_status, mrr')
+      .select('*')
       .ilike('name', trimmedName)
       .maybeSingle();
       
     if (error) {
-      console.error("Intelligence: checkEstablishmentExists error:", error);
+      console.error("Vinetelligence: checkEstablishmentExists error:", error);
       throw error;
     }
-    console.log("Intelligence: checkEstablishmentExists result:", data);
+    console.log("Vinetelligence: checkEstablishmentExists result:", data);
     return data;
   },
 
@@ -333,7 +359,7 @@ export const supabaseSync = {
     const trimmedName = profile.name.trim();
     const slug = generateSlug(trimmedName);
     
-    console.log("Intelligence: Registering new establishment:", { 
+    console.log("Vinetelligence: Registering new establishment:", { 
       name: trimmedName, 
       slug: slug,
       email: profile.ownerEmail,
@@ -349,7 +375,7 @@ export const supabaseSync = {
         tagline: profile.tagline,
         description: profile.description,
         type: profile.type,
-        owner_email: profile.ownerEmail,
+        owner_email: profile.ownerEmail?.toLowerCase().trim(),
         edition: profile.edition || 'standard',
         allow_google_auth: profile.allowGoogleAuth ?? false
       }])
@@ -357,13 +383,13 @@ export const supabaseSync = {
       .single();
       
     if (error) {
-      console.error("Oenovía: registerEstablishment error:", error);
+      console.error("Vinetelligence: registerEstablishment error:", error);
       if (error.code === '42501') {
         throw new Error("Cloud Silo Permission Denied (RLS). Anonymous establishment registration is restricted. Please ensure the latest SUPABASE_SETUP.sql policies have been applied to your project.");
       }
       throw error;
     }
-    console.log("Oenovía: registerEstablishment success:", data);
+    console.log("Vinetelligence: registerEstablishment success:", data);
     return data;
   },
 
@@ -387,7 +413,7 @@ export const supabaseSync = {
       .single();
       
     if (error) {
-      console.error("Intelligence: addToStaffRoster error:", error);
+      console.error("Vinetelligence: addToStaffRoster error:", error);
       throw error;
     }
     return data;
@@ -402,7 +428,7 @@ export const supabaseSync = {
     if (!supabase) return null;
     const { data, error } = await supabase
       .from('staff_roster')
-      .select('id, restaurant_id, email, role, status, created_at')
+      .select('*')
       .eq('restaurant_id', restaurantId)
       .eq('email', email.toLowerCase().trim())
       .maybeSingle();
@@ -430,7 +456,7 @@ export const supabaseSync = {
       .eq('email', email.toLowerCase().trim())
       .maybeSingle();
     if (error) {
-      console.error("Intelligence: findRosterEntry error:", error);
+      console.error("Vinetelligence: findRosterEntry error:", error);
       return null;
     }
     return data;
@@ -449,7 +475,7 @@ export const supabaseSync = {
   async sendInviteEmail(email: string, restaurantName: string, role: string) {
     const supabase = getSupabaseClient();
     if (!supabase) {
-      console.log(`Intelligence: [SIMULATED EMAIL] To: ${email}, Subject: Invitation to join ${restaurantName} as ${role}`);
+      console.log(`Vinetelligence: [SIMULATED EMAIL] To: ${email}, Subject: Invitation to join ${restaurantName} as ${role}`);
       return { success: true, message: "Email simulation successful (Local Sandbox)" };
     }
 
@@ -471,7 +497,7 @@ export const supabaseSync = {
       if (error) throw error;
       return { success: true, message: "Invitation relay dispatched via Supabase Auth." };
     } catch (e) {
-      console.error("Intelligence: Failed to dispatch invite email", e);
+      console.error("Vinetelligence: Failed to dispatch invite email", e);
       return { success: false, message: "Email relay failed. Ensure Supabase Auth is configured." };
     }
   },
@@ -479,7 +505,7 @@ export const supabaseSync = {
   async sendInvestorNotification(email: string, restaurantName: string, key: string) {
     const supabase = getSupabaseClient();
     if (!supabase) {
-      console.log(`Intelligence: [SIMULATED EMAIL] To: ${email}, Subject: Investor Access for ${restaurantName}. Key: ${key}`);
+      console.log(`Vinetelligence: [SIMULATED EMAIL] To: ${email}, Subject: Investor Access for ${restaurantName}. Key: ${key}`);
       return { success: true, message: "Investor notification simulation successful." };
     }
 
@@ -499,7 +525,7 @@ export const supabaseSync = {
       if (error) throw error;
       return { success: true, message: "Investor access relay dispatched." };
     } catch (e) {
-      console.error("Intelligence: Failed to dispatch investor notification", e);
+      console.error("Vinetelligence: Failed to dispatch investor notification", e);
       return { success: false, message: "Investor relay failed." };
     }
   },
@@ -511,7 +537,7 @@ export const supabaseSync = {
     if (id === 'demo' || id === 'demo-id') {
       return {
         id: 'demo-id',
-        name: 'Intelligence Explorer (Demo)',
+        name: 'Vinetelligence Explorer (Demo)',
         type: 'Restaurant',
         focus: 'General',
         description: 'Demo environment',
@@ -524,7 +550,7 @@ export const supabaseSync = {
     // Validate UUID format to prevent 400 errors from Supabase
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
-      console.warn(`Intelligence: Invalid UUID format for restaurant profile fetch: ${id}`);
+      console.warn(`Vinetelligence: Invalid UUID format for restaurant profile fetch: ${id}`);
       return null;
     }
 
@@ -537,7 +563,7 @@ export const supabaseSync = {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
-        console.log(`Intelligence: getRestaurantProfile - fetching for rid: ${id} (attempt ${attempt + 1})...`);
+        console.log(`Vinetelligence: getRestaurantProfile - fetching for rid: ${id} (attempt ${attempt + 1})...`);
         const startTime = Date.now();
         
         const timeoutPromise = new Promise((_, reject) => 
@@ -548,12 +574,12 @@ export const supabaseSync = {
           try {
             const result = await supabase
               .from('restaurants')
-              .select('id, name, slug, tagline, description, type, owner_email, edition, created_at, status, tier, focus, billing_status, mrr')
+              .select('*')
               .eq('id', id)
               .maybeSingle();
             return result;
           } catch (e) {
-            console.error("Intelligence: fetchPromise background error in getRestaurantProfile", e);
+            console.error("Vinetelligence: fetchPromise background error in getRestaurantProfile", e);
             return { data: null, error: e };
           }
         })();
@@ -565,7 +591,7 @@ export const supabaseSync = {
         const duration = Date.now() - startTime;
 
         if (error) {
-          console.error(`Intelligence: getRestaurantProfile error (attempt ${attempt + 1}, ${duration}ms):`, error);
+          console.error(`Vinetelligence: getRestaurantProfile error (attempt ${attempt + 1}, ${duration}ms):`, error);
           lastError = error;
           if (attempt < maxRetries) {
             await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
@@ -574,11 +600,11 @@ export const supabaseSync = {
           throw error;
         }
         
-        console.log(`Intelligence: getRestaurantProfile success (attempt ${attempt + 1}, ${duration}ms):`, data ? (data as Record<string, unknown>).name : 'Not found');
+        console.log(`Vinetelligence: getRestaurantProfile success (attempt ${attempt + 1}, ${duration}ms):`, data ? (data as Record<string, unknown>).name : 'Not found');
         return data;
       } catch (e) {
         if (timeoutId) clearTimeout(timeoutId);
-        console.error(`Intelligence: getRestaurantProfile exception (attempt ${attempt + 1}):`, e);
+        console.error(`Vinetelligence: getRestaurantProfile exception (attempt ${attempt + 1}):`, e);
         lastError = e;
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
@@ -588,7 +614,7 @@ export const supabaseSync = {
       }
     }
     
-    console.error("Intelligence: getRestaurantProfile failed after all retries", lastError);
+    console.error("Vinetelligence: getRestaurantProfile failed after all retries", lastError);
     return null;
   },
 
@@ -596,15 +622,15 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
     
-    console.log("Intelligence: getRestaurantBySlug - fetching for slug:", slug);
+    console.log("Vinetelligence: getRestaurantBySlug - fetching for slug:", slug);
     const { data, error } = await supabase
       .from('restaurants')
-      .select('id, name, slug, tagline, description, type, owner_email, edition, created_at, status, tier, focus, billing_status, mrr')
+      .select('*')
       .eq('slug', slug)
       .maybeSingle();
       
     if (error) {
-      console.error("Intelligence: getRestaurantBySlug error:", error);
+      console.error("Vinetelligence: getRestaurantBySlug error:", error);
       throw error;
     }
     return data;
@@ -615,7 +641,7 @@ export const supabaseSync = {
     if (!supabase || !isValidUUID(restaurantId)) return [];
     const { data, error } = await supabase
       .from('staff_roster')
-      .select('id, restaurant_id, email, role, status, created_at')
+      .select('*')
       .eq('restaurant_id', restaurantId);
     if (error) throw error;
     return data || [];
@@ -637,7 +663,7 @@ export const supabaseSync = {
     if (!supabase || !isValidUUID(restaurantId)) return [];
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, restaurant_id, full_name, role, avatar_url, performance_score, availability_status, burnout_index, updated_at')
+      .select('*')
       .eq('restaurant_id', restaurantId);
     if (error) throw error;
     return data || [];
@@ -706,7 +732,7 @@ export const supabaseSync = {
     if (!supabase || !isValidUUID(restaurantId)) return [];
     const { data, error } = await supabase
       .from('staff_assignments')
-      .select('id, restaurant_id, staff_id, zone_id, priority, timestamp')
+      .select('*')
       .eq('restaurant_id', restaurantId);
     if (error) throw error;
     
@@ -722,6 +748,16 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase || !isValidUUID(restaurantId)) return () => {};
 
+    // Throttled pull helps save database egress bandwidth significantly
+    const throttledPull = throttle(async () => {
+      try {
+        const data = await this.pullAssignments(restaurantId);
+        callback(data);
+      } catch (e) {
+        console.error("Vinetelligence: Error in assignments throttled subscription update", e);
+      }
+    }, 1500); // 1.5s throttle
+
     const channel = supabase
       .channel(`staff_assignments:${restaurantId}`)
       .on('postgres_changes', { 
@@ -729,13 +765,8 @@ export const supabaseSync = {
         schema: 'public', 
         table: 'staff_assignments',
         filter: `restaurant_id=eq.${restaurantId}`
-      }, async () => {
-        try {
-          const data = await this.pullAssignments(restaurantId);
-          callback(data);
-        } catch (e) {
-          console.error("Oenovía: Error in assignments subscription update", e);
-        }
+      }, () => {
+        throttledPull();
       })
       .subscribe();
 
@@ -748,12 +779,12 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
     if (!isValidUUID(restaurantId)) {
-      console.warn("Oenovía: pullInventory - invalid restaurantId", restaurantId);
+      console.warn("Vinetelligence: pullInventory - invalid restaurantId", restaurantId);
       return null;
     }
     const { data, error } = await supabase
       .from('inventory')
-      .select('id, restaurant_id, name, category, stock, unit, min_stock, price, original_price, description, volume_per_unit, sustainability_score, predicted_demand, consumed, updated_at')
+      .select('*')
       .eq('restaurant_id', restaurantId);
     if (error) throw error;
     
@@ -848,7 +879,7 @@ export const supabaseSync = {
   async pullRegistry() {
     const supabase = getSupabaseClient();
     if (!supabase) {
-      console.warn("Intelligence: pullRegistry - no supabase client");
+      console.warn("Vinetelligence: pullRegistry - no supabase client");
       return [];
     }
 
@@ -857,7 +888,7 @@ export const supabaseSync = {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`Intelligence: pullRegistry - starting (attempt ${attempt + 1})...`);
+        console.log(`Vinetelligence: pullRegistry - starting (attempt ${attempt + 1})...`);
         const startTime = Date.now();
         
         // Add a longer safety timeout for the registry fetch
@@ -867,11 +898,11 @@ export const supabaseSync = {
 
         // Make the fetch explicit
         const fetchPromise = (async () => {
-          console.log("Intelligence: pullRegistry - fetching from 'restaurants' table...");
-          const result = await supabase.from('restaurants').select('id, name, slug, tagline, description, type, owner_email, edition, created_at, status, tier, focus, billing_status, mrr');
+          console.log("Vinetelligence: pullRegistry - fetching from 'restaurants' table...");
+          const result = await supabase.from('restaurants').select('*');
           return result;
         })().catch(e => {
-          console.error("Intelligence: fetchPromise background error in pullRegistry", e);
+          console.error("Vinetelligence: fetchPromise background error in pullRegistry", e);
           return { data: null, error: e };
         });
         
@@ -879,7 +910,7 @@ export const supabaseSync = {
 
         const duration = Date.now() - startTime;
         if (error) {
-          console.error(`Intelligence: pullRegistry - error (attempt ${attempt + 1}, ${duration}ms):`, error);
+          console.error(`Vinetelligence: pullRegistry - error (attempt ${attempt + 1}, ${duration}ms):`, error);
           lastError = error;
           if (attempt < maxRetries) {
             await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
@@ -888,7 +919,7 @@ export const supabaseSync = {
           throw error;
         }
         
-        console.log(`Intelligence: pullRegistry - success (attempt ${attempt + 1}, ${duration}ms), data count:`, data?.length || 0);
+        console.log(`Vinetelligence: pullRegistry - success (attempt ${attempt + 1}, ${duration}ms), data count:`, data?.length || 0);
         return (data || []).map(r => ({
           id: r.id,
           name: r.name,
@@ -903,7 +934,7 @@ export const supabaseSync = {
           ownerEmail: r.owner_email
         }));
       } catch (e) {
-        console.error(`Intelligence: pullRegistry - exception (attempt ${attempt + 1}):`, e);
+        console.error(`Vinetelligence: pullRegistry - exception (attempt ${attempt + 1}):`, e);
         lastError = e;
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
@@ -913,7 +944,7 @@ export const supabaseSync = {
       }
     }
     
-    console.error("Intelligence: pullRegistry failed after all retries", lastError);
+    console.error("Vinetelligence: pullRegistry failed after all retries", lastError);
     return [];
   },
 
@@ -921,15 +952,20 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase) return () => {};
     
+    // Throttled pull helps save database egress bandwidth significantly
+    const throttledPull = throttle(async () => {
+      try {
+        const data = await this.pullRegistry();
+        callback(data);
+      } catch (e) {
+        console.error("Vinetelligence: Error in registry throttled subscription update", e);
+      }
+    }, 3000); // 3s throttle
+
     const channel = supabase
       .channel('public:restaurants')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurants' }, async () => {
-        try {
-          const data = await this.pullRegistry();
-          callback(data);
-        } catch (e) {
-          console.error("Intelligence: Error in registry subscription update", e);
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurants' }, () => {
+        throttledPull();
       })
       .subscribe();
       
@@ -942,6 +978,16 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase || !isValidUUID(restaurantId)) return () => {};
     
+    // Throttled pull helps save database egress bandwidth significantly
+    const throttledPull = throttle(async () => {
+      try {
+        const data = await this.pullOrders(restaurantId);
+        callback(data);
+      } catch (e) {
+        console.error("Vinetelligence: Error in orders throttled subscription update", e);
+      }
+    }, 1500); // 1.5s throttle
+
     const channel = supabase
       .channel(`public:orders:${restaurantId}`)
       .on('postgres_changes', { 
@@ -949,13 +995,8 @@ export const supabaseSync = {
         schema: 'public', 
         table: 'orders',
         filter: `restaurant_id=eq.${restaurantId}`
-      }, async () => {
-        try {
-          const data = await this.pullOrders(restaurantId);
-          callback(data);
-        } catch (e) {
-          console.error("Intelligence: Error in orders subscription update", e);
-        }
+      }, () => {
+        throttledPull();
       })
       .subscribe();
       
@@ -978,7 +1019,7 @@ export const supabaseSync = {
       .order('timestamp', { ascending: false });
 
     if (error) {
-      console.error("Intelligence: pullOrders error:", error);
+      console.error("Vinetelligence: pullOrders error:", error);
       throw error;
     }
 
@@ -1051,7 +1092,7 @@ export const supabaseSync = {
         .upsert(mappedItems, { onConflict: 'id' });
 
       if (itemsError) {
-        console.warn("Intelligence: Failed to sync order items, but main order was saved", itemsError);
+        console.warn("Vinetelligence: Failed to sync order items, but main order was saved", itemsError);
       }
     }
   },
@@ -1068,11 +1109,11 @@ export const supabaseSync = {
     
     const { data, error } = await supabase
       .from('guest_journeys')
-      .select('id, restaurant_id, arrival_time, guest_name, guest_email, location, preferences, dietary_restrictions, past_orders, pairing_style, special_occasion, status, table_number, party_size, pacing_mode, facial_id, created_at, updated_at')
+      .select('*')
       .eq('restaurant_id', restaurantId);
       
     if (error) {
-      console.error("Intelligence: pullJourneys error:", error);
+      console.error("Vinetelligence: pullJourneys error:", error);
       throw error;
     }
     
@@ -1105,6 +1146,16 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase || !isValidUUID(restaurantId)) return () => {};
     
+    // Throttled pull helps save database egress bandwidth significantly
+    const throttledPull = throttle(async () => {
+      try {
+        const data = await this.pullJourneys(restaurantId);
+        callback(data);
+      } catch (e) {
+        console.error("Vinetelligence: Error in journey throttled subscription update", e);
+      }
+    }, 1500); // 1.5s throttle
+
     const channel = supabase
       .channel(`public:guest_journeys:${restaurantId}`)
       .on('postgres_changes', { 
@@ -1112,13 +1163,8 @@ export const supabaseSync = {
         schema: 'public', 
         table: 'guest_journeys',
         filter: `restaurant_id=eq.${restaurantId}`
-      }, async () => {
-        try {
-          const data = await this.pullJourneys(restaurantId);
-          callback(data);
-        } catch (e) {
-          console.error("Intelligence: Error in journey subscription update", e);
-        }
+      }, () => {
+        throttledPull();
       })
       .subscribe();
       
@@ -1157,11 +1203,11 @@ export const supabaseSync = {
         .upsert(mappedData);
         
       if (error) {
-        console.error("Intelligence: Supabase pushJourney error:", error);
+        console.error("Vinetelligence: Supabase pushJourney error:", error);
         throw error;
       }
     } catch (e) {
-      console.error("Intelligence: pushJourney exception", e);
+      console.error("Vinetelligence: pushJourney exception", e);
       throw e;
     }
   },
@@ -1176,7 +1222,7 @@ export const supabaseSync = {
         .update({ status, updated_at: new Date().toISOString() })
         .eq('id', journeyId);
     } catch (e) {
-      console.error("Intelligence: Failed to update guest journey status", e);
+      console.error("Vinetelligence: Failed to update guest journey status", e);
     }
   },
 
@@ -1194,10 +1240,10 @@ export const supabaseSync = {
         .eq('id', restaurantId);
       
       if (error) {
-        console.error("Intelligence: Pulse update error:", error);
+        console.error("Vinetelligence: Pulse update error:", error);
       }
     } catch (e) {
-      console.error("Intelligence: Pulse failed", e);
+      console.error("Vinetelligence: Pulse failed", e);
     }
   },
 
@@ -1242,7 +1288,7 @@ export const supabaseSync = {
       if (error) {
         // If the function doesn't exist (PGRST202) or is ambiguous (PGRST203), fall back to manual update
         if (error.code === 'PGRST202' || error.code === 'PGRST203') {
-          console.warn(`Intelligence: 'decrement_inventory_stock' RPC ${error.code === 'PGRST202' ? 'not found' : 'ambiguous'}. Falling back to manual update.`);
+          console.warn(`Vinetelligence: 'decrement_inventory_stock' RPC ${error.code === 'PGRST202' ? 'not found' : 'ambiguous'}. Falling back to manual update.`);
           
           // Fetch current stock and consumed
           const { data: item, error: fetchError } = await supabase
@@ -1260,8 +1306,8 @@ export const supabaseSync = {
           const { error: updateError } = await supabase
             .from('inventory')
             .update({ 
-               stock: newStock,
-               consumed: newConsumed
+              stock: newStock,
+              consumed: newConsumed
             })
             .eq('id', itemId);
             
@@ -1271,7 +1317,7 @@ export const supabaseSync = {
         }
       }
     } catch (e) {
-      console.error("Intelligence: Error in decrementInventoryStock", e);
+      console.error("Vinetelligence: Error in decrementInventoryStock", e);
       throw e;
     }
   },
@@ -1281,7 +1327,7 @@ export const supabaseSync = {
     if (!supabase || !isValidUUID(restaurantId)) return { success: true };
     
     try {
-      console.log(`Intelligence: Initializing deep purge for restaurant: ${restaurantId}`);
+      console.log(`Vinetelligence: Initializing deep purge for restaurant: ${restaurantId}`);
       
       // 1. Clean orders (cascades to order_items)
       await supabase.from('orders').delete().eq('restaurant_id', restaurantId);
@@ -1317,64 +1363,71 @@ export const supabaseSync = {
         .eq('restaurant_id', restaurantId)
         .not('role', 'in', '("Owner","Manager","Admin")');
 
-      console.log(`Intelligence: Deep purge completed for restaurant: ${restaurantId}`);
+      console.log(`Vinetelligence: Deep purge completed for restaurant: ${restaurantId}`);
       return { success: true, message: 'Cloud Silo deep purge successful. Operational data removed.' };
     } catch (e) {
-      console.error("Intelligence: Deep purge failed", e);
+      console.error("Vinetelligence: Deep purge failed", e);
       return { success: false, message: 'Purge failed. Some cloud data may persist.' };
     }
   },
 
   async deleteRestaurant(restaurantId: string) {
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return { success: false, message: 'Cloud connection unavailable for termination.' };
-    }
-    
     if (!isValidUUID(restaurantId)) {
-      console.warn(`Intelligence: Termination aborted. ID ${restaurantId} is not a valid cloud UUID.`);
+      console.warn(`Vinetelligence: Termination aborted. ID ${restaurantId} is not a valid cloud UUID.`);
       return { success: false, message: 'Invalid architecture node ID.' };
     }
 
     if (restaurantId.startsWith('est-')) {
-      console.log(`Intelligence: Termination skipped for static/demo node: ${restaurantId}`);
+      console.log(`Vinetelligence: Termination skipped for static/demo node: ${restaurantId}`);
       return { success: true, message: 'Static architecture node preserved.' };
     }
     
     try {
-      // 1. Clean all data first (to be safe if cascade is not set)
-      const tablesToPurge = [
-        'orders', 'guest_journeys', 'tables', 'staff_assignments', 
-        'inventory', 'transactions', 'equipment', 'staff_roster', 'saas_ledger', 'profiles'
-      ];
+      const response = await fetch('/api/ops/delete-restaurant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ restaurantId })
+      });
       
-      for (const table of tablesToPurge) {
-        console.log(`Intelligence: Purging table ${table} for restaurant ${restaurantId}`);
-        // Note: some tables might not have restaurant_id directly but we try anyway.
-        // PostgREST will simply return an error if the column doesn't exist, which we catch.
-        const { error: purgeError } = await supabase.from(table).delete().eq('restaurant_id', restaurantId);
-        if (purgeError && purgeError.code !== 'PGRST104' && purgeError.code !== '42703') { 
-          console.warn(`Intelligence: Purge warning in ${table}: ${purgeError.message} (${purgeError.code})`);
-        }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
       
-      // 2. Delete the restaurant record
-      console.log(`Intelligence: Terminating restaurant architecture: ${restaurantId}`);
-      const { error } = await supabase
-        .from('restaurants')
-        .delete()
-        .eq('id', restaurantId);
-      
-      if (error) {
-        console.error("Intelligence: Termination failure:", error.message, error.code, error.details, error.hint);
-        return { success: false, message: `Termination failed: ${error.message} (${error.code}). Check RLS for zombie columns like 'user_id'.` };
-      }
-
       return { success: true, message: 'Establishment architecture terminated and purged from cloud.' };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown Error';
-      console.error("Intelligence: Critical failure during termination", err);
-      return { success: false, message: `System failure: ${message}` };
+      console.error("Vinetelligence: Server-side delete path failed, trying fallback client-side delete", err);
+      
+      // Fallback: Client-side direct delete if server-side route is not reachable
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        return { success: false, message: `System failure: ${message}` };
+      }
+      try {
+        const tablesToPurge = [
+          'order_items', 'orders', 'guest_journeys', 'tables', 'staff_assignments', 
+          'inventory', 'transactions', 'equipment', 'staff_roster', 'saas_ledger', 'profiles'
+        ];
+        
+        for (const table of tablesToPurge) {
+          await supabase.from(table).delete().eq('restaurant_id', restaurantId).catch(() => {});
+        }
+        
+        const { error } = await supabase
+          .from('restaurants')
+          .delete()
+          .eq('id', restaurantId);
+        
+        if (error) {
+          return { success: false, message: `Termination failed: ${error.message}` };
+        }
+        return { success: true, message: 'Establishment architecture terminated and purged from cloud.' };
+      } catch {
+        return { success: false, message: `System failure: ${message}` };
+      }
     }
   },
 
@@ -1383,7 +1436,7 @@ export const supabaseSync = {
     if (!supabase) return { success: false, message: 'Supabase not initialized' };
     
     try {
-      console.log("Intelligence: Starting global test data purge...");
+      console.log("Vinetelligence: Starting global test data purge...");
       const registry = await this.pullRegistry();
       const testRestaurants = registry.filter((r: Record<string, unknown>) => {
         const name = String(r.name || '').toLowerCase();
@@ -1392,7 +1445,7 @@ export const supabaseSync = {
                name.includes('placeholder');
       });
       
-      console.log(`Intelligence: Found ${testRestaurants.length} test restaurants to purge.`);
+      console.log(`Vinetelligence: Found ${testRestaurants.length} test restaurants to purge.`);
       
       for (const r of testRestaurants) {
         await this.deleteRestaurant(r.id);
@@ -1400,7 +1453,7 @@ export const supabaseSync = {
       
       return { success: true, message: `Purged ${testRestaurants.length} test restaurants.` };
     } catch (e) {
-      console.error("Intelligence: Global test purge failed", e);
+      console.error("Vinetelligence: Global test purge failed", e);
       return { success: false, message: 'Global purge failed.' };
     }
   },
@@ -1418,14 +1471,14 @@ export const supabaseSync = {
       if (error) throw error;
       return count || 0;
     } catch (e) {
-      console.error("Intelligence: Failed to get owned restaurant count", e);
+      console.error("Vinetelligence: Failed to get owned restaurant count", e);
       return 0;
     }
   },
 
   async purgeOrphanedAuthUsers(secret: string) {
     try {
-      console.log("Intelligence: Initiating Orphan Purge Protocol...");
+      console.log("Vinetelligence: Initiating Orphan Purge Protocol...");
       const response = await fetch('/api/ops/auth-purge-orphans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1439,18 +1492,18 @@ export const supabaseSync = {
         return data;
       } else {
         const text = await response.text();
-        console.error("Intelligence: Non-JSON response from purge endpoint:", text.substring(0, 200));
+        console.error("Vinetelligence: Non-JSON response from purge endpoint:", text.substring(0, 200));
         throw new Error(`Cloud Protocol Error: (Status: ${response.status}). The requested operational endpoint was denied or blocked by the server architecture.`);
       }
     } catch (e) {
-      console.error("Intelligence: purgeOrphanedAuthUsers failed", e);
+      console.error("Vinetelligence: purgeOrphanedAuthUsers failed", e);
       throw e;
     }
   },
 
   async purgeAllTestNodes(secret: string) {
     try {
-      console.log("Intelligence: Initiating Global Test Node Purge...");
+      console.log("Vinetelligence: Initiating Global Test Node Purge...");
       const response = await fetch('/api/ops/global-test-purge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1464,70 +1517,55 @@ export const supabaseSync = {
         return data;
       } else {
         const text = await response.text();
-        console.error("Intelligence: Non-JSON response from global purge endpoint:", text.substring(0, 200));
+        console.error("Vinetelligence: Non-JSON response from global purge endpoint:", text.substring(0, 200));
         throw new Error(`Cloud Protocol Error: Server returned non-JSON response.`);
       }
     } catch (e) {
-      console.error("Intelligence: purgeAllTestNodes failed", e);
+      console.error("Vinetelligence: purgeAllTestNodes failed", e);
       throw e;
     }
   },
 
   async updateRestaurantStatus(restaurantId: string, status: string) {
-    const supabase = getSupabaseClient();
-    if (!supabase || !isValidUUID(restaurantId) || restaurantId.startsWith('est-')) {
+    if (!isValidUUID(restaurantId) || restaurantId.startsWith('est-')) {
       return { success: true };
     }
     
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        const response = await fetch('/api/restaurants/status', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ restaurantId, status })
-        });
+      const response = await fetch('/api/ops/update-restaurant-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ restaurantId, status })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
+      return { success: true };
+    } catch (e) {
+      console.error("Vinetelligence: Update restaurant status failed, trying client fallback", e);
+      // Fallback: If backend fails, try client-side direct update using public client
+      const supabase = getSupabaseClient();
+      if (!supabase) return { success: false, message: 'Update failed.' };
+      try {
+        const { data, error } = await supabase
+          .from('restaurants')
+          .update({ status })
+          .eq('id', restaurantId)
+          .select();
         
-        if (response.ok) {
-          const resData = await response.json();
-          if (resData.success) {
-            return { success: true };
-          }
-        } else {
-          try {
-            const errData = await response.json();
-            if (errData.error) {
-              return { success: false, message: errData.error };
-            }
-          } catch (parseErr) {
-            console.debug("Intelligence: Failed to parse error response JSON", parseErr);
-          }
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          return { success: false, message: 'Update failed. You may not have permission to modify this node.' };
         }
+        return { success: true };
+      } catch {
+        return { success: false, message: 'Update failed.' };
       }
-    } catch (e) {
-      console.warn("Intelligence: Secure server status update failed, trying client-side fallback...", e);
-    }
-    
-    try {
-      const { data, error } = await supabase
-        .from('restaurants')
-        .update({ status })
-        .eq('id', restaurantId)
-        .select();
-      
-      if (error) throw error;
-      
-      if (!data || data.length === 0) {
-        return { success: false, message: 'Update failed. You may not have permission to modify this node.' };
-      }
-      
-      return { success: true };
-    } catch (e) {
-      console.error("Intelligence: Update restaurant status failed", e);
-      return { success: false, message: 'Update failed.' };
     }
   },
 
@@ -1536,7 +1574,7 @@ export const supabaseSync = {
     if (!supabase || !isValidUUID(restaurantId)) return [];
     const { data, error } = await supabase
       .from('equipment')
-      .select('id, restaurant_id, name, type, health_score, status, last_service, telemetry, updated_at, created_at')
+      .select('*')
       .eq('restaurant_id', restaurantId)
       .order('name');
     if (error) throw error;
@@ -1677,6 +1715,16 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase || !isValidUUID(restaurantId)) return () => {};
     
+    // Throttled pull helps save database egress bandwidth significantly
+    const throttledPull = throttle(async () => {
+      try {
+        const data = await this.pullTables(restaurantId);
+        callback(data);
+      } catch (e) {
+        console.error("Vinetelligence: Error in tables throttled subscription update", e);
+      }
+    }, 1500); // 1.5s throttle
+
     const channel = supabase
       .channel(`public:tables:${restaurantId}`)
       .on('postgres_changes', { 
@@ -1684,13 +1732,8 @@ export const supabaseSync = {
         schema: 'public', 
         table: 'tables',
         filter: `restaurant_id=eq.${restaurantId}`
-      }, async () => {
-        try {
-          const data = await this.pullTables(restaurantId);
-          callback(data);
-        } catch (e) {
-          console.error("Intelligence: Error in tables subscription update", e);
-        }
+      }, () => {
+        throttledPull();
       })
       .subscribe();
       
@@ -1703,6 +1746,16 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase || !isValidUUID(restaurantId)) return () => {};
     
+    // Throttled pull helps save database egress bandwidth significantly
+    const throttledPull = throttle(async () => {
+      try {
+        const data = await this.getStaffRoster(restaurantId);
+        callback(data as StaffRosterItem[]);
+      } catch (e) {
+        console.error("Vinetelligence: Error in roster throttled subscription update", e);
+      }
+    }, 1500); // 1.5s throttle
+
     const channel = supabase
       .channel(`public:staff_roster:${restaurantId}`)
       .on('postgres_changes', { 
@@ -1710,13 +1763,8 @@ export const supabaseSync = {
         schema: 'public', 
         table: 'staff_roster',
         filter: `restaurant_id=eq.${restaurantId}`
-      }, async () => {
-        try {
-          const data = await this.getStaffRoster(restaurantId);
-          callback(data as StaffRosterItem[]);
-        } catch (e) {
-          console.error("Intelligence: Error in roster subscription update", e);
-        }
+      }, () => {
+        throttledPull();
       })
       .subscribe();
       
@@ -1729,6 +1777,16 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase || !isValidUUID(restaurantId)) return () => {};
     
+    // Throttled pull helps save database egress bandwidth significantly
+    const throttledPull = throttle(async () => {
+      try {
+        const data = await this.getStaffProfiles(restaurantId);
+        callback(data as StaffProfile[]);
+      } catch (e) {
+        console.error("Vinetelligence: Error in profiles throttled subscription update", e);
+      }
+    }, 1500); // 1.5s throttle
+
     const channel = supabase
       .channel(`public:profiles:${restaurantId}`)
       .on('postgres_changes', { 
@@ -1736,13 +1794,8 @@ export const supabaseSync = {
         schema: 'public', 
         table: 'profiles',
         filter: `restaurant_id=eq.${restaurantId}`
-      }, async () => {
-        try {
-          const data = await this.getStaffProfiles(restaurantId);
-          callback(data as StaffProfile[]);
-        } catch (e) {
-          console.error("Intelligence: Error in profiles subscription update", e);
-        }
+      }, () => {
+        throttledPull();
       })
       .subscribe();
       
@@ -1755,6 +1808,16 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase || !isValidUUID(restaurantId)) return () => {};
     
+    // Throttled pull helps save database egress bandwidth significantly
+    const throttledPull = throttle(async () => {
+      try {
+        const data = await this.pullInventory(restaurantId);
+        callback(data);
+      } catch (e) {
+        console.error("Vinetelligence: Error in inventory throttled subscription update", e);
+      }
+    }, 1500); // 1.5s throttle
+
     const channel = supabase
       .channel(`public:inventory:${restaurantId}`)
       .on('postgres_changes', { 
@@ -1762,13 +1825,8 @@ export const supabaseSync = {
         schema: 'public', 
         table: 'inventory',
         filter: `restaurant_id=eq.${restaurantId}`
-      }, async () => {
-        try {
-          const data = await this.pullInventory(restaurantId);
-          callback(data);
-        } catch (e) {
-          console.error("Intelligence: Error in inventory subscription update", e);
-        }
+      }, () => {
+        throttledPull();
       })
       .subscribe();
       
@@ -1813,7 +1871,7 @@ export const supabaseSync = {
       .order('billing_date', { ascending: false });
       
     if (error) {
-      console.error("Intelligence: Failed to pull SaaS invoices", error);
+      console.error("Vinetelligence: Failed to pull SaaS invoices", error);
       return [];
     }
     
@@ -1835,12 +1893,12 @@ export const supabaseSync = {
     
     const { data, error } = await supabase
       .from('saas_ledger')
-      .select('id, restaurant_id, amount, status, method, description, billing_date, created_at')
+      .select('*')
       .eq('restaurant_id', restaurantId)
       .order('billing_date', { ascending: false });
       
     if (error) {
-      console.error("Intelligence: Failed to pull restaurant invoices", error);
+      console.error("Vinetelligence: Failed to pull restaurant invoices", error);
       return [];
     }
     
@@ -1851,64 +1909,6 @@ export const supabaseSync = {
       status: row.status as Invoice['status'],
       method: row.method as Invoice['method']
     }));
-  },
-
-  async pullRestInvoicesCursor(
-    restaurantId: string, 
-    limitVal = 5, 
-    lastBillingDate?: string, 
-    lastId?: string
-  ): Promise<{ invoices: Invoice[]; hasMore: boolean; lastBillingDate?: string; lastId?: string }> {
-    const supabase = getSupabaseClient();
-    if (!supabase || !isValidUUID(restaurantId)) {
-      return { invoices: [], hasMore: false };
-    }
-    
-    let query = supabase
-      .from('saas_ledger')
-      .select('id, restaurant_id, amount, status, method, description, billing_date, created_at')
-      .eq('restaurant_id', restaurantId);
-
-    if (lastBillingDate && lastId) {
-      query = query.or(`billing_date.lt.${lastBillingDate},and(billing_date.eq.${lastBillingDate},id.lt.${lastId})`);
-    }
-
-    const { data, error } = await query
-      .order('billing_date', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(limitVal + 1);
-      
-    if (error) {
-      console.error("Intelligence: Failed to pull cursor paginated invoices", error);
-      return { invoices: [], hasMore: false };
-    }
-
-    const hasMore = (data || []).length > limitVal;
-    const items = (data || []).slice(0, limitVal);
-
-    const invoices = items.map(row => ({
-      id: row.id,
-      date: row.billing_date,
-      amount: Number(row.amount),
-      status: row.status as Invoice['status'],
-      method: row.method as Invoice['method']
-    }));
-
-    let nextBillingDate: string | undefined;
-    let nextId: string | undefined;
-
-    if (items.length > 0) {
-      const lastItem = items[items.length - 1];
-      nextBillingDate = lastItem.billing_date;
-      nextId = lastItem.id;
-    }
-
-    return {
-      invoices,
-      hasMore,
-      lastBillingDate: nextBillingDate,
-      lastId: nextId
-    };
   },
 
   async recordSaaSPayment(payment: { restaurant_id: string, amount: number, method: string, description?: string }) {
@@ -1923,13 +1923,13 @@ export const supabaseSync = {
   },
 
   async seedTrialData(restaurantId: string) {
-    console.log(`Intelligence: Initializing Deep Seed Protocol for Silo [${restaurantId}]`);
+    console.log(`Vinetelligence: Initializing Deep Seed Protocol for Silo [${restaurantId}]`);
     const supabase = getSupabaseClient();
     if (!supabase || !isValidUUID(restaurantId)) throw new Error("Supabase context unavailable or invalid ID");
 
     try {
       // 1. Seed Inventory
-      console.log("Intelligence: Seeding Inventory...");
+      console.log("Vinetelligence: Seeding Inventory...");
       const { INITIAL_INVENTORY } = await import('../constants');
       const inventoryRows = INITIAL_INVENTORY.map(item => ({
         id: item.id,
@@ -1941,7 +1941,7 @@ export const supabaseSync = {
         min_stock: item.minStock,
         price: item.price,
         original_price: item.originalPrice,
-        description: item.description || `Premium ${item.category} selection for Intelligence facility.`,
+        description: item.description || `Premium ${item.category} selection for Vinetelligence facility.`,
         volume_per_unit: item.volumePerUnit || 750,
         sustainability_score: Math.floor(Math.random() * 40) + 60, // High quality seed
         predicted_demand: Math.floor(Math.random() * 50) + 10,
@@ -1951,11 +1951,11 @@ export const supabaseSync = {
       await supabase.from('inventory').upsert(inventoryRows, { onConflict: 'id' });
 
       // 2. Seed Staff Roster (Simulated)
-      console.log("Intelligence: Seeding Staff Roster...");
+      console.log("Vinetelligence: Seeding Staff Roster...");
       const { INITIAL_SHIFTS } = await import('../constants');
       const rosterRows = INITIAL_SHIFTS.map(s => ({
         restaurant_id: restaurantId,
-        email: `${s.name.toLowerCase().replace(/\s/g, '.')}@intelligence.test`,
+        email: `${s.name.toLowerCase().replace(/\s/g, '.')}@vinetelligence.test`,
         role: s.role,
         status: 'Registered'
       }));
@@ -1963,7 +1963,7 @@ export const supabaseSync = {
       await supabase.from('staff_roster').upsert(rosterRows, { onConflict: 'restaurant_id,email' });
 
       // 3. Seed Tables
-      console.log("Intelligence: Seeding Tables...");
+      console.log("Vinetelligence: Seeding Tables...");
       const { INITIAL_TABLES } = await import('../constants');
       const tableRows = INITIAL_TABLES.map(t => ({
         id: t.id,
@@ -1979,7 +1979,7 @@ export const supabaseSync = {
       await supabase.from('tables').upsert(tableRows, { onConflict: 'id' });
 
       // 4. Seed Guest Journeys
-      console.log("Intelligence: Seeding Guest Journeys...");
+      console.log("Vinetelligence: Seeding Guest Journeys...");
       const { MOCK_JOURNEYS } = await import('../constants');
       const journeyRows = MOCK_JOURNEYS.map(j => ({
         restaurant_id: restaurantId,
@@ -1999,9 +1999,9 @@ export const supabaseSync = {
 
       await supabase.from('guest_journeys').upsert(journeyRows, { onConflict: 'restaurant_id,guest_name' });
 
-      return { success: true, message: "Silo successfully seeded with Intelligence trial data packets. Inventory, Roster, Tables, and Journeys are now online."};
+      return { success: true, message: "Silo successfully seeded with Vinetelligence trial data packets. Inventory, Roster, Tables, and Journeys are now online."};
     } catch (err) {
-      console.error("Intelligence: Seeding Protocol Failure", err);
+      console.error("Vinetelligence: Seeding Protocol Failure", err);
       throw err;
     }
   },
@@ -2017,7 +2017,7 @@ export const supabaseSync = {
       try {
         await supabase.from(table).delete().eq('restaurant_id', restaurantId);
       } catch (e) {
-        console.error(`Intelligence: Failed to purge table ${table}`, e);
+        console.error(`Vinetelligence: Failed to purge table ${table}`, e);
       }
     }
   },
@@ -2031,57 +2031,8 @@ export const supabaseSync = {
       if (error) throw error;
       return { success: true, message: 'Global Network Ledger purged successfully.' };
     } catch (e) {
-      console.error("Intelligence: Global Ledger Purge failed", e);
+      console.error("Vinetelligence: Global Ledger Purge failed", e);
       return { success: false, message: 'Global Ledger Purge failed.' };
-    }
-  },
-
-  // LEADS
-  async pushLead(lead: { name: string; email: string; establishment?: string; message?: string; type?: string }) {
-    const supabase = getSupabaseClient();
-    if (!supabase) return null;
-    
-    const { error } = await supabase
-      .from('leads')
-      .insert([{
-        ...lead,
-        timestamp: new Date().toISOString()
-      }]);
-      
-    if (error) throw error;
-    return true;
-  },
-
-  async fetchLeads() {
-    const supabase = getSupabaseClient();
-    if (!supabase) return [];
-    
-    const { data, error } = await supabase
-      .from('leads')
-      .select('id, name, email, company, message, timestamp')
-      .order('timestamp', { ascending: false });
-      
-    if (error) throw error;
-    return data || [];
-  },
-
-  // ANALYTICS
-  async pushAnalyticsPulse(restaurantId: string, type: string, value: number, metadata: Record<string, unknown> = {}) {
-    const supabase = getSupabaseClient();
-    if (!supabase) return;
-    
-    const { error } = await supabase
-      .from('analytics_pulses')
-      .insert([{
-        restaurant_id: isValidUUID(restaurantId) ? restaurantId : null,
-        type,
-        value,
-        metadata,
-        timestamp: new Date().toISOString()
-      }]);
-      
-    if (error) {
-      console.error("Intelligence: Failed to push analytics pulse", error);
     }
   }
 };

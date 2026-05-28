@@ -54,7 +54,7 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ isOpen, onClose }) => {
                   <h4 className="text-xs font-mono font-black uppercase tracking-widest">01. Neural Sovereignty</h4>
                 </div>
                 <p className="text-sm italic">
-                  By initializing a System Node, you acknowledge that all "Palate DNA" and "Fluid Logic" generated within your local instance remains the intellectual property of the Intelligence Services. However, your specific inventory data is cryptographically siloed and accessible only via your authenticated establishment key.
+                  By initializing a Vinetelligence Node, you acknowledge that all "Palate DNA" and "Fluid Logic" generated within your local instance remains the intellectual property of Vinetelligence Intelligence. However, your specific inventory data is cryptographically siloed and accessible only via your authenticated establishment key.
                 </p>
               </section>
 
@@ -64,7 +64,7 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ isOpen, onClose }) => {
                   <h4 className="text-xs font-mono font-black uppercase tracking-widest">02. Operational Limits</h4>
                 </div>
                 <p>
-                  Free "Explorer" instances are provided for demonstration purposes only. Commercial use requires a valid "Operator" or "Visionary" license. We reserve the right to throttle bandwidth to Explorer nodes during high-load periods on the Cloud Registry.
+                  Free "Explorer" instances are provided for demonstration purposes only. Commercial use requires a valid "Operator" or "Visionary" license. We reserve the right to throttle bandwidth to Explorer nodes during high-load periods on the Vinetelligence Cloud Registry.
                 </p>
               </section>
 
@@ -74,13 +74,13 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ isOpen, onClose }) => {
                   <h4 className="text-xs font-mono font-black uppercase tracking-widest">03. AI Governance</h4>
                 </div>
                 <p>
-                  Neural Coaching is an advisory system. Final operational decisions, especially those involving alcohol safety and legal compliance, remain the sole responsibility of the establishment's human leadership. The platform accepts no liability for "hallucinated" beverage recommendations.
+                  Vinetelligence's Neural Coaching is an advisory system. Final operational decisions, especially those involving alcohol safety and legal compliance, remain the sole responsibility of the establishment's human leadership. Vinetelligence accepts no liability for "hallucinated" beverage recommendations.
                 </p>
               </section>
 
               <section className="space-y-4 text-sm opacity-80">
                 <p>
-                  Privacy Policy: We do not sell your guest journey data. We use aggregated, anonymized "Market Intelligence" to improve the global Yield Alpha models for all participants in the intelligence network.
+                  Privacy Policy: We do not sell your guest journey data. We use aggregated, anonymized "Market Intelligence" to improve the global Yield Alpha models for all participants in the Vinetelligence network.
                 </p>
               </section>
             </div>

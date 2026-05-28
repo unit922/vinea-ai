@@ -1,40 +1,12 @@
 import express from "express";
+import { createServer as createViteServer } from "vite";
 import path from "path";
 import Stripe from "stripe";
-import axios from "axios";
 import dotenv from "dotenv";
 import cors from "cors";
-
-
-
-// Mews API Configuration
-const MEWS_API_URL = process.env.MEWS_API_URL || "https://api.mews.com";
-const MEWS_CLIENT_TOKEN = process.env.MEWS_CLIENT_TOKEN;
-const MEWS_ACCESS_TOKEN = process.env.MEWS_ACCESS_TOKEN;
-
-// Helper to make Mews requests
-const callMewsApi = async (endpoint: string, data: Record<string, unknown> = {}) => {
-  if (!MEWS_CLIENT_TOKEN || !MEWS_ACCESS_TOKEN) {
-    throw new Error("Mews credentials not configured on the server. Please check environment variables.");
-  }
-
-  try {
-    const response = await axios.post(`${MEWS_API_URL}${endpoint}`, {
-      ClientToken: MEWS_CLIENT_TOKEN,
-      AccessToken: MEWS_ACCESS_TOKEN,
-      ...data
-    });
-    return response.data;
-  } catch (error: unknown) {
-    if (axios.isAxiosError(error)) {
-      console.error(`Mews API Error [${endpoint}]:`, error.response?.data || error.message);
-      throw new Error(error.response?.data?.Message || error.message || "Mews Node Failure");
-    }
-    throw error;
-  }
-};
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import fs from "fs";
 
 dotenv.config();
 
@@ -111,7 +83,7 @@ const VinetelligenceEmailTemplate = (title: string, contentHtml: string, establi
 // Supabase Admin Client (requires service_role key)
 const getSupabaseAdmin = () => {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key, {
     auth: {
@@ -121,41 +93,23 @@ const getSupabaseAdmin = () => {
   });
 };
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
 
-app.use(cors());
-app.use(express.json());
+  app.use(cors());
+  app.use(express.json());
 
-    // Global Request Logger for Debugging
-    app.use((req, res, next) => {
-      if (req.path.startsWith('/api')) {
-        console.log(`Vinetelligence API: ${req.method} ${req.path}`);
-      }
-      next();
-    });
+  // Global Request Logger for Debugging
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      console.log(`Vinetelligence API: ${req.method} ${req.path}`);
+    }
+    next();
+  });
 
-    // CDN Cache-Control Middleware for dynamically generated PDFs, HTML reports, or oenological sensory mapping assets
-    app.use((req, res, next) => {
-      const url = req.path.toLowerCase();
-      if (
-        url.endsWith('.pdf') || 
-        url.includes('sensory') || 
-        url.includes('matrix') || 
-        url.includes('graphics') ||
-        url.endsWith('.svg') ||
-        url.endsWith('promo-pdf.html') ||
-        url.endsWith('competitor-matrix.html')
-      ) {
-         // Allow aggressive client caching and Smart CDN caching (e.g., 24 hours Client, 7 days CDN)
-         res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=120');
-         res.setHeader('X-Cache-Channel', 'CDN-Oenological-Sensory-Neural');
-      }
-      next();
-    });
-
-    // API Routes
-    app.all("/api/ops/auth-purge-direct", async (req, res) => {
+  // API Routes
+  app.all("/api/ops/auth-purge-direct", async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: "Method Not Allowed" });
     const { userIds, secret } = req.body;
     
@@ -317,90 +271,63 @@ app.use(express.json());
     }
   });
 
-  // Secure proxy endpoint to allow authorized admins & establishment owners to update status
-  // without relying on or failing due to client-side Row Level Security policy misconfigurations
-  app.post("/api/restaurants/status", async (req, res) => {
+  app.all("/api/ops/update-restaurant-status", async (req, res) => {
+    if (req.method !== 'POST') return res.status(405).json({ error: "Method Not Allowed" });
     const { restaurantId, status } = req.body;
-    
-    // UUID Format Validation
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!restaurantId || !uuidRegex.test(restaurantId)) {
-      return res.status(400).json({ error: "Invalid restaurant identification format." });
-    }
-
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "No active session detected. Access restricted." });
-    }
-    const token = authHeader.substring(7);
-
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return res.status(500).json({ error: "Supabase service-role identity is offline." });
+      return res.status(500).json({ error: "Supabase Admin service not configured" });
     }
-
     try {
-      // Decode and verify the JWT token securely with Supabase
-      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (authError || !user || !user.email) {
-        return res.status(401).json({ error: "Identity verification failed. Please authenticate again." });
-      }
-
-      const email = user.email.toLowerCase();
-
-      // Executive admins or specific authorized support identities can manage any node
-      const isExecutive = email.endsWith("@vinetelligence.live") || email === "foritglo@gmail.com";
+      const { data, error } = await supabaseAdmin
+        .from('restaurants')
+        .update({ status })
+        .eq('id', restaurantId)
+        .select();
       
-      let isOwner = false;
-      if (!isExecutive) {
-        // Query the restaurant to check ownership
-        const { data: rest } = await supabaseAdmin
-          .from("restaurants")
-          .select("owner_email")
-          .eq("id", restaurantId)
-          .maybeSingle();
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (err: unknown) {
+      console.error("Vinetelligence: Server-side update status failed:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: message || "Failed to update status" });
+    }
+  });
 
-        if (rest && rest.owner_email && rest.owner_email.toLowerCase() === email) {
-          isOwner = true;
+  app.all("/api/ops/delete-restaurant", async (req, res) => {
+    if (req.method !== 'POST') return res.status(405).json({ error: "Method Not Allowed" });
+    const { restaurantId } = req.body;
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return res.status(500).json({ error: "Supabase Admin service not configured" });
+    }
+    try {
+      // 1. Clean all child table relationships
+      const tablesToPurge = [
+        'order_items', 'orders', 'guest_journeys', 'tables', 'staff_assignments', 
+        'inventory', 'transactions', 'equipment', 'staff_roster', 'saas_ledger', 'profiles'
+      ];
+      
+      for (const table of tablesToPurge) {
+        const { error: purgeError } = await supabaseAdmin.from(table).delete().eq('restaurant_id', restaurantId);
+        if (purgeError && purgeError.code !== 'PGRST104') { 
+          console.warn(`Vinetelligence Server-Side: Purge warning in ${table}: ${purgeError.message}`);
         }
       }
-
-      if (!isExecutive && !isOwner) {
-        return res.status(403).json({ error: "Cloud security restricts status modification to verified node owners." });
-      }
-
-      // Update status on the server bypasses client RLS constraints completely
-      const { data, error: updateError } = await supabaseAdmin
-        .from("restaurants")
-        .update({ status })
-        .eq("id", restaurantId)
-        .select();
-
-      if (updateError) {
-        console.error("Vinetelligence Server: Database update error:", updateError);
-        return res.status(500).json({ error: updateError.message });
-      }
-
-      console.log(`Vinetelligence Server: Updated restaurant ${restaurantId} status to ${status} via Secure Administrative Proxy.`);
-
-      return res.json({
-        success: true,
-        message: "Establishment status updated successfully.",
-        data
-      });
+      
+      // 2. Delete the restaurant record
+      const { error } = await supabaseAdmin
+        .from('restaurants')
+        .delete()
+        .eq('id', restaurantId);
+        
+      if (error) throw error;
+      res.json({ success: true, message: 'Establishment architecture terminated and purged from cloud.' });
     } catch (err: unknown) {
-      console.error("Vinetelligence Server: Proxy status update failed", err);
-      const errMsg = err instanceof Error ? err.message : "Server node error processing request.";
-      return res.status(500).json({ error: errMsg });
+      console.error("Vinetelligence: Server-side deleteRestaurant failed:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: message || "Failed to delete restaurant" });
     }
-  });
-
-  app.get("/api/config/gemini-key", (req, res) => {
-    res.json({ apiKey: process.env.GEMINI_API_KEY || "" });
-  });
-
-  app.post("/api/config/gemini-key", (req, res) => {
-    res.json({ apiKey: process.env.GEMINI_API_KEY || "" });
   });
 
   app.all("/api/create-checkout-session", async (req, res) => {
@@ -409,9 +336,9 @@ app.use(express.json());
 
     // Plan mapping
     const plans: Record<string, { name: string; price: number }> = {
-      'essential': { name: 'The Essential', price: 14900 }, // $149.00
-      'growth': { name: 'The Growth', price: 49900 },    // $499.00
-      'enterprise': { name: 'Enterprise', price: 250000 }, // $2,500.00 (Placeholder)
+      'operator': { name: 'The Essential', price: 14900 }, // $149.00
+      'visionary': { name: 'The Growth', price: 49900 }, // $499.00
+      'enterprise': { name: 'The Enterprise', price: 199900 }, // $1,999.00
     };
 
     const plan = plans[planId.toLowerCase()];
@@ -517,7 +444,7 @@ app.use(express.json());
 
       if (resend) {
         await resend.emails.send({
-          from: "Vinetelligence Business <business@vinetelligence.live>",
+          from: "Vinetelligence Concierge <concierge@vinetelligence.live>",
           to: [booking.email],
           subject: `${venueName || establishment?.name || 'Vinetelligence'}: Reservation Confirmed`,
           html: emailHtml
@@ -538,85 +465,36 @@ app.use(express.json());
 
   // NEW: Campaign Dispatch Endpoint
   app.post("/api/campaigns/preview", async (req, res) => {
-    const { campaign, establishment } = req.body;
-    if (!campaign) return res.status(400).json({ error: "Invalid campaign data" });
-
-    const campaignHtml = VinetelligenceEmailTemplate(
-      campaign.title || "Intelligence Briefing",
-      `
-      <div style="margin-bottom: 32px;">
-        <p>${campaign.body.replace(/\n/g, '<br/>')}</p>
-      </div>
-      
-      ${campaign.offerItem ? `
-      <div class="data-card">
-        <div class="data-label">Exclusive Synthesis</div>
-        <div class="data-value">${campaign.offerItem}</div>
-      </div>
-      ` : ''}
-
-      <p>This reach-out was triggered by our neural prediction engine based on your historical engagement with our cellar.</p>
-      
-      <a href="#" class="action-button">Claim Engagement</a>
-      `,
-      establishment
-    );
-    res.json({ html: campaignHtml });
-  });
-
-  // ======= MEWS INTEGRATION NODES =======
-  
-  /**
-   * Guest Profile Sync
-   * POST /api/mews/customers/get
-   */
-  app.post("/api/mews/customers/get", async (req, res) => {
     try {
-      const data = await callMewsApi("/api/connector/v1/customers/get", req.body);
-      res.json(data);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Mews synthesis failure";
-      res.status(500).json({ error: msg });
-    }
-  });
+      const { campaign, establishment } = req.body;
+      if (!campaign) return res.status(400).json({ error: "Invalid campaign data" });
 
-  /**
-   * Reservation Sync
-   * POST /api/mews/reservations/get
-   */
-  app.post("/api/mews/reservations/get", async (req, res) => {
-    try {
-      const data = await callMewsApi("/api/connector/v1/reservations/get", req.body);
-      res.json(data);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Mews synthesis failure";
-      res.status(500).json({ error: msg });
-    }
-  });
+      const campaignBody = typeof campaign.body === 'string' ? campaign.body : '';
+      const campaignHtml = VinetelligenceEmailTemplate(
+        campaign.title || "Intelligence Briefing",
+        `
+        <div style="margin-bottom: 32px;">
+          <p>${campaignBody.replace(/\n/g, '<br/>')}</p>
+        </div>
+        
+        ${campaign.offerItem ? `
+        <div class="data-card">
+          <div class="data-label">Exclusive Synthesis</div>
+          <div class="data-value">${campaign.offerItem}</div>
+        </div>
+        ` : ''}
 
-  /**
-   * Billing Integration (Post Charge)
-   * POST /api/mews/orders/add
-   */
-  app.post("/api/mews/orders/add", async (req, res) => {
-    try {
-      const data = await callMewsApi("/api/connector/v1/orders/add", req.body);
-      res.json(data);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Mews synthesis failure";
-      res.status(500).json({ error: msg });
+        <p>This reach-out was triggered by our neural prediction engine based on your historical engagement with our cellar.</p>
+        
+        <a href="#" class="action-button">Claim Engagement</a>
+        `,
+        establishment
+      );
+      res.json({ html: campaignHtml });
+    } catch (error) {
+      console.error("Vinetelligence Campaign Preview Failure:", error);
+      res.status(500).json({ error: "Neural preview synthesis failure" });
     }
-  });
-
-  /**
-   * Mews Integration Health Check
-   */
-  app.get("/api/mews/status", (req, res) => {
-    res.json({
-      configured: !!(MEWS_CLIENT_TOKEN && MEWS_ACCESS_TOKEN),
-      endpoint: MEWS_API_URL,
-      status: "Neural Link Standby"
-    });
   });
 
   app.post("/api/campaigns/dispatch", async (req, res) => {
@@ -629,11 +507,12 @@ app.use(express.json());
     try {
       console.log(`Vinetelligence Mail: Dispatching neural outreach for ${campaign.title}`);
       
+      const campaignBody = typeof campaign.body === 'string' ? campaign.body : '';
       const campaignHtml = VinetelligenceEmailTemplate(
         campaign.title || "Intelligence Briefing",
         `
         <div style="margin-bottom: 32px;">
-          <p>${campaign.body.replace(/\n/g, '<br/>')}</p>
+          <p>${campaignBody.replace(/\n/g, '<br/>')}</p>
         </div>
         
         ${campaign.offerItem ? `
@@ -673,63 +552,243 @@ app.use(express.json());
     }
   });
 
-  // Vite middleware for development (dynamic import of devDependencies to prevent Vercel runtime errors)
-  if (process.env.NODE_ENV !== "production") {
-    const vitePromise = import("vite").then(({ createServer }) => 
-      createServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      })
-    );
-    app.use((req, res, next) => {
-      vitePromise
-        .then((vite) => {
-          vite.middlewares(req, res, next);
-        })
-        .catch((err) => {
-          next(err);
-        });
+  // --- Mews Client API Proxy ---
+  app.get("/api/mews/status", (req, res) => {
+    const endpoint = req.header('x-mews-endpoint') || process.env.MEWS_API_ENDPOINT || 'api.mews.com';
+    const clientToken = req.header('x-mews-client-token') || process.env.MEWS_CLIENT_TOKEN;
+    const accessToken = req.header('x-mews-access-token') || process.env.MEWS_ACCESS_TOKEN;
+
+    const isConfigured = !!(clientToken && accessToken);
+    res.json({
+      configured: isConfigured,
+      status: isConfigured ? "Online" : "Awaiting Credentials",
+      endpoint: endpoint,
     });
+  });
+
+  app.post("/api/mews/customers/get", async (req, res) => {
+    const endpoint = req.header('x-mews-endpoint') || process.env.MEWS_API_ENDPOINT || 'api.mews.com';
+    const clientToken = req.header('x-mews-client-token') || process.env.MEWS_CLIENT_TOKEN;
+    const accessToken = req.header('x-mews-access-token') || process.env.MEWS_ACCESS_TOKEN;
+
+    if (!clientToken || !accessToken) {
+      return res.status(400).json({ error: "Mews ClientToken or AccessToken is missing from credentials." });
+    }
+
+    if (clientToken.startsWith('mock_') || accessToken.startsWith('mock_') || clientToken === 'demo' || accessToken === 'demo') {
+      return res.json({
+        Customers: [
+          { Id: "cust-001", FirstName: "Marcus", LastName: "Vanderbilt", Email: "marcus.vanderbilt@grandmanor.com" },
+          { Id: "cust-002", FirstName: "Elena", LastName: "Rostova", Email: "elena.r@luxurytravel.org" },
+          { Id: "cust-003", FirstName: "test@vinetelligence.ai", LastName: "Test Node", Email: "test@vinetelligence.ai" }
+        ]
+      });
+    }
+
+    try {
+      const url = `https://${endpoint.replace(/https?:\/\//, '')}/api/connector/v1/customers/get`;
+      const mewsResponse = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ClientToken: clientToken,
+          AccessToken: accessToken,
+          ...req.body
+        })
+      });
+
+      if (!mewsResponse.ok) {
+        const errorText = await mewsResponse.text();
+        return res.status(mewsResponse.status).json({ error: `Mews PMS returned: ${errorText}` });
+      }
+
+      const data = await mewsResponse.json();
+      res.json(data);
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      res.status(500).json({ error: `Mews Gateway proxy error: ${err.message || String(error)}` });
+    }
+  });
+
+  app.post("/api/mews/reservations/get", async (req, res) => {
+    const endpoint = req.header('x-mews-endpoint') || process.env.MEWS_API_ENDPOINT || 'api.mews.com';
+    const clientToken = req.header('x-mews-client-token') || process.env.MEWS_CLIENT_TOKEN;
+    const accessToken = req.header('x-mews-access-token') || process.env.MEWS_ACCESS_TOKEN;
+
+    if (!clientToken || !accessToken) {
+      return res.status(400).json({ error: "Mews ClientToken or AccessToken is missing." });
+    }
+
+    if (clientToken.startsWith('mock_') || accessToken.startsWith('mock_') || clientToken === 'demo' || accessToken === 'demo') {
+      return res.json({
+        Reservations: [
+          { Id: "res-001", CustomerId: "cust-001", StartUtc: "2026-05-26T18:00:00Z", EndUtc: "2026-05-30T11:00:00Z", Status: "CheckedIn" },
+          { Id: "res-002", CustomerId: "cust-002", StartUtc: "2026-05-27T15:00:00Z", EndUtc: "2026-05-29T10:00:00Z", Status: "Confirmed" }
+        ]
+      });
+    }
+
+    try {
+      const url = `https://${endpoint.replace(/https?:\/\//, '')}/api/connector/v1/reservations/get`;
+      const mewsResponse = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ClientToken: clientToken,
+          AccessToken: accessToken,
+          ...req.body
+        })
+      });
+
+      if (!mewsResponse.ok) {
+        const errorText = await mewsResponse.text();
+        return res.status(mewsResponse.status).json({ error: `Mews PMS returned: ${errorText}` });
+      }
+
+      const data = await mewsResponse.json();
+      res.json(data);
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      res.status(500).json({ error: `Mews Gateway proxy error: ${err.message || String(error)}` });
+    }
+  });
+
+  app.post("/api/mews/orders/add", async (req, res) => {
+    const endpoint = req.header('x-mews-endpoint') || process.env.MEWS_API_ENDPOINT || 'api.mews.com';
+    const clientToken = req.header('x-mews-client-token') || process.env.MEWS_CLIENT_TOKEN;
+    const accessToken = req.header('x-mews-access-token') || process.env.MEWS_ACCESS_TOKEN;
+
+    if (!clientToken || !accessToken) {
+      return res.status(400).json({ error: "Mews Credentials missing." });
+    }
+
+    if (clientToken.startsWith('mock_') || accessToken.startsWith('mock_') || clientToken === 'demo' || accessToken === 'demo') {
+      return res.json({ success: true, OrderId: `ord-${Date.now()}`, Status: "Processed" });
+    }
+
+    try {
+      const url = `https://${endpoint.replace(/https?:\/\//, '')}/api/connector/v1/orders/add`;
+      const mewsResponse = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ClientToken: clientToken,
+          AccessToken: accessToken,
+          ...req.body
+        })
+      });
+
+      if (!mewsResponse.ok) {
+        const errorText = await mewsResponse.text();
+        return res.status(mewsResponse.status).json({ error: `Mews PMS returned: ${errorText}` });
+      }
+
+      const data = await mewsResponse.json();
+      res.json(data);
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      res.status(500).json({ error: `Mews Gateway proxy error: ${err.message || String(error)}` });
+    }
+  });
+
+  // GET /api/leads - Retrieve tracked leads
+  app.get("/api/leads", (req, res) => {
+    const filePath = path.join(process.cwd(), "leads_registry.json");
+    if (!fs.existsSync(filePath)) {
+      const seed = [
+        { id: "lead-001", name: "Alain Ducasse Group", email: "cellar-director@ducasse-hd.com", role: "Beverage Director", location: "London / Paris", date: "2026-05-24T18:30:00Z", source: "Interactive Evaluation", downloads: 3, score: 85, phone: "+44 20 7629 8888" },
+        { id: "lead-002", name: "The Savoy Hotel", email: "f-and-b-manager@savoy-group.co.uk", role: "Food & Beverage Director", location: "London", date: "2026-05-25T01:10:00Z", source: "Quick Checklist Request", downloads: 1, score: 92, phone: "+44 20 7836 4343" },
+        { id: "lead-003", name: "Balthazar NYC", email: "sommelier@balthazarny.com", role: "Head Sommelier", location: "New York City", date: "2026-05-25T02:15:00Z", source: "Interactive Evaluation", downloads: 2, score: 78, phone: "+1 212-965-1414" }
+      ];
+      fs.writeFileSync(filePath, JSON.stringify(seed, null, 2));
+      return res.json(seed);
+    }
+    try {
+      const content = fs.readFileSync(filePath, "utf-8");
+      res.json(JSON.parse(content));
+    } catch {
+      res.status(500).json({ error: "Failed to read leads registry" });
+    }
+  });
+
+  // POST /api/leads - Store tracked lead or increment downloads metric
+  app.post("/api/leads", (req, res) => {
+    const { name, email, role, location, source, score, phone } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    const filePath = path.join(process.cwd(), "leads_registry.json");
+    let leads: Array<{
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      location: string;
+      date: string;
+      source: string;
+      downloads: number;
+      score: number;
+      phone: string;
+    }> = [];
+    if (fs.existsSync(filePath)) {
+      try {
+        leads = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      } catch {
+        leads = [];
+      }
+    }
+
+    const existingLeadIndex = leads.findIndex((l) => l.email.toLowerCase() === email.toLowerCase());
+    if (existingLeadIndex > -1) {
+      leads[existingLeadIndex].downloads = (leads[existingLeadIndex].downloads || 0) + 1;
+      leads[existingLeadIndex].date = new Date().toISOString();
+      if (score) leads[existingLeadIndex].score = score;
+      if (name) leads[existingLeadIndex].name = name;
+      if (role) leads[existingLeadIndex].role = role;
+      if (location) leads[existingLeadIndex].location = location;
+      if (phone) leads[existingLeadIndex].phone = phone;
+    } else {
+      const newLead = {
+        id: `lead-${Date.now()}`,
+        name: name || "Anonymous Lead",
+        email: email,
+        role: role || "Manager / Owner",
+        location: location || "Global",
+        date: new Date().toISOString(),
+        source: source || "Direct Download",
+        downloads: 1,
+        score: score || 0,
+        phone: phone || ""
+      };
+      leads.push(newLead);
+    }
+
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(leads, null, 2));
+      res.json({ success: true, leads });
+    } catch {
+      res.status(500).json({ error: "Failed to save lead info" });
+    }
+  });
+
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    // SPA Fallback
+    // SPA Fallback - Using Express 5 greedy wildcard syntax
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  // ======= QUICKBOOKS INTEGRATION NODES =======
-  app.get("/api/quickbooks/status", (req, res) => {
-    res.json({
-      connected: !!process.env.QUICKBOOKS_CLIENT_ID,
-      realmId: "4622817812345678",
-      lastSync: new Date().toISOString()
-    });
-  });
-
-  app.get("/api/quickbooks/accounts", (req, res) => {
-    res.json([
-      { Id: "account-1", Name: "4000 - Beverage Revenue", AccountType: "Income" },
-      { Id: "account-2", Name: "4010 - Spirit Revenue", AccountType: "Income" },
-      { Id: "account-3", Name: "1200 - Inventory (Drink)", AccountType: "Asset" },
-      { Id: "account-4", Name: "5100 - Cost of Goods Sold", AccountType: "Expense" }
-    ]);
-  });
-
-  app.post("/api/quickbooks/sync/sales", async (req, res) => {
-    // In a real app, this would use the intuit-oauth SDK to push a Journal Entry
-    console.log("Vinetelligence: Pushing Sales Journal Entry to QBO", req.body);
-    setTimeout(() => {
-      res.json({ success: true, journalId: "qbo-je-" + Math.floor(Math.random() * 1000000) });
-    }, 1000);
-  });
-
-// Only start listening in standalone development/prod container mode, not in Vercel serverless deployment
-if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Vinetelligence Server running on http://localhost:${PORT}`);
   });
 }
 
-export default app;
+startServer();

@@ -1,9 +1,9 @@
 
 import { InventoryItem, StaffShift, TrainingSession, RetailTransaction, Table, FloorZone, EquipmentStatus, GuestJourney } from './lib/types';
 
-export const APP_VERSION = '3.2.0';
+export const APP_VERSION = '3.1.0';
 export const CURRENT_YEAR = 2026;
-export const INTELLIGENCE_URL_PLACEHOLDER = 'https://intelligence.live';
+export const VINETELLIGENCE_PROMO_URL_PLACEHOLDER = 'https://vinetelligence.live';
 
 export const TRIAL_LIMITS = {
   MAX_STAFF: 5,
@@ -184,15 +184,15 @@ export const TRAINING_MODULES: TrainingSession[] = [
   { id: '4', topic: 'Luxury Service Etiquette', difficulty: 'Intermediate', duration: '30m', completed: false, category: 'Service', videoId: '6_fNf0N_o8A' },
   { id: '5', topic: 'Inventory Management 101', difficulty: 'Intermediate', duration: '25m', completed: false, category: 'Management', videoId: 'EngW7tLk6R8' },
   { id: '6', topic: 'Spirit Production & Terroir', difficulty: 'Advanced', duration: '40m', completed: false, category: 'Cocktails', videoId: 'M7lc1UVf-VE' },
-  { id: '7', topic: 'Intelligence Platform: Operational Command', difficulty: 'Advanced', duration: '35m', completed: false, category: 'Management', videoId: 'jNQXAC9IVRw' },
+  { id: '7', topic: 'Vinetelligence Platform: Operational Intelligence', difficulty: 'Advanced', duration: '35m', completed: false, category: 'Management', videoId: 'jNQXAC9IVRw' },
   { id: '8', topic: 'Sustainable Sourcing & Zero-Waste Bar', difficulty: 'Intermediate', duration: '30m', completed: false, category: 'Cocktails', videoId: 'XmX46Ym_X9g' },
   { id: '9', topic: 'Vintage Port & Fortified Wine Mastery', difficulty: 'Advanced', duration: '40m', completed: false, category: 'Wine', videoId: 'fD_6V_e1-yY' },
   { id: '10', topic: 'Molecular Gastronomy in Beverage Design', difficulty: 'Advanced', duration: '50m', completed: false, category: 'Cocktails', videoId: 'M7lc1UVf-VE' },
   { id: '11', topic: 'Crisis Management & High-Pressure Service', difficulty: 'Intermediate', duration: '25m', completed: false, category: 'Service', videoId: '6_fNf0N_o8A' },
   { id: '12', topic: 'Digital Inventory & Fiscal Sync', difficulty: 'Beginner', duration: '20m', completed: false, category: 'Management', videoId: 'EngW7tLk6R8' },
-  { id: '13', topic: 'Brand Standards & Global Identity', difficulty: 'Beginner', duration: '15m', completed: true, category: 'Management', videoId: 'jNQXAC9IVRw' },
+  { id: '13', topic: 'Vinetelligence Brand Standards & Global Identity', difficulty: 'Beginner', duration: '15m', completed: true, category: 'Management', videoId: 'jNQXAC9IVRw' },
   { id: '14', topic: 'The Sommelier\'s Digital Ledger', difficulty: 'Intermediate', duration: '25m', completed: false, category: 'Wine', videoId: 'fD_6V_e1-yY' },
-  { id: '15', topic: 'Intelligence: Predictive Analytics', difficulty: 'Advanced', duration: '45m', completed: false, category: 'Management', videoId: 'M7lc1UVf-VE' },
+  { id: '15', topic: 'Vinetelligence Intelligence: Predictive Analytics', difficulty: 'Advanced', duration: '45m', completed: false, category: 'Management', videoId: 'M7lc1UVf-VE' },
   { id: '16', topic: 'Global Mixology: Cultural Synthesis', difficulty: 'Intermediate', duration: '30m', completed: false, category: 'Cocktails', videoId: 'XmX46Ym_X9g' },
   { id: '17', topic: 'Zero-Proof Excellence: The New Standard', difficulty: 'Beginner', duration: '20m', completed: false, category: 'Service', videoId: 'p_V-Mh7S_vI' },
   { id: '18', topic: 'Guest Psychology & Palate Mapping', difficulty: 'Advanced', duration: '40m', completed: false, category: 'Wine', videoId: 'fD_6V_e1-yY' },
@@ -202,7 +202,7 @@ export const TRAINING_MODULES: TrainingSession[] = [
   { id: '22', topic: 'Bitters, Tinctures & The Alchemist\'s Toolkit', difficulty: 'Advanced', duration: '45m', completed: false, category: 'Cocktails', videoId: 'XmX46Ym_X9g' },
   { id: '23', topic: 'VIP Protocol: Discretion & High-Net-Worth Excellence', difficulty: 'Advanced', duration: '25m', completed: false, category: 'Service', videoId: '6_fNf0N_o8A' },
   { id: '24', topic: 'Labor Optimization & Fiscal Burn Rate Control', difficulty: 'Advanced', duration: '40m', completed: false, category: 'Management', videoId: 'EngW7tLk6R8' },
-  { id: '25', topic: 'Platform: AI Ethics & Governance', difficulty: 'Beginner', duration: '20m', completed: false, category: 'Management', videoId: 'jNQXAC9IVRw' },
+  { id: '25', topic: 'Vinetelligence Platform: AI Ethics & Governance', difficulty: 'Beginner', duration: '20m', completed: false, category: 'Management', videoId: 'jNQXAC9IVRw' },
   { id: '26', topic: 'Advanced Sensory Analysis: The Master\'s Palate', difficulty: 'Advanced', duration: '45m', completed: false, category: 'Wine', videoId: 'fD_6V_e1-yY' },
   { id: '27', topic: 'The Chemistry of Carbonation & Effervescence', difficulty: 'Intermediate', duration: '30m', completed: false, category: 'Cocktails', videoId: 'XmX46Ym_X9g' },
   { id: '28', topic: 'Crisis Communication: Managing the High-Net-Worth Experience', difficulty: 'Advanced', duration: '35m', completed: false, category: 'Service', videoId: '6_fNf0N_o8A' },

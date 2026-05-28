@@ -26,32 +26,37 @@ const AppVinetelligence: React.FC = () => {
     }
   }, []);
 
-  // Determine environments for smart redirection
-  const isProduction = typeof window !== 'undefined' && 
-    (window.location.hostname.includes('vinetelligence.live') || window.location.hostname.includes('vinea.live'));
-
-  const getOnboardingUrl = () => {
-    return isProduction ? 'https://vinea.live?onboarding=true' : `${window.location.origin}?onboarding=true`;
-  };
-
-  const getLoginUrl = () => {
-    return isProduction ? 'https://vinea.live?mode=login' : `${window.location.origin}?mode=login`;
-  };
-
-  const getDemoUrl = () => {
-    return isProduction ? 'https://vinea.live?demo=true' : `${window.location.origin}?demo=true`;
-  };
-
   const handleInstantDemo = () => {
-    window.location.href = getDemoUrl();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('platform_selected_app', 'vinetelligence');
+      localStorage.setItem('vinetelligence_preview_target', 'vinetelligence');
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('demo', 'true');
+      window.history.replaceState({}, '', newUrl.toString());
+      window.location.reload();
+    }
   };
 
   const handleStartOnboarding = () => {
-    window.location.href = getOnboardingUrl();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('platform_selected_app', 'vinetelligence');
+      localStorage.setItem('vinetelligence_preview_target', 'vinetelligence');
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('onboarding', 'true');
+      window.history.replaceState({}, '', newUrl.toString());
+      window.location.reload();
+    }
   };
 
   const handleLogin = () => {
-    window.location.href = getLoginUrl();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('platform_selected_app', 'vinetelligence');
+      localStorage.setItem('vinetelligence_preview_target', 'vinetelligence');
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('mode', 'login');
+      window.history.replaceState({}, '', newUrl.toString());
+      window.location.reload();
+    }
   };
 
   return (

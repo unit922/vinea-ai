@@ -35,42 +35,45 @@ export const useVinetelligenceInitialization = () => {
 
   useEffect(() => {
     const handleStorage = () => {
-      const storedOrders = localStorage.getItem('vinetelligence_orders') || localStorage.getItem('intelligence_orders') || localStorage.getItem('oenovia_orders');
+      const storedOrders = localStorage.getItem('vinetelligence_orders') || localStorage.getItem('vinea_orders');
       const parsedOrders = storedOrders ? JSON.parse(storedOrders) : [];
       setOrders(parsedOrders);
       
-      const storedInventory = localStorage.getItem('vinetelligence_inventory') || localStorage.getItem('intelligence_inventory') || localStorage.getItem('oenovia_inventory');
-      const profileStr = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile');
+      const storedInventory = localStorage.getItem('vinetelligence_inventory') || localStorage.getItem('vinea_inventory');
+      const profileStr = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
       const profile: RestaurantProfile | null = profileStr ? JSON.parse(profileStr) : null;
       const isDemo = !profile || ((!profile.edition || profile.edition === 'demo') && !isValidUUID(profile.id));
       const parsedInventory = storedInventory ? JSON.parse(storedInventory) : (isDemo ? INITIAL_INVENTORY : []);
       setInventory(parsedInventory);
 
-      const storedJourneys = localStorage.getItem('vinetelligence_journeys') || localStorage.getItem('intelligence_journeys') || localStorage.getItem('oenovia_journeys');
+      const storedJourneys = localStorage.getItem('vinetelligence_journeys') || localStorage.getItem('vinea_journeys');
       const parsedJourneys = storedJourneys ? JSON.parse(storedJourneys) : (isDemo ? MOCK_JOURNEYS : []);
       setJourneys(parsedJourneys);
 
-      const storedTables = localStorage.getItem('vinetelligence_tables') || localStorage.getItem('intelligence_tables') || localStorage.getItem('oenovia_tables');
+      const storedTables = localStorage.getItem('vinetelligence_tables') || localStorage.getItem('vinea_tables');
       const parsedTables = storedTables ? JSON.parse(storedTables) : (isDemo ? INITIAL_TABLES : []);
       setTables(parsedTables);
 
-      const storedTransactions = localStorage.getItem('vinetelligence_transactions') || localStorage.getItem('intelligence_transactions') || localStorage.getItem('oenovia_transactions');
+      const storedTransactions = localStorage.getItem('vinetelligence_transactions') || localStorage.getItem('vinea_transactions');
       const parsedTransactions = storedTransactions ? JSON.parse(storedTransactions) : (isDemo ? INITIAL_TRANSACTIONS : []);
       setTransactions(parsedTransactions);
 
-      const storedStaff = localStorage.getItem('vinetelligence_staff_list') || localStorage.getItem('intelligence_staff_list') || localStorage.getItem('oenovia_staff_list');
+      const storedStaff = localStorage.getItem('vinetelligence_staff_list') || localStorage.getItem('vinea_staff_list');
       const parsedStaff = storedStaff ? JSON.parse(storedStaff) : (isDemo ? INITIAL_SHIFTS : []);
       setStaff(parsedStaff);
 
-      const storedAssignments = localStorage.getItem('vinetelligence_assignments') || localStorage.getItem('intelligence_assignments') || localStorage.getItem('oenovia_assignments');
+      const storedAssignments = localStorage.getItem('vinetelligence_assignments') || localStorage.getItem('vinea_assignments');
       const parsedAssignments = storedAssignments ? JSON.parse(storedAssignments) : [];
       setAssignments(parsedAssignments);
 
-      const storedDraftOrders = localStorage.getItem('vinetelligence_draft_orders') || localStorage.getItem('intelligence_draft_orders') || localStorage.getItem('oenovia_draft_orders');
+      const storedDraftOrders = localStorage.getItem('vinetelligence_draft_orders') || localStorage.getItem('vinea_draft_orders');
       const parsedDraftOrders = storedDraftOrders ? JSON.parse(storedDraftOrders) : [];
       setDraftOrders(parsedDraftOrders);
 
       const targetAuthMode = isDemo ? 'demo' : 'secure';
+      // Use local variable for check if possible, or just call setAuthMode 
+      // but in this hook we handle storage events which can be frequent.
+      // We'll trust setAuthMode to be stable.
       setAuthMode(targetAuthMode);
     };
 
@@ -93,8 +96,10 @@ export const useVinetelligenceInitialization = () => {
     };
 
     window.addEventListener('vinetelligence_data_update', handleManualUpdate);
+    window.addEventListener('vinea_data_update', handleManualUpdate);
     return () => {
       window.removeEventListener('vinetelligence_data_update', handleManualUpdate);
+      window.removeEventListener('vinea_data_update', handleManualUpdate);
     };
   }, [profileId, authMode]);
 
@@ -103,9 +108,9 @@ export const useVinetelligenceInitialization = () => {
 
     const sendPulse = async () => {
       try {
-        const ordersStr = localStorage.getItem('vinetelligence_orders') || localStorage.getItem('intelligence_orders') || localStorage.getItem('oenovia_orders') || '[]';
+        const ordersStr = localStorage.getItem('vinetelligence_orders') || localStorage.getItem('vinea_orders') || '[]';
         const orders: ServiceOrder[] = JSON.parse(ordersStr);
-        const inventoryStr = localStorage.getItem('vinetelligence_inventory') || localStorage.getItem('intelligence_inventory') || localStorage.getItem('oenovia_inventory') || '[]';
+        const inventoryStr = localStorage.getItem('vinetelligence_inventory') || localStorage.getItem('vinea_inventory') || '[]';
         const inventory: InventoryItem[] = JSON.parse(inventoryStr);
         
         const activeOrders = orders.filter((o: ServiceOrder) => o.status === 'Pending' || o.status === 'Prepping').length;
@@ -137,6 +142,7 @@ export const useVinetelligenceInitialization = () => {
         if (data) {
           setJourneys(data);
           localStorage.setItem('vinetelligence_journeys', JSON.stringify(data));
+          localStorage.setItem('vinea_journeys', JSON.stringify(data));
         }
       } catch (e) {
         console.error("Vinetelligence: Initial journey sync failed", e);
@@ -156,6 +162,7 @@ export const useVinetelligenceInitialization = () => {
         if (assignmentsData) {
           setAssignments(assignmentsData);
           localStorage.setItem('vinetelligence_assignments', JSON.stringify(assignmentsData));
+          localStorage.setItem('vinea_assignments', JSON.stringify(assignmentsData));
         }
         if (staffProfiles) {
           const mappedStaff = staffProfiles.map((p: SupabaseStaffProfile) => ({
@@ -171,6 +178,7 @@ export const useVinetelligenceInitialization = () => {
           }));
           setStaff(mappedStaff);
           localStorage.setItem('vinetelligence_staff_list', JSON.stringify(mappedStaff));
+          localStorage.setItem('vinea_staff_list', JSON.stringify(mappedStaff));
         }
         if (rosterData) setStaffRoster(rosterData);
       } catch (e) {
@@ -186,6 +194,7 @@ export const useVinetelligenceInitialization = () => {
         if (data) {
           setInventory(data);
           localStorage.setItem('vinetelligence_inventory', JSON.stringify(data));
+          localStorage.setItem('vinea_inventory', JSON.stringify(data));
         }
       } catch (e) {
         console.error("Vinetelligence: Initial inventory sync failed", e);
@@ -198,6 +207,7 @@ export const useVinetelligenceInitialization = () => {
         if (data) {
           setOrders(data);
           localStorage.setItem('vinetelligence_orders', JSON.stringify(data));
+          localStorage.setItem('vinea_orders', JSON.stringify(data));
         }
       } catch (e) {
         console.error("Vinetelligence: Initial orders sync failed", e);
@@ -210,6 +220,7 @@ export const useVinetelligenceInitialization = () => {
         if (data) {
           setTables(data);
           localStorage.setItem('vinetelligence_tables', JSON.stringify(data));
+          localStorage.setItem('vinea_tables', JSON.stringify(data));
         }
       } catch (e) {
         console.error("Vinetelligence: Initial tables sync failed", e);
@@ -224,6 +235,7 @@ export const useVinetelligenceInitialization = () => {
       if (data) {
         setJourneys(data);
         localStorage.setItem('vinetelligence_journeys', JSON.stringify(data));
+        localStorage.setItem('vinea_journeys', JSON.stringify(data));
       }
     });
 
@@ -231,6 +243,7 @@ export const useVinetelligenceInitialization = () => {
       if (data) {
         setAssignments(data);
         localStorage.setItem('vinetelligence_assignments', JSON.stringify(data));
+        localStorage.setItem('vinea_assignments', JSON.stringify(data));
       }
     });
 
@@ -238,6 +251,7 @@ export const useVinetelligenceInitialization = () => {
       if (data) {
         setInventory(data);
         localStorage.setItem('vinetelligence_inventory', JSON.stringify(data));
+        localStorage.setItem('vinea_inventory', JSON.stringify(data));
       }
     });
 
@@ -245,6 +259,7 @@ export const useVinetelligenceInitialization = () => {
       if (data) {
         setOrders(data);
         localStorage.setItem('vinetelligence_orders', JSON.stringify(data));
+        localStorage.setItem('vinea_orders', JSON.stringify(data));
       }
     });
     
@@ -267,6 +282,7 @@ export const useVinetelligenceInitialization = () => {
         }));
         setStaff(mappedStaff);
         localStorage.setItem('vinetelligence_staff_list', JSON.stringify(mappedStaff));
+        localStorage.setItem('vinea_staff_list', JSON.stringify(mappedStaff));
       }
     });
 
@@ -274,6 +290,7 @@ export const useVinetelligenceInitialization = () => {
       if (data) {
         setTables(data);
         localStorage.setItem('vinetelligence_tables', JSON.stringify(data));
+        localStorage.setItem('vinea_tables', JSON.stringify(data));
       }
     });
 

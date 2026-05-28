@@ -178,6 +178,45 @@ const ComparisonMatrix: React.FC = () => {
           icon: <Shield className="w-4 h-4 text-sky-500" />
         }
       ]
+    },
+    hotelspeaker: {
+      id: "hotelspeaker",
+      name: "Hotel Speaker",
+      category: "Manual Outsource Review Agency",
+      description: "An external reviews-answering business that uses generic templates, standard AI rewrite tools, and crowdsourced crowds of freelance copywriters in multiple languages to reply to past guests. They lack any integration with reservation profiles, floor operations, or guest beverage preferences.",
+      primaryGaps: [
+        "Entirely blind to on-site transactions and Palate DNA curves—responses are hollow generic templates.",
+        "Response cycle takes 24h to 48h to dispatch through outsourced copywriter queues."
+      ],
+      role: "Traditional Outsource Agency",
+      outcomeQuote: "Hotel Speaker writes responses purely based on abstract reviews; Vinetelligence automatically crafts responses rich with true, personalized oenological context derived from their actual cellar visits.",
+      outcomeMargin: "Immediate AI Sync & Personalization",
+      metrics: [
+        {
+          feature: "Palate Profiling",
+          vinetelligence: "Neural Organoleptic Mapping (Automatic link to guest transactions)",
+          competitor: "None (absolutely blind to what they drank)",
+          icon: <Brain className="w-4 h-4 text-indigo-500" />
+        },
+        {
+          feature: "Staff Floor Coaching",
+          vinetelligence: "Direct Voice Scholar Sommelier Node active with review triggers",
+          competitor: "None (disconnected third-party writers)",
+          icon: <Sparkles className="w-4 h-4 text-emerald-500" />
+        },
+        {
+          feature: "Response Latency",
+          vinetelligence: "≤10s Gen-AI draft containing precise cellar inventory names",
+          competitor: "12 to 24 hours typical outsourced human-in-the-loop delay",
+          icon: <Zap className="w-4 h-4 text-amber-500" />
+        },
+        {
+          feature: "Customer Privacy",
+          vinetelligence: "Zero-Trust Private isolated DB silos",
+          competitor: "External systems sharing reviews across freelancer channels & sheets",
+          icon: <Shield className="w-4 h-4 text-sky-500" />
+        }
+      ]
     }
   };
 

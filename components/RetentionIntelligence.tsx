@@ -11,15 +11,76 @@ import {
   Printer,
   X,
   Zap,
-  Brain
+  Brain,
+  RefreshCw,
+  MessageSquare
 } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
+import AHLALogo from './AHLALogo';
+
+interface OTAReview {
+  id: string;
+  source: 'Google' | 'TripAdvisor' | 'Booking';
+  guestName: string;
+  rating: number;
+  comment: string;
+  timestamp: string;
+  guestHistory: string;
+  tone: string;
+  language: string;
+  generatedResponse?: string;
+  status: 'Pending' | 'Approved' | 'Drafting' | 'Published';
+}
 
 export const RetentionIntelligence: React.FC = () => {
   const [feedback, setFeedback] = useState<GuestFeedback[]>([]);
   const [loyaltyMembers, setLoyaltyMembers] = useState<LoyaltyMember[]>([]);
   const [insights, setInsights] = useState<AIInsight[]>([]);
-  const [activeTab, setActiveTab] = useState<'feedback' | 'loyalty' | 'insights' | 'sentiment'>('insights');
+  const [activeTab, setActiveTab] = useState<'insights' | 'ota-reviews' | 'feedback' | 'loyalty' | 'sentiment'>('insights');
+  const [connectors, setConnectors] = useState({
+    google: true,
+    tripadvisor: true,
+    booking: false,
+  });
+  const [otaReviews, setOtaReviews] = useState<OTAReview[]>([
+    {
+      id: 'ota-1',
+      source: 'Google',
+      guestName: 'Marcus Vance',
+      rating: 5,
+      comment: "The sommelier guidance was spectacular. We tried the Ardbeg tasting flight and were blown away by the peat intensity. Outstanding hospitality!",
+      timestamp: '2 hours ago',
+      guestHistory: 'Gold Tier member. Prefers Peated Malt & Franciacorta. Visited May 10.',
+      tone: 'Sophisticated',
+      language: 'English',
+      status: 'Pending'
+    },
+    {
+      id: 'ota-2',
+      source: 'TripAdvisor',
+      guestName: "Charlotte Dubois",
+      rating: 3,
+      comment: "The ambiance is breathtaking and the wine list is massive, but we had to wait almost 25 minutes for our Barolo bottle to be fetched from the cellar.",
+      timestamp: '1 day ago',
+      guestHistory: 'Silver Tier member. Purchased Giacomo Conterno Barolo 2018; noted cellar retrieval bottle lag of 12 minutes.',
+      tone: 'Warm & Conversational',
+      language: 'French',
+      status: 'Pending'
+    },
+    {
+      id: 'ota-3',
+      source: 'Booking',
+      guestName: "Kenji Sato",
+      rating: 4,
+      comment: "Exceptional modern cocktail lounge connected to the hotel lobby. Unbelievable selection of vintage Japanese whiskeys! However, they were sold out of Yamazaki 12.",
+      timestamp: '3 days ago',
+      guestHistory: 'First-time hotel attendee. Prefers Japanese malt blend (offered Hibiki Harmony instead).',
+      tone: 'Academic Sommelier',
+      language: 'German',
+      status: 'Pending'
+    }
+  ]);
+  const [isSynthesizingReview, setIsSynthesizingReview] = useState<Record<string, boolean>>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [sentimentReport, setSentimentReport] = useState<string | null>(null);
   const [isPredictingChurn, setIsPredictingChurn] = useState(false);
@@ -135,6 +196,40 @@ export const RetentionIntelligence: React.FC = () => {
     }
   };
 
+  const handleSynthesizeResponse = async (id: string) => {
+    const review = otaReviews.find(r => r.id === id);
+    if (!review) return;
+
+    setIsSynthesizingReview(prev => ({ ...prev, [id]: true }));
+    try {
+      const response = await geminiService.getOTAReviewResponse(
+        review.guestName,
+        review.rating,
+        review.comment,
+        review.tone,
+        review.language,
+        review.guestHistory
+      );
+      setOtaReviews(prev => prev.map(r => r.id === id ? { ...r, generatedResponse: response } : r));
+    } catch (error) {
+      console.error("Vinetelligence: OTA Review response synthesis failed", error);
+    } finally {
+      setIsSynthesizingReview(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleToneChange = (id: string, tone: string) => {
+    setOtaReviews(prev => prev.map(r => r.id === id ? { ...r, tone } : r));
+  };
+
+  const handleLanguageChange = (id: string, language: string) => {
+    setOtaReviews(prev => prev.map(r => r.id === id ? { ...r, language } : r));
+  };
+
+  const handleUpdateGeneratedResponse = (id: string, response: string) => {
+    setOtaReviews(prev => prev.map(r => r.id === id ? { ...r, generatedResponse: response } : r));
+  };
+
   return (
     <div className="flex flex-col h-full bg-stone-950 text-white overflow-hidden">
       {/* Header */}
@@ -144,7 +239,7 @@ export const RetentionIntelligence: React.FC = () => {
           <p className="text-[10px] font-black uppercase text-amber-500 tracking-[0.3em] mt-2">AI-Driven Guest Loyalty & Sentiment Analysis</p>
         </div>
         <div className="flex gap-2 bg-black/40 p-1 rounded-2xl border border-white/5">
-          {(['insights', 'feedback', 'loyalty', 'sentiment'] as const).map(tab => (
+          {(['insights', 'ota-reviews', 'feedback', 'loyalty', 'sentiment'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -152,7 +247,7 @@ export const RetentionIntelligence: React.FC = () => {
                 activeTab === tab ? 'bg-amber-500 text-stone-950 shadow-lg' : 'text-stone-500 hover:text-white'
               }`}
             >
-              {tab}
+              {tab === 'ota-reviews' ? 'OTA Reviews' : tab}
             </button>
           ))}
         </div>
@@ -368,6 +463,267 @@ export const RetentionIntelligence: React.FC = () => {
                   </div>
                 </motion.div>
               )}
+            </motion.div>
+          )}
+
+          {activeTab === 'ota-reviews' && (
+            <motion.div
+              key="ota-reviews"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-8 animate-fade-in"
+            >
+              {/* Marketing Headliner Banner (Crushing Hotel Speaker) */}
+              <div className="bg-gradient-to-br from-amber-500/15 via-stone-900 to-stone-900/40 rounded-[2.5rem] p-10 border border-white/10 relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                <div className="relative z-10 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center justify-center">
+                        <Zap className="w-5 h-5 text-amber-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-serif font-black italic tracking-tight text-white">Direct OTA Response Synthesis</h3>
+                        <p className="text-[9px] font-mono text-amber-500 uppercase tracking-widest font-black">Bypassing Disconnected Manual Agencies</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="bg-stone-950/80 px-3 py-1.5 rounded-xl flex items-center border border-white/5">
+                        <AHLALogo height={15} theme="light" />
+                      </div>
+                      <span className="bg-amber-500 text-stone-950 text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg">
+                        Defeats Outsourced Services
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-stone-300 text-xs leading-relaxed max-w-4xl italic font-medium">
+                    Why hire disconnected manual outsourcers (like Hotel Speaker) that take 24–48 hours to consult stale templates and outsource to freelance copywriters? Vinetelligence connects directly to your reservation records & beverage ticket database to synthesize authentic, oenologically precise replies grounded in the guest's <strong>actual transactional Palate DNA</strong>.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-white/5">
+                    <div className="flex gap-3 items-center">
+                      <div className="text-amber-500 font-serif font-bold italic text-xl">01</div>
+                      <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">No Generic Templates</div>
+                    </div>
+                    <div className="flex gap-3 items-center">
+                      <div className="text-amber-500 font-serif font-bold italic text-xl">02</div>
+                      <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Under 10 Seconds Latency</div>
+                    </div>
+                    <div className="flex gap-3 items-center">
+                      <div className="text-amber-500 font-serif font-bold italic text-xl">03</div>
+                      <div className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Actual Cellar & POS Grounding</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* OTA channel connectors */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  { id: 'google' as const, name: 'Google Business', icon: 'fa-google', description: 'Real-time API sink for restaurant reviews.', active: connectors.google },
+                  { id: 'tripadvisor' as const, name: 'TripAdvisor Connect', icon: 'fa-tripadvisor', description: 'Direct webhook linkage for table & stay logs.', active: connectors.tripadvisor },
+                  { id: 'booking' as const, name: 'Booking.com OTA', icon: 'fa-hotel', description: 'Full reservation mapping for in-hotel guests.', active: connectors.booking }
+                ].map(conn => (
+                  <div 
+                    key={conn.id} 
+                    className={`bg-stone-900 border rounded-[2rem] p-6 flex flex-col justify-between space-y-6 transition-all ${
+                      conn.active ? 'border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.05)]' : 'border-white/5 opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-3 items-center">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
+                          conn.active ? 'bg-amber-500/10 text-amber-500' : 'bg-stone-800 text-stone-500'
+                        }`}>
+                          <i className={`fab ${conn.icon}`}></i>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-white">{conn.name}</h4>
+                          <span className={`text-[8px] font-mono uppercase tracking-widest ${conn.active ? 'text-amber-500 animate-pulse font-bold' : 'text-stone-500'}`}>
+                            {conn.active ? '● Connected & Active' : '○ Standby'}
+                          </span>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setConnectors(prev => ({ ...prev, [conn.id]: !prev[conn.id] }))}
+                        className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                          conn.active 
+                            ? 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20' 
+                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                        }`}
+                      >
+                        {conn.active ? 'Deactivate' : 'Connect API'}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-stone-500 italic font-medium leading-relaxed">{conn.description}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Review Workspace Queue */}
+              <div className="space-y-6 mt-10">
+                <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                  <h3 className="text-xl font-serif font-black italic text-white flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-amber-500" />
+                    <span>Active Review Response Workspace</span>
+                  </h3>
+                  <span className="text-[10px] font-mono text-stone-500 uppercase tracking-widest italic">
+                    {otaReviews.filter(r => r.status !== 'Published').length} Pending Review Allies
+                  </span>
+                </div>
+
+                <div className="space-y-6">
+                  {otaReviews.map(review => (
+                    <div key={review.id} className="bg-stone-900 border border-white/5 rounded-[2.5rem] p-8 space-y-6 relative overflow-hidden">
+                      {review.status === 'Published' && (
+                        <div className="absolute inset-0 bg-stone-950/90 backdrop-blur-sm flex flex-col justify-center items-center edit-animate-pulse z-20 space-y-4">
+                          <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/40 rounded-full flex items-center justify-center text-emerald-400 text-2xl">
+                            <i className="fas fa-check-double"></i>
+                          </div>
+                          <div className="text-center">
+                            <h4 className="font-serif font-black italic text-lg text-white">Review Response Synchronized!</h4>
+                            <p className="text-[9px] font-mono text-stone-500 uppercase tracking-widest mt-1">Published to {review.source} • Status Code 201 OK</p>
+                          </div>
+                          <button 
+                            onClick={() => setOtaReviews(prev => prev.map(r => r.id === review.id ? { ...r, status: 'Pending', generatedResponse: undefined } : r))}
+                            className="px-6 py-2 bg-stone-900 border border-white/10 rounded-xl text-[9px] font-black tracking-widest uppercase text-stone-400 hover:text-white transition-all cursor-pointer"
+                          >
+                            Reset / Re-draft Review
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col lg:flex-row gap-8">
+                        {/* Guest / Reviewer Identity */}
+                        <div className="w-full lg:w-64 shrink-0 space-y-4">
+                          <div className="p-4 bg-black/30 rounded-2xl border border-white/5 space-y-3">
+                            <div className="flex justify-between items-start">
+                              <span className="px-2.5 py-1 bg-white/5 rounded text-[8px] font-black uppercase tracking-widest text-stone-400 flex items-center gap-1.5">
+                                <i className={`fab ${review.source === 'Google' ? 'fa-google' : review.source === 'TripAdvisor' ? 'fa-tripadvisor' : 'fa-hotel'}`}></i>
+                                {review.source}
+                              </span>
+                              <span className="text-[8px] font-mono text-stone-500 uppercase">{review.timestamp}</span>
+                            </div>
+                            <div>
+                              <h4 className="text-base font-serif font-black italic text-white leading-tight">{review.guestName}</h4>
+                              <div className="flex gap-1 text-amber-500 mt-1">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <i key={i} className={`fas fa-star text-[10px] ${i < review.rating ? 'opacity-100' : 'opacity-20'}`}></i>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Palate DNA Connector Pane */}
+                          <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Brain className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                              <span className="text-[8px] font-mono uppercase text-amber-500 tracking-widest font-black">Palate DNA Linkage</span>
+                            </div>
+                            <p className="text-[10px] text-stone-300 italic font-medium leading-relaxed">
+                              "{review.guestHistory}"
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Review Message & Response Draft area */}
+                        <div className="flex-1 space-y-6">
+                          <div className="bg-black/20 p-6 rounded-2xl border border-white/5">
+                            <span className="text-[8px] font-mono uppercase text-stone-500 tracking-widest block mb-2">Review Comment</span>
+                            <p className="text-sm text-stone-300 italic font-medium leading-relaxed">
+                              "{review.comment}"
+                            </p>
+                          </div>
+
+                          {/* Selection criteria: Tone and Language */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-stone-950/40 p-4 border border-white/5 rounded-2xl">
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black uppercase text-stone-500 tracking-widest block">Proposed Tone</label>
+                              <select 
+                                value={review.tone} 
+                                onChange={(e) => handleToneChange(review.id, e.target.value)}
+                                className="w-full bg-stone-900 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] font-mono text-stone-300 focus:border-amber-500 focus:outline-none"
+                              >
+                                <option value="Sophisticated">Sophisticated</option>
+                                <option value="Warm & Conversational">Warm & Conversational</option>
+                                <option value="Short & Direct">Short & Direct</option>
+                                <option value="Academic Sommelier">Academic Sommelier</option>
+                              </select>
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black uppercase text-stone-500 tracking-widest block">Language</label>
+                              <select 
+                                value={review.language} 
+                                onChange={(e) => handleLanguageChange(review.id, e.target.value)}
+                                className="w-full bg-stone-900 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] font-mono text-stone-300 focus:border-amber-500 focus:outline-none"
+                              >
+                                <option value="English">English</option>
+                                <option value="French">French</option>
+                                <option value="Italian">Italian</option>
+                                <option value="Spanish">Spanish</option>
+                                <option value="German">German</option>
+                                <option value="Japanese">Japanese</option>
+                              </select>
+                            </div>
+
+                            <div className="md:col-span-2 flex items-end">
+                              <button 
+                                onClick={() => handleSynthesizeResponse(review.id)}
+                                disabled={isSynthesizingReview[review.id]}
+                                className="w-full h-[32px] bg-amber-500 text-stone-950 hover:bg-amber-400 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+                              >
+                                {isSynthesizingReview[review.id] ? (
+                                  <>
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Synthesizing Dialect...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Zap className="w-3.5 h-3.5" />
+                                    <span>{review.generatedResponse ? 'Regenerate Proposed Draft' : 'Synthesize Custom Response'}</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Proposed Reply Textarea */}
+                          {review.generatedResponse && (
+                            <div className="space-y-3 bg-stone-950 p-6 rounded-2xl border border-amber-500/15">
+                              <div className="flex justify-between items-center text-[8px] font-mono uppercase tracking-widest">
+                                <span className="text-amber-500 font-bold">Autogenerated Response (Dynamic Review Ally)</span>
+                                <span className="text-stone-500">Live Draft</span>
+                              </div>
+                              <textarea 
+                                value={review.generatedResponse}
+                                onChange={(e) => handleUpdateGeneratedResponse(review.id, e.target.value)}
+                                className="w-full min-h-[110px] bg-stone-900/80 border border-white/10 rounded-xl p-4 text-xs font-medium text-stone-200 leading-relaxed focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 custom-scrollbar resize-none font-serif italic"
+                              />
+                              <div className="flex justify-end gap-3 pt-2">
+                                <button 
+                                  onClick={() => handleUpdateGeneratedResponse(review.id, "")}
+                                  className="px-4 py-2 border border-white/5 hover:border-white/10 text-[9px] font-black uppercase tracking-widest text-stone-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                                >
+                                  Clear
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setOtaReviews(prev => prev.map(r => r.id === review.id ? { ...r, status: 'Published' } : r));
+                                  }}
+                                  className="px-5 py-2 bg-emerald-500 text-stone-950 hover:bg-emerald-400 font-black text-[9px] uppercase tracking-widest rounded-lg flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+                                >
+                                  <i className="fas fa-plane"></i> Approve & Sync to OTA
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </motion.div>
           )}
 

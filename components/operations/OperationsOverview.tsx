@@ -27,7 +27,7 @@ const OperationsOverview: React.FC<OperationsOverviewProps> = ({
           </div>
           <div>
             <h3 className="text-4xl font-serif font-black italic text-stone-900 tracking-tighter">{isDemo ? 'Operational Demo Control' : 'Operational Control'}</h3>
-            <p className="text-stone-500 text-sm font-medium italic">{isDemo ? 'Active Simulation:' : 'Active Node:'} <span className="text-amber-600 font-bold">{isDemo ? 'Oenovía Local Sandbox' : 'Oenovía Production Silo'}</span></p>
+            <p className="text-stone-500 text-sm font-medium italic">{isDemo ? 'Active Simulation:' : 'Active Node:'} <span className="text-amber-600 font-bold">{isDemo ? 'Vinetelligence Local Sandbox' : 'Vinetelligence Production Silo'}</span></p>
           </div>
         </div>
 
@@ -79,7 +79,8 @@ const OperationsOverview: React.FC<OperationsOverviewProps> = ({
               if (restaurantProfile) {
                 const updated = { ...restaurantProfile, demoMode: 'guest' as const };
                 setRestaurantProfile(updated);
-                localStorage.setItem('intelligence_profile', JSON.stringify(updated));
+                localStorage.setItem('vinetelligence_profile', JSON.stringify(updated));
+                localStorage.setItem('vinea_profile', JSON.stringify(updated));
                 setIsPublicRoute(true);
                 setPublicView('menu');
               }

@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { RestaurantProfile } from '../../lib/types';
-import { ConversationalFlowConfigurator } from './ConversationalFlowConfigurator';
 
 interface AISettingsProps {
   profile: RestaurantProfile | null;
@@ -9,7 +8,7 @@ interface AISettingsProps {
 }
 
 const AISettings: React.FC<AISettingsProps> = ({ profile, onUpdate }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'persona' | 'infrastructure' | 'vision' | 'flow'>('persona');
+  const [activeSubTab, setActiveSubTab] = useState<'persona' | 'infrastructure' | 'vision'>('persona');
 
   // Trait calculation for visual feedback
   const traitIntensity = (profile?.aiTraits?.technical || 50) + (profile?.aiTraits?.creative || 50);
@@ -22,16 +21,15 @@ const AISettings: React.FC<AISettingsProps> = ({ profile, onUpdate }) => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
       {/* Sub-Navigation */}
-      <div className="flex gap-1 p-1 bg-stone-100 rounded-2xl w-fit shadow-inner shrink-0 border border-stone-200/40">
+      <div className="flex gap-1 p-1 bg-stone-100 rounded-2xl w-fit shadow-inner shrink-0">
         {[
           { id: 'persona', label: 'Persona Engine', icon: 'fa-brain' },
-          { id: 'flow', label: 'Flow Configurator', icon: 'fa-diagram-project' },
           { id: 'infrastructure', label: 'Infrastructure', icon: 'fa-microchip' },
           { id: 'vision', label: 'Vision & Audio', icon: 'fa-eye' }
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveSubTab(tab.id as 'persona' | 'infrastructure' | 'vision' | 'flow')}
+            onClick={() => setActiveSubTab(tab.id as 'persona' | 'infrastructure' | 'vision')}
             className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === tab.id ? 'bg-white text-stone-900 shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
           >
             <i className={`fas ${tab.icon} mr-2`}></i>
@@ -209,7 +207,7 @@ const AISettings: React.FC<AISettingsProps> = ({ profile, onUpdate }) => {
                     <div key={toggle.id} className="p-6 bg-stone-50 border border-stone-100 rounded-[2rem] space-y-4">
                        <div className="flex justify-between items-center">
                           <p className="text-[10px] font-black uppercase text-stone-900 tracking-widest">{toggle.label}</p>
-                          <label className="intelligence-switch">
+                          <label className="vinetelligence-switch">
                             <input 
                               type="checkbox" 
                               checked={toggle.id === 'google_auth' ? !!profile?.allowGoogleAuth : (toggle.id === 'pii' || toggle.id === 'search')} 
@@ -219,7 +217,7 @@ const AISettings: React.FC<AISettingsProps> = ({ profile, onUpdate }) => {
                                 }
                               }}
                             />
-                            <span className="intelligence-slider"></span>
+                            <span className="vinetelligence-slider"></span>
                           </label>
                        </div>
                        <p className="text-[10px] text-stone-500 leading-relaxed italic">{toggle.desc}</p>
@@ -311,10 +309,6 @@ const AISettings: React.FC<AISettingsProps> = ({ profile, onUpdate }) => {
               </div>
            </div>
         </div>
-      )}
-
-      {activeSubTab === 'flow' && (
-        <ConversationalFlowConfigurator />
       )}
     </div>
   );

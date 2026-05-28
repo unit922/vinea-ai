@@ -106,14 +106,14 @@ const ExperienceSentinel: React.FC = () => {
     try {
       const apiKey = getApiKey();
       if (!apiKey) {
-        setAiDraft("Intelligence requires a valid API Key to draft responses. Please update your profile settings.");
+        setAiDraft("Vinetelligence Intelligence requires a valid API Key to draft responses. Please update your profile settings.");
         setIsGenerating(false);
         return;
       }
 
       const ai = new GoogleGenAI({ apiKey });
       const prompt = `
-        You are the AI Experience Architect for this high-end luxury establishment.
+        You are the AI Experience Architect for "Vinetelligence", a high-end luxury wine bar.
         Draft a personalized, empathetic, and professional response to the following guest feedback.
         
         Guest Name: ${interaction.guest}

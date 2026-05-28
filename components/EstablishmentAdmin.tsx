@@ -38,11 +38,11 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
   const tierConfig = store.getTierConfig();
 
   const establishment = useMemo<RestaurantProfile>(() => {
-    return restaurantProfile || { id: 'demo-id', name: 'Hospitality Intelligence Venue', edition: 'demo', type: 'Bar', focus: 'Wine', description: '', aiPersona: '', tier: SubscriptionTier.OPERATOR };
+    return restaurantProfile || { id: 'demo-id', name: 'Vinetelligence Venue', edition: 'demo', type: 'Bar', focus: 'Wine', description: '', aiPersona: '', tier: SubscriptionTier.OPERATOR };
   }, [restaurantProfile]);
 
   const [staffList, setStaffList] = useState<StaffShift[]>(() => {
-    const saved = localStorage.getItem('intelligence_staff_list') || localStorage.getItem('oenovia_staff_list') || localStorage.getItem('vinetelligence_staff_list');
+    const saved = localStorage.getItem('vinetelligence_staff_list') || localStorage.getItem('vinea_staff_list');
     const isExplorer = establishment.edition === 'demo';
     return saved ? JSON.parse(saved) : (isExplorer ? INITIAL_SHIFTS.map(s => ({ ...s, email: `${s.name.toLowerCase().replace(' ', '')}@venue.com`, accessStatus: 'Active' })) : []);
   });
@@ -50,7 +50,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
   // Clear demo staff if we just switched to a real establishment
   useEffect(() => {
     if (establishment.edition !== 'demo' && establishment.id !== 'demo-id') {
-      const saved = localStorage.getItem('intelligence_staff_list') || localStorage.getItem('oenovia_staff_list') || localStorage.getItem('vinetelligence_staff_list');
+      const saved = localStorage.getItem('vinetelligence_staff_list') || localStorage.getItem('vinea_staff_list');
       if (!saved) {
         setStaffList([]);
       }
@@ -75,7 +75,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
           setStaffList(mappedStaff);
         }
       } catch (e) {
-        console.error("Intelligence: Failed to fetch cloud roster", e);
+        console.error("Vinetelligence: Failed to fetch cloud roster", e);
       }
     }
   }, [establishment.id, establishment.edition]);
@@ -85,13 +85,9 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
   }, [fetchCloudRoster]);
 
   const [activeTab, setActiveTab] = useState<'roster' | 'billing' | 'facility' | 'labor' | 'system' | 'dev' | 'identity' | 'presentation'>('roster');
-  const [generatedKey, setGeneratedKey] = useState<string | null>(() => localStorage.getItem('intelligence_investor_key') || localStorage.getItem('oenovia_investor_key') || localStorage.getItem('vinetelligence_investor_key'));
+  const [generatedKey, setGeneratedKey] = useState<string | null>(() => localStorage.getItem('vinetelligence_investor_key') || localStorage.getItem('vinea_investor_key'));
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [cursorStack, setCursorStack] = useState<Array<{ billingDate: string; id: string } | null>>([null]);
-  const [currentPageIdx, setCurrentPageIdx] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('Monthly');
   const [showCheckoutModal, setShowCheckoutModal] = useState<PlanTier | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -99,7 +95,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
 
   // Facility & System State
   const [equipment, setEquipment] = useState<EquipmentStatus[]>(() => {
-    const saved = localStorage.getItem('intelligence_equipment') || localStorage.getItem('oenovia_equipment') || localStorage.getItem('vinetelligence_equipment');
+    const saved = localStorage.getItem('vinetelligence_equipment') || localStorage.getItem('vinea_equipment');
     return saved ? JSON.parse(saved) : MOCK_EQUIPMENT;
   });
   const [isCleaning, setIsCleaning] = useState(false);
@@ -115,70 +111,28 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
 
   console.log("Establishment Edition", establishment.edition);
 
-  const fetchPaginatedInvoices = useCallback(async (pageIdx: number, activeCursor: { billingDate: string; id: string } | null) => {
-    if (!establishment.id) return;
-    setIsLoadingInvoices(true);
-    try {
-      if (establishment.edition !== 'demo') {
-        const result = await supabaseSync.pullRestInvoicesCursor(
-          establishment.id,
-          5,
-          activeCursor?.billingDate,
-          activeCursor?.id
-        );
-        setInvoices(result.invoices);
-        setHasMore(result.hasMore);
-        
-        if (result.hasMore && result.lastBillingDate && result.lastId) {
-          setCursorStack(prev => {
-            const nextStack = [...prev];
-            nextStack[pageIdx + 1] = { billingDate: result.lastBillingDate!, id: result.lastId! };
-            return nextStack;
-          });
-        }
-      } else {
-        const mockData = await paymentService.getInvoices();
-        const start = pageIdx * 5;
-        const pagedData = mockData.slice(start, start + 5);
-        setInvoices(pagedData);
-        setHasMore(mockData.length > start + 5);
-      }
-    } catch (e) {
-      console.error("Intelligence: Failed to load paginated invoices", e);
-      try {
-        const data = await paymentService.getInvoices();
-        const start = pageIdx * 5;
-        setInvoices(data.slice(start, start + 5));
-        setHasMore(data.length > start + 5);
-      } catch (mockErr) {
-        console.error(mockErr);
-      }
-    } finally {
-      setIsLoadingInvoices(false);
+  useEffect(() => {
+    if (establishment.id && establishment.edition !== 'demo') {
+      supabaseSync.pullRestaurantInvoices(establishment.id)
+        .then(data => {
+          if (data.length > 0) {
+            setInvoices(data);
+          } else {
+            // Keep empty or fallback to mock for visuals? 
+            // Better to show empty if cloud is primary
+            setInvoices([]);
+          }
+        })
+        .catch(e => {
+          console.error("Vinetelligence: Failed to get cloud invoices", e);
+          paymentService.getInvoices().then(setInvoices);
+        });
+    } else {
+      paymentService.getInvoices()
+        .then(setInvoices)
+        .catch(e => console.error("Vinetelligence: Failed to get invoices", e));
     }
   }, [establishment.id, establishment.edition]);
-
-  useEffect(() => {
-    if (establishment.id) {
-      setCursorStack([null]);
-      setCurrentPageIdx(0);
-      fetchPaginatedInvoices(0, null);
-    }
-  }, [establishment.id, establishment.edition, fetchPaginatedInvoices]);
-
-  const handleNextPage = () => {
-    if (!hasMore) return;
-    const nextIdx = currentPageIdx + 1;
-    setCurrentPageIdx(nextIdx);
-    fetchPaginatedInvoices(nextIdx, cursorStack[nextIdx]);
-  };
-
-  const handlePrevPage = () => {
-    if (currentPageIdx === 0) return;
-    const prevIdx = currentPageIdx - 1;
-    setCurrentPageIdx(prevIdx);
-    fetchPaginatedInvoices(prevIdx, cursorStack[prevIdx]);
-  };
 
   console.log("Invoices loaded", invoices.length);
 
@@ -189,28 +143,25 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
       const res = await supabaseSync.cleanDemoData(establishment.id || 'demo');
       if (res && res.success) {
         // Clear local storage too
-        localStorage.removeItem('intelligence_orders');
-        localStorage.removeItem('intelligence_draft_orders');
-        localStorage.removeItem('intelligence_inventory');
-        localStorage.removeItem('intelligence_journeys');
-        localStorage.removeItem('intelligence_transactions');
-        localStorage.removeItem('intelligence_tables');
-        localStorage.removeItem('intelligence_assignments');
-        localStorage.removeItem('intelligence_staff_list');
-        localStorage.removeItem('intelligence_equipment');
-        localStorage.removeItem('intelligence_profile');
+        localStorage.removeItem('vinetelligence_orders');
+        localStorage.removeItem('vinetelligence_draft_orders');
+        localStorage.removeItem('vinetelligence_inventory');
+        localStorage.removeItem('vinetelligence_journeys');
+        localStorage.removeItem('vinetelligence_transactions');
+        localStorage.removeItem('vinetelligence_tables');
+        localStorage.removeItem('vinetelligence_assignments');
+        localStorage.removeItem('vinetelligence_staff_list');
+        localStorage.removeItem('vinetelligence_equipment');
         
-        // Clear legacy keys
-        localStorage.removeItem('oenovia_orders');
-        localStorage.removeItem('oenovia_draft_orders');
-        localStorage.removeItem('oenovia_inventory');
-        localStorage.removeItem('oenovia_journeys');
-        localStorage.removeItem('oenovia_transactions');
-        localStorage.removeItem('oenovia_tables');
-        localStorage.removeItem('oenovia_assignments');
-        localStorage.removeItem('oenovia_staff_list');
-        localStorage.removeItem('oenovia_equipment');
-        localStorage.removeItem('oenovia_profile');
+        localStorage.removeItem('vinea_orders');
+        localStorage.removeItem('vinea_draft_orders');
+        localStorage.removeItem('vinea_inventory');
+        localStorage.removeItem('vinea_journeys');
+        localStorage.removeItem('vinea_transactions');
+        localStorage.removeItem('vinea_tables');
+        localStorage.removeItem('vinea_assignments');
+        localStorage.removeItem('vinea_staff_list');
+        localStorage.removeItem('vinea_equipment');
         
         setStaffList(INITIAL_SHIFTS);
         setEquipment(MOCK_EQUIPMENT);
@@ -223,7 +174,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
       }
       setCleanFeedback(res);
     } catch (e) {
-      console.error("Intelligence: Purge failed", e);
+      console.error("Vinetelligence: Purge failed", e);
       setCleanFeedback({ success: false, message: "Purge failed. Please check connection." });
     } finally {
       setIsCleaning(false);
@@ -245,7 +196,8 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
   const [inviteRole, setInviteRole] = useState<StaffShift['role']>('Server');
 
   useEffect(() => {
-    localStorage.setItem('intelligence_staff_list', JSON.stringify(staffList));
+    localStorage.setItem('vinetelligence_staff_list', JSON.stringify(staffList));
+    localStorage.setItem('vinea_staff_list', JSON.stringify(staffList));
   }, [staffList]);
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -282,7 +234,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
         setNotification({ message: "Node authorized and invitation relay dispatched.", type: 'success' });
       } catch (e: unknown) {
         const error = e as Error;
-        console.error("Intelligence: Failed to add to roster", e);
+        console.error("Vinetelligence: Failed to add to roster", e);
         setNotification({ message: error.message || "Failed to authorize user in cloud silo.", type: 'error' });
       } finally {
         setIsProcessingPayment(false);
@@ -323,7 +275,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
         setTimeout(() => setNotification(null), 5000);
       }
     } catch (e) {
-      console.error("Intelligence: Payment gateway error", e);
+      console.error("Vinetelligence: Payment gateway error", e);
       setNotification({ message: "Network error during checkout. Please check your connection.", type: 'error' });
       setTimeout(() => setNotification(null), 5000);
     } finally {
@@ -337,7 +289,8 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
         onUpdateProfile('edition', pendingPlan.id);
       } else {
         const updatedProfile = { ...establishment, edition: pendingPlan.id };
-        localStorage.setItem('intelligence_profile', JSON.stringify(updatedProfile));
+        localStorage.setItem('vinetelligence_profile', JSON.stringify(updatedProfile));
+        localStorage.setItem('vinea_profile', JSON.stringify(updatedProfile));
       }
       
       const newInv: Invoice = {
@@ -368,11 +321,12 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
 
   const generateInvestorKey = async () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = 'INTEL-';
+    let result = 'VNTL-';
     for (let i = 0; i < 4; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
     result += '-2026';
     setGeneratedKey(result);
-    localStorage.setItem('intelligence_investor_key', result);
+    localStorage.setItem('vinetelligence_investor_key', result);
+    localStorage.setItem('vinea_investor_key', result);
 
     if (investorEmail && establishment.id && establishment.edition !== 'demo') {
       setIsProcessingPayment(true);
@@ -380,7 +334,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
         await supabaseSync.sendInvestorNotification(investorEmail, establishment.name, result);
         setNotification({ message: "Investor access relay dispatched.", type: 'success' });
       } catch (e) {
-        console.error("Intelligence: Failed to send investor email", e);
+        console.error("Vinetelligence: Failed to send investor email", e);
       } finally {
         setIsProcessingPayment(false);
         setTimeout(() => setNotification(null), 5000);
@@ -487,7 +441,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                     type="text" 
                     value={activationCode}
                     onChange={e => setActivationCode(e.target.value.toUpperCase())}
-                    placeholder="INTEL-XXXX-XXXX-2026"
+                    placeholder="VNTL-XXXX-XXXX-2026"
                     className="w-full px-8 py-5 bg-stone-50 border border-stone-200 rounded-3xl text-center font-mono font-black text-stone-900 tracking-widest focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-inner"
                   />
                 </div>
@@ -634,15 +588,15 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                      </div>
                      <div className="space-y-1">
                         <h4 className="text-lg font-serif font-black italic text-indigo-500">Promotion Logic</h4>
-                        <p className="text-[10px] text-stone-400 font-bold leading-relaxed max-w-sm lowercase tracking-widest">Changes to these fields synchronize instantly with your Social Promo page.</p>
+                        <p className="text-[10px] text-stone-400 font-bold leading-relaxed max-w-sm lowercase tracking-widest">Changes to these fields synchronize instantly with your Vinetelligence Social Promo page.</p>
                      </div>
                   </div>
                   <div className="flex gap-3">
                     <button 
                       onClick={() => {
                         const link = document.createElement('a');
-                        link.href = '/intelligence_logo.svg';
-                        link.download = 'intelligence_logo.svg';
+                        link.href = '/vinetelligence_logo.svg';
+                        link.download = 'vinetelligence_logo.svg';
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
@@ -849,7 +803,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                     <p className="text-indigo-600 text-[8px] font-black uppercase tracking-widest mt-2 px-2 py-0.5 bg-indigo-100 rounded-full inline-block">High-Luxury Technical</p>
                   </div>
                   <p className="text-[10px] text-stone-500 font-bold leading-relaxed italic opacity-80">
-                    "The canonical Hospitality Intelligence experience. Utilizes technical lexicon (Neural Link, Yield Alpha, Scholar Node) and elevated display aesthetics."
+                    "The canonical Vinetelligence experience. Utilizes technical lexicon (Neural Link, Yield Alpha, Scholar Node) and elevated display aesthetics."
                   </p>
                 </button>
 
@@ -996,7 +950,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                         <label className="text-[7px] font-black uppercase text-stone-500 ml-1">Secure Email Relay</label>
                         <input 
                           type="email" required value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
-                          placeholder="ops@intelligence.live" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-indigo-500 transition-all font-bold placeholder:text-stone-700"
+                          placeholder="ops@vinetelligence.live" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-indigo-500 transition-all font-bold placeholder:text-stone-700"
                         />
                      </div>
                      <div className="space-y-1.5">
@@ -1005,10 +959,6 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                            <option value="Server">Floor Ops (Server)</option>
                            <option value="Sommelier">Technical Scholar (Sommelier)</option>
                            <option value="Mixologist">Chemistry Architect (Mixologist)</option>
-                           <option value="Concierge">Guest Journey (Concierge)</option>
-                           <option value="Manager">Operations Lead (Manager)</option>
-                           <option value="Admin">System Admin (Admin)</option>
-                           <option value="Investor">Stakeholder (Investor)</option>
                         </select>
                      </div>
                      <button type="submit" className="w-full py-4 bg-indigo-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95 mt-2">Dispatch Activation</button>
@@ -1142,37 +1092,6 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                          </tbody>
                       </table>
                    </div>
-                   
-                   {/* Dynamic Cursor-Based Pagination HUD */}
-                   <div className="mt-8 flex items-center justify-between border-t border-stone-100 pt-6">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">
-                         Ledger Node Page <span className="font-mono text-xs font-black text-stone-900">0{currentPageIdx + 1}</span>
-                      </span>
-                      <div className="flex gap-2">
-                         <button
-                           onClick={handlePrevPage}
-                           disabled={currentPageIdx === 0 || isLoadingInvoices}
-                           className={`px-4 py-2 border rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
-                             currentPageIdx === 0
-                               ? 'border-stone-100 text-stone-300 bg-stone-50/30 cursor-not-allowed'
-                               : 'border-stone-200 text-stone-600 hover:bg-stone-900 hover:text-white hover:border-stone-900 shadow-sm'
-                           }`}
-                         >
-                            Prev Node
-                         </button>
-                         <button
-                           onClick={handleNextPage}
-                           disabled={!hasMore || isLoadingInvoices}
-                           className={`px-4 py-2 border rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
-                             !hasMore
-                               ? 'border-stone-100 text-stone-300 bg-stone-50/30 cursor-not-allowed'
-                               : 'border-stone-200 text-stone-600 hover:bg-stone-900 hover:text-white hover:border-stone-900 shadow-sm'
-                           }`}
-                         >
-                            Next Node
-                         </button>
-                      </div>
-                   </div>
                 </div>
 
                 <div className="bg-white rounded-[3rem] border border-stone-200 shadow-xl overflow-hidden p-6 md:p-10">
@@ -1264,7 +1183,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                   </div>
                   <h4 className="font-serif font-black italic text-stone-900">Brand Watermark</h4>
                   <p className="text-[10px] text-stone-500 font-bold leading-relaxed italic">
-                    Adds a discrete watermark to the corner of the frame.
+                    Adds a discrete Vinetelligence high-luxury watermark to the corner of the frame.
                   </p>
                 </div>
               </div>
@@ -1280,7 +1199,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
 
             <div className="bg-stone-900 rounded-[3rem] p-10 text-white space-y-8">
               <div className="space-y-2">
-                <h3 className="text-3xl font-serif font-black italic text-indigo-500 leading-none">Hospitality Intelligence</h3>
+                <h3 className="text-3xl font-serif font-black italic text-indigo-500 leading-none">Marketing Intelligence</h3>
                 <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.4em]">Asset Generation for Promotion</p>
               </div>
 
@@ -1288,8 +1207,8 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                 <button 
                   onClick={() => {
                     const link = document.createElement('a');
-                    link.href = '/intelligence_logo.svg';
-                    link.download = 'intelligence_logo.svg';
+                    link.href = '/vinetelligence_logo.svg';
+                    link.download = 'vinetelligence_logo.svg';
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -1340,7 +1259,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                           type="email"
                           value={investorEmail}
                           onChange={(e) => setInvestorEmail(e.target.value)}
-                          placeholder="stakeholder@intelligence.ai"
+                          placeholder="stakeholder@vinetelligence.live"
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all font-bold placeholder:text-stone-700"
                         />
                       </div>

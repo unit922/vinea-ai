@@ -7,9 +7,10 @@ interface OperationsHeaderProps {
   setActiveTab: (tab: 'floor' | 'ordering' | 'checkout' | 'deployment' | 'history' | 'operation' | 'guest' | 'journey' | 'labor' | 'facility' | 'market' | 'system') => void;
   isAdmin: boolean;
   isDeveloper: boolean;
+  isStaff: boolean;
 }
 
-const OperationsHeader: React.FC<OperationsHeaderProps> = ({ activeTab, setActiveTab, isAdmin, isDeveloper }) => {
+const OperationsHeader: React.FC<OperationsHeaderProps> = ({ activeTab, setActiveTab, isAdmin, isDeveloper, isStaff }) => {
   const store = useVinetelligenceStore();
   const tier = store.restaurantProfile?.tier || SubscriptionTier.OPERATOR;
   const isOperator = tier === SubscriptionTier.OPERATOR;
@@ -19,7 +20,7 @@ const OperationsHeader: React.FC<OperationsHeaderProps> = ({ activeTab, setActiv
     { id: 'floor', label: 'Floor', icon: 'fa-chair', show: true },
     { id: 'ordering', label: 'Ordering', icon: 'fa-plus-circle', show: true },
     { id: 'checkout', label: 'Checkout', icon: 'fa-cash-register', show: true },
-    { id: 'deployment', label: 'Staffing', icon: 'fa-users-gear', show: isAdmin || isDeveloper },
+    { id: 'deployment', label: 'Staffing', icon: 'fa-users-gear', show: isAdmin || isDeveloper || isStaff },
     { id: 'journey', label: 'Journeys', icon: 'fa-route', show: true },
     { id: 'guest', label: 'Guests', icon: 'fa-user-group', show: true },
     { id: 'market', label: 'Market', icon: 'fa-globe', show: (isAdmin || isDeveloper) && !isOperator },

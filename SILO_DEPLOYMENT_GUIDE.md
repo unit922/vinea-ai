@@ -22,7 +22,7 @@ This guide is intended for Enterprise IT Departments deploying their own **Cloud
 ### 3. Identity Synthesis (Authentication)
 Vinetelligence uses standard Supabase Auth.
 - **Provider**: Google OAuth (Standard) or Email/Secret.
-- **Redirect URIs**: Must include `https://vinetelligence.live`.
+- **Redirect URIs**: Must include `https://vinetelligence.live` and `https://vinea.live`.
 - **Claims**: The system expects a `restaurant_id` in the `user_metadata` for seamless session restoration.
 
 ### 4. Integration Hub (API Keys)

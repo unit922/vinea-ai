@@ -3,7 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Menu, X, Check, ArrowUp } from 'lucide-react';
 import VinetelligenceLogo from './VinetelligenceLogo';
+import AHLALogo from './AHLALogo';
 import { useVinetelligenceStore } from '../store/vinetelligenceStore';
+import { getPublicBrand } from '../utils/branding';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +15,12 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboarding, onLogin }) => {
+  const brand = getPublicBrand();
+  const primaryTextClass = brand.theme === 'vinea' ? 'text-amber-600' : 'text-indigo-600';
+  const primaryBgClass = brand.theme === 'vinea' ? 'bg-amber-600' : 'bg-indigo-600';
+  const primaryHoverBgClass = brand.theme === 'vinea' ? 'hover:bg-amber-700' : 'hover:bg-indigo-700';
+  const hoverTextClass = brand.theme === 'vinea' ? 'hover:text-amber-600' : 'hover:text-indigo-600';
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const setAIChatOpen = useVinetelligenceStore(state => state.setAIChatOpen);
@@ -63,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
   return (
     <div className="min-h-screen bg-white font-sans selection:bg-indigo-100 selection:text-indigo-900">
       {/* Mobile Experience Notice */}
-      <div className="md:hidden bg-indigo-600 text-white px-6 py-3 flex items-center justify-between gap-4 sticky top-0 z-[60]">
+      <div className={`md:hidden ${primaryBgClass} text-white px-6 py-3 flex items-center justify-between gap-4 sticky top-0 z-[60]`}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
             <i className="fas fa-laptop text-xs"></i>
@@ -76,11 +84,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
 
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-200">
-        <div className="absolute bottom-0 left-0 h-0.5 bg-indigo-600 transition-all duration-150 ease-out" style={{ width: `${progress}%` }}></div>
+        <div className={`absolute bottom-0 left-0 h-0.5 ${primaryBgClass} transition-all duration-150 ease-out`} style={{ width: `${progress}%` }}></div>
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
-            <VinetelligenceLogo size="sm" withText={false} className="text-indigo-600 group-hover:scale-110 transition-transform" />
-            <span className="text-xl font-serif font-black tracking-tighter italic">Vinetelligence</span>
+            <VinetelligenceLogo size="sm" withText={false} className={`${primaryTextClass} group-hover:scale-110 transition-transform`} />
+            <span className="text-xl font-serif font-black tracking-tighter italic">{brand.name}</span>
           </Link>
           
           <div className="hidden md:flex items-center gap-10">
@@ -88,7 +96,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
               <Link 
                 key={link.path} 
                 to={link.path} 
-                className={`text-[10px] font-black uppercase tracking-widest transition-colors ${location.pathname === link.path ? 'text-indigo-600' : 'hover:text-indigo-600'}`}
+                className={`text-[10px] font-black uppercase tracking-widest transition-colors ${location.pathname === link.path ? primaryTextClass : hoverTextClass}`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 {link.name}
@@ -99,14 +107,18 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
           <div className="flex items-center gap-4">
             <button 
               onClick={() => {
-                if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence.live')) {
-                  window.location.href = 'https://vinea.live?mode=login';
+                if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence')) {
+                  localStorage.setItem('platform_selected_app', 'vinetelligence');
+                  const newUrl = new URL(window.location.href);
+                  newUrl.searchParams.set('mode', 'login');
+                  window.history.replaceState({}, '', newUrl.toString());
+                  window.location.reload();
                   return;
                 }
                 onLogin?.();
                 setIsMobileMenuOpen(false);
               }}
-              className="text-[10px] font-black uppercase tracking-widest text-stone-600 hover:text-indigo-600 transition-colors hidden sm:block mr-4"
+              className={`text-[10px] font-black uppercase tracking-widest text-stone-600 ${hoverTextClass} transition-colors hidden sm:block mr-4`}
             >
               Sign In to your establishment
             </button>
@@ -127,7 +139,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
                 }
                 setIsMobileMenuOpen(false);
               }}
-              className="hidden sm:block px-6 py-2.5 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
+              className={`hidden sm:block px-6 py-2.5 ${primaryBgClass} ${primaryHoverBgClass} text-white rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95`}
             >
               Get Started
             </button>
@@ -157,8 +169,12 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
                 ))}
                 <button 
                   onClick={() => {
-                    if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence.live')) {
-                      window.location.href = 'https://vinea.live?mode=login';
+                    if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence')) {
+                      localStorage.setItem('platform_selected_app', 'vinetelligence');
+                      const newUrl = new URL(window.location.href);
+                      newUrl.searchParams.set('mode', 'login');
+                      window.history.replaceState({}, '', newUrl.toString());
+                      window.location.reload();
                       return;
                     }
                     onLogin?.();
@@ -207,17 +223,25 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
           <div className="col-span-2 lg:col-span-2 space-y-10">
             <div className="flex items-center gap-2">
               <VinetelligenceLogo size="sm" withText={false} className="text-stone-900" />
-              <span className="text-xl font-serif font-black tracking-tighter italic">Vinetelligence</span>
+              <span className="text-xl font-serif font-black tracking-tighter italic">{brand.name}</span>
             </div>
             <p className="text-sm font-medium text-stone-500 leading-relaxed max-w-sm italic">
-               Empowering premium establishments with neural operating systems, predictive inventory nodes, and intelligent hospitality optimization. <br />
+               {brand.theme === 'vinea' 
+                 ? "Empowering premium establishments with fine-wine and hospitality service intelligence, live cellar inventory mapping, and neural guidelines." 
+                 : "Empowering premium establishments with AI-powered operating systems, predictive inventory tools, and intelligent hospitality optimization."} <br />
                Fueling Flavor & Success since 2024.
             </p>
-            <div className="pt-6 border-t border-stone-200">
-               <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">Member of</p>
-               <div className="flex gap-4 items-center grayscale opacity-50">
-                  <span className="text-[10px] font-black italic">Global Tech Hub</span>
-                  <span className="text-[10px] font-black italic">Hospitality Intelligence Group</span>
+            <div className="pt-6 border-t border-stone-200 space-y-4">
+               <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Official Member & Strategic Alliance</p>
+               <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2 grayscale brightness-90 opacity-60 hover:opacity-100 hover:grayscale-0 transition-all">
+                     <AHLALogo height={22} theme="color" />
+                  </div>
+                  <div className="flex gap-4 items-center grayscale opacity-40 text-stone-400">
+                     <span className="text-[10px] font-black italic">Global Tech Hub</span>
+                     <span className="text-[10px] font-black italic">•</span>
+                     <span className="text-[10px] font-black italic">Hospitality Intelligence Group</span>
+                  </div>
                </div>
             </div>
           </div>
@@ -225,39 +249,67 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
           <div>
             <h5 className="text-[10px] font-black uppercase tracking-widest text-stone-900 mb-10">Solutions</h5>
             <div className="flex flex-col gap-6 text-sm font-bold text-stone-400">
-              <Link to="/intelligence" className="hover:text-indigo-600">Yield Intelligence</Link>
-              <Link to="/academy" className="hover:text-indigo-600">Growth Academy</Link>
-              <Link to="/pricing" className="hover:text-indigo-600">Growth Plans</Link>
+              <Link to="/intelligence" className={`hover:${primaryTextClass}`}>Yield Intelligence</Link>
+              <Link to="/academy" className={`hover:${primaryTextClass}`}>Growth Academy</Link>
+              <Link to="/pricing" className={`hover:${primaryTextClass}`}>Growth Plans</Link>
             </div>
           </div>
 
           <div>
             <h5 className="text-[10px] font-black uppercase tracking-widest text-stone-900 mb-10">Corporate</h5>
             <div className="flex flex-col gap-6 text-sm font-bold text-stone-400">
-              <Link to="/corporate" className="hover:text-indigo-600">Company HQ</Link>
-              <a href="/competitor-matrix.html" target="_blank" className="hover:text-indigo-600">Competitive Edge (PDF)</a>
-              <button onClick={() => setActiveModal('privacy')} className="text-left hover:text-indigo-600">Privacy Protocol</button>
-              <button onClick={() => setActiveModal('terms')} className="text-left hover:text-indigo-600">Terms of Intel</button>
+              <Link to="/corporate" className={`hover:${primaryTextClass}`}>Company HQ</Link>
+              <a href="/competitor-matrix.html" target="_blank" className={`hover:${primaryTextClass}`}>Competitive Edge (PDF)</a>
+              <button onClick={() => setActiveModal('privacy')} className={`text-left hover:${primaryTextClass}`}>Privacy Protocol</button>
+              <button onClick={() => setActiveModal('terms')} className={`text-left hover:${primaryTextClass}`}>Terms of Intel</button>
             </div>
           </div>
 
           <div>
             <h5 className="text-[10px] font-black uppercase tracking-widest text-stone-900 mb-10">Ecosystem</h5>
             <div className="flex flex-col gap-6 text-sm font-bold text-stone-400">
-              {typeof window !== 'undefined' && window.location.hostname.includes('vinea.live') ? (
-                <a href="https://vinetelligence.live" className="hover:text-indigo-600">Marketing site</a>
+              {typeof window !== 'undefined' && (window.location.hostname.includes('vinea.live') || (localStorage.getItem('platform_selected_app') === 'vinea' && !window.location.hostname.includes('vinetelligence.live') && !window.location.hostname.includes('vinea.live'))) ? (
+                typeof window !== 'undefined' && !window.location.hostname.includes('vinetelligence.live') && !window.location.hostname.includes('vinea.live') ? (
+                  <button 
+                    onClick={() => {
+                      localStorage.setItem('platform_selected_app', 'marketing');
+                      window.location.href = '/?app=marketing';
+                    }}
+                    className={`text-left hover:${primaryTextClass}`}
+                  >
+                    Vinetelligence Platform
+                  </button>
+                ) : (
+                  <a href="https://vinetelligence.live" className={`hover:${primaryTextClass}`}>Vinetelligence Platform</a>
+                )
               ) : (
-                <a href="https://vinea.live" className="hover:text-indigo-600">Vinea App Platform</a>
+                typeof window !== 'undefined' && !window.location.hostname.includes('vinetelligence.live') && !window.location.hostname.includes('vinea.live') ? (
+                  <button 
+                    onClick={() => {
+                      localStorage.setItem('platform_selected_app', 'vinea');
+                      window.location.href = '/?app=vinea';
+                    }}
+                    className={`text-left hover:${primaryTextClass}`}
+                  >
+                    Vinea App Platform
+                  </button>
+                ) : (
+                  <a href="https://vinea.live" className={`hover:${primaryTextClass}`}>Vinea App Platform</a>
+                )
               )}
               <button 
                 onClick={() => {
-                  if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence.live')) {
-                    window.location.href = 'https://vinea.live?mode=login';
+                  if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence')) {
+                    localStorage.setItem('platform_selected_app', 'vinetelligence');
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('mode', 'login');
+                    window.history.replaceState({}, '', newUrl.toString());
+                    window.location.reload();
                     return;
                   }
                   onLogin?.();
                 }}
-                className="text-left hover:text-indigo-600"
+                className={`text-left hover:${primaryTextClass}`}
               >
                 Sign In to your establishment
               </button>

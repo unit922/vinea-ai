@@ -10,17 +10,17 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onClose }) => {
 
   const steps = [
       {
-        title: "Welcome to Intelligence",
+        title: "Welcome to Vinetelligence Intelligence",
         subtitle: "The Future of Hospitality Management",
         icon: "fa-rocket",
-        content: "Intelligence is a multi-silo generative AI ecosystem designed to bridge the gap between technical data and hospitality excellence. Whether you are an Explorer or a Visionary, we empower your establishment through neural insights.",
+        content: "Vinetelligence is a multi-silo generative AI ecosystem designed to bridge the gap between technical data and hospitality excellence. Whether you are an Explorer or a Visionary, we empower your establishment through neural insights.",
         instruction: "The platform is organized into distinct 'Intelligence Nodes' found on the left sidebar. Explore them to see how AI transforms your daily operations."
       },
     {
       title: "Establishment Persona",
       subtitle: "Your AI, Your Vibe",
       icon: "fa-sliders",
-        content: "In the 'Profile' section, you can configure your establishment's AI Persona. Choose 'Technical' for precision or 'Playful' for a more engaging staff experience. Your choice dictates how Intelligence communicates with your team.",
+        content: "In the 'Profile' section, you can configure your establishment's AI Persona. Choose 'Technical' for precision or 'Playful' for a more engaging staff experience. Your choice dictates how Vinetelligence communicates with your team.",
       instruction: "Go to Profile to set your Tagline and AI Persona. Higher tiers unlock 'Dedicated Model Tuning' for bespoke brand alignment."
     },
       {
@@ -41,7 +41,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onClose }) => {
         title: "Palate Mapping",
         subtitle: "Guest Intelligence DNA",
         icon: "fa-fingerprint",
-        content: "Intelligence uses biometric hints and past interactions to generate 'Guest Palate DNA'. We derive bespoke 3-course beverage journeys with specific cultural etiquette notes for every guest.",
+        content: "Vinetelligence uses biometric hints and past interactions to generate 'Guest Palate DNA'. We derive bespoke 3-course beverage journeys with specific cultural etiquette notes for every guest.",
         instruction: "Access 'Guest Journeys' to see your current guest roster. Click on a guest to generate an AI-powered beverage journey matched to their specific profile."
       },
     {
@@ -55,7 +55,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onClose }) => {
         title: "Neural Coaching",
         subtitle: "Always-On Training",
         icon: "fa-graduation-cap",
-        content: "The Intelligence Coach provides instant feedback and training for your staff. From cocktail masterclasses to wine service etiquette, knowledge is just one neural link away.",
+        content: "The Vinetelligence Coach provides instant feedback and training for your staff. From cocktail masterclasses to wine service etiquette, knowledge is just one neural link away.",
         instruction: "Visit the 'Social & Training' hub to access masterclasses or query the AI Avatar for instant beverage wisdom."
       }
   ];

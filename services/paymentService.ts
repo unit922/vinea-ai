@@ -4,8 +4,8 @@ import { PlanTier, Invoice, PaymentMethod, BillingCycle } from '../lib/types';
 export const PAYMENT_PLANS: PlanTier[] = [
   {
     id: 'operator',
-    name: 'The Essential',
-    price: 149,
+    name: 'Operator',
+    price: 49,
     tokens: 1000000,
     visionAudits: 20,
     users: 5,
@@ -14,8 +14,8 @@ export const PAYMENT_PLANS: PlanTier[] = [
   },
   {
     id: 'visionary',
-    name: 'The Growth',
-    price: 499,
+    name: 'Visionary',
+    price: 199,
     tokens: 10000000,
     visionAudits: 100,
     users: 25,
@@ -68,9 +68,9 @@ export const paymentService = {
 
   async getInvoices(): Promise<Invoice[]> {
     return [
-      { id: 'INV-3892', date: '2025-03-01', amount: 499, status: 'Paid', method: 'Stripe' },
-      { id: 'INV-3744', date: '2025-02-01', amount: 499, status: 'Paid', method: 'PayPal' },
-      { id: 'INV-3690', date: '2025-01-01', amount: 499, status: 'Paid', method: 'Credit & Debit Card' },
+      { id: 'INV-3892', date: '2025-03-01', amount: 199, status: 'Paid', method: 'Stripe' },
+      { id: 'INV-3744', date: '2025-02-01', amount: 199, status: 'Paid', method: 'PayPal' },
+      { id: 'INV-3690', date: '2025-01-01', amount: 199, status: 'Paid', method: 'Credit & Debit Card' },
       { id: 'INV-3511', date: '2024-12-01', amount: 899, status: 'Paid', method: 'Bank' },
     ];
   },

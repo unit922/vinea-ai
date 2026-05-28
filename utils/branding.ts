@@ -31,9 +31,12 @@ export type BrandedTerm =
   | 'yield_alpha_suggestions'
   | 'registry_node'
   | 'cloud_silo'
-  | 'vision_audit_node'
-  | 'pacing_mode'
-  | 'facility_assets';
+  | 'vision_audit_node' 
+  | 'pacing_mode' 
+  | 'facility_assets'
+  | 'dispatch'
+  | 'integration_hub'
+  | 'trend_intelligence';
 
 const ELITE_TERMS: Record<BrandedTerm, string> = {
   synthesizing: "Synthesizing Response",
@@ -67,7 +70,10 @@ const ELITE_TERMS: Record<BrandedTerm, string> = {
   cloud_silo: "Cloud Silo",
   vision_audit_node: "Vision Audit Node",
   pacing_mode: "Neural Pacing",
-  facility_assets: "Facility Assets"
+  facility_assets: "Facility Assets",
+  dispatch: "Omnichannel Dispatch",
+  integration_hub: "Integration Hub",
+  trend_intelligence: "Trend Intelligence"
 };
 
 const LIGHT_TERMS: Record<BrandedTerm, string> = {
@@ -102,7 +108,10 @@ const LIGHT_TERMS: Record<BrandedTerm, string> = {
   cloud_silo: "Secure Cloud",
   vision_audit_node: "Quick Audit",
   pacing_mode: "Serving Speed",
-  facility_assets: "Equipment"
+  facility_assets: "Equipment",
+  dispatch: "Guest Outreach Desk",
+  integration_hub: "Connected Software Systems",
+  trend_intelligence: "Industry Trends Hub"
 };
 
 export const getBrandedTerm = (key: BrandedTerm, profile?: RestaurantProfile): string => {
@@ -219,3 +228,74 @@ export const getAestheticExplanation = (term: string): string => {
   };
   return explanations[term] || "";
 };
+
+export interface PublicBrand {
+  name: string;
+  shortName: string;
+  tagline: string;
+  description: string;
+  primaryColor: string; // Tailwind color class stem (e.g. indigo vs amber)
+  accentColor: string;
+  bgGradient: string;
+  theme: 'vinetelligence' | 'vinea';
+}
+
+export const getPublicBrand = (): PublicBrand => {
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const storedApp = typeof window !== 'undefined' ? localStorage.getItem('platform_selected_app') : '';
+  
+  // 1. Production hostnames ALWAYS take absolute priority to prevent multi-tenant app crossover
+  if (hostname.includes('vinetelligence.live')) {
+    return {
+      name: "Vinetelligence",
+      shortName: "Vinetelligence",
+      tagline: "AI-Powered Operating System for Beverage Operations",
+      description: "Vinetelligence: A comprehensive AI-powered system for restaurant and beverage operations. Specialized in beverage intelligence, predictive inventory, and neural training protocols.",
+      primaryColor: "indigo",
+      accentColor: "indigo",
+      bgGradient: "from-indigo-950/20 to-slate-900/10",
+      theme: 'vinetelligence'
+    };
+  }
+
+  if (hostname.includes('vinea.live')) {
+    return {
+      name: "Vinea AI",
+      shortName: "Vinea",
+      tagline: "Fine Wine & Hospitality Service Intelligence",
+      description: "Vinea AI: Modern Hospitality Operating System. Unified guest operations, live cellar inventory synchronizations, and neural service guidelines.",
+      primaryColor: "amber",
+      accentColor: "amber",
+      bgGradient: "from-amber-950/20 to-stone-900/10",
+      theme: 'vinea'
+    };
+  }
+
+  // 2. Dev / Sandbox Fallback using storedApp
+  const isVinea = hostname.includes('vinea') || storedApp === 'vinea';
+
+  if (isVinea) {
+    return {
+      name: "Vinea AI",
+      shortName: "Vinea",
+      tagline: "Fine Wine & Hospitality Service Intelligence",
+      description: "Vinea AI: Modern Hospitality Operating System. Unified guest operations, live cellar inventory synchronizations, and neural service guidelines.",
+      primaryColor: "amber",
+      accentColor: "amber",
+      bgGradient: "from-amber-950/20 to-stone-900/10",
+      theme: 'vinea'
+    };
+  }
+
+  return {
+    name: "Vinetelligence",
+    shortName: "Vinetelligence",
+    tagline: "AI-Powered Operating System for Beverage Operations",
+    description: "Vinetelligence: A comprehensive AI-powered system for restaurant and beverage operations. Specialized in beverage intelligence, predictive inventory, and neural training protocols.",
+    primaryColor: "indigo",
+    accentColor: "indigo",
+    bgGradient: "from-indigo-950/20 to-slate-900/10",
+    theme: 'vinetelligence'
+  };
+};
+

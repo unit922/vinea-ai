@@ -23,12 +23,30 @@ export interface MewsReservation {
 class MewsService {
   private baseUrl = '/api/mews';
 
+  private getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const savedConfig = localStorage.getItem('vinetelligence_mews_config');
+    if (savedConfig) {
+      try {
+        const parsed = JSON.parse(savedConfig);
+        if (parsed.endpoint) headers['x-mews-endpoint'] = parsed.endpoint;
+        if (parsed.clientToken) headers['x-mews-client-token'] = parsed.clientToken;
+        if (parsed.accessToken) headers['x-mews-access-token'] = parsed.accessToken;
+      } catch (e) {
+        console.error('Failed to parse saved Mews configuration:', e);
+      }
+    }
+    return headers;
+  }
+
   /**
    * Check if the neural link to Mews is configured
    */
   async getStatus() {
     try {
-      const response = await fetch(`${this.baseUrl}/status`);
+      const response = await fetch(`${this.baseUrl}/status`, {
+        headers: this.getHeaders()
+      });
       return await response.json();
     } catch (error) {
       console.error('Mews Neural Link Status Error:', error);
@@ -44,7 +62,7 @@ class MewsService {
     try {
       const response = await fetch(`${this.baseUrl}/customers/get`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(filter)
       });
       
@@ -68,7 +86,7 @@ class MewsService {
     try {
       const response = await fetch(`${this.baseUrl}/reservations/get`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(filter)
       });
       
@@ -97,7 +115,7 @@ class MewsService {
     try {
       const response = await fetch(`${this.baseUrl}/orders/add`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(orderData)
       });
       

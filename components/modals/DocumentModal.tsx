@@ -71,10 +71,10 @@ const DocumentModal: React.FC<DocumentModalProps> = ({ type, invoice, profile, o
                <div className="space-y-4">
                   <h1 className="text-3xl font-serif font-black italic text-stone-900 tracking-tighter">Vinetelligence</h1>
                   <div className="text-[10px] text-stone-500 font-medium leading-relaxed">
-                     <p>Global Intelligence Network</p>
-                     <p>Software Support Operations</p>
-                     <p>Cloud Node Integration</p>
-                     <p>business@vinetelligence.live</p>
+                     <p>Vinetelligence Network Command</p>
+                     <p>100 Neural Node Way, Silicon Silo</p>
+                     <p>San Francisco, CA 94105</p>
+                     <p>compliance@vinetelligence.live</p>
                   </div>
                </div>
                <div className="text-right space-y-1">
@@ -118,7 +118,7 @@ const DocumentModal: React.FC<DocumentModalProps> = ({ type, invoice, profile, o
                   <tbody className="divide-y divide-stone-50">
                      <tr>
                         <td className="py-6">
-                           <p className="text-sm font-black text-stone-900">Beverage Academy & AI Intelligence</p>
+                           <p className="text-sm font-black text-stone-900">Vinetelligence Academy & AI Intelligence</p>
                            <p className="text-[10px] text-stone-400 font-medium italic mt-1">Tier: {profile.edition.toUpperCase()} subscription renewal</p>
                         </td>
                         <td className="py-6 text-right text-sm font-bold text-stone-600">1</td>
@@ -155,7 +155,7 @@ const DocumentModal: React.FC<DocumentModalProps> = ({ type, invoice, profile, o
                   <i className="fas fa-shield-halved text-2xl"></i>
                </div>
                <p className="text-[10px] text-stone-400 italic font-medium leading-relaxed max-w-sm mx-auto">
-                  "This document serves as an official record of the Vinetelligence transaction. All neural protocols successfully synchronized."
+                  "This document serves as an official record of the Vinetelligence Network transaction. All neural protocols successfully synchronized."
                </p>
             </div>
 

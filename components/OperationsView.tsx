@@ -37,8 +37,9 @@ const OperationsView: React.FC<OperationsViewProps> = ({
   const store = useVinetelligenceStore();
   const logic = useOperationsLogic();
   
-  const isAdmin = ['Owner', 'Manager', 'Developer', 'Admin'].includes(store.currentUserRole || '');
+  const isAdmin = ['Owner', 'Manager', 'Developer', 'Investor'].includes(store.currentUserRole || '');
   const isDeveloper = store.currentUserRole === 'Developer';
+  const isStaff = ['Server', 'Sommelier', 'Mixologist', 'Concierge'].includes(store.currentUserRole || '');
   const isReadOnly = !isAdmin && !isDeveloper;
   const isDemo = store.authMode === 'demo';
   const tier = store.restaurantProfile?.tier || SubscriptionTier.OPERATOR;
@@ -74,6 +75,7 @@ const OperationsView: React.FC<OperationsViewProps> = ({
           setActiveTab={logic.setActiveTab} 
           isAdmin={isAdmin} 
           isDeveloper={isDeveloper} 
+          isStaff={isStaff} 
         />
       </div>
 

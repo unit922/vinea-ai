@@ -24,8 +24,9 @@ export enum AppView {
   SENTIMENT = 'sentiment',
   EXPERIENCE_SENTINEL = 'experience-sentinel',
   COMPETITORS = 'competitors',
+  DISPATCH = 'dispatch',
   INTEGRATION_HUB = 'integration-hub',
-  DISPATCH_DESK = 'dispatch-desk'
+  TREND_INTELLIGENCE = 'trend-intelligence'
 }
 
 export type OrderSource = 'Staff' | 'Visitor';
@@ -340,7 +341,6 @@ export interface GuestProfile {
   dietaryRestrictions: string;
   pastOrders: string;
   pairingStyle: 'Classic' | 'Adventurous' | 'Zero-Proof';
-  avatarUrl?: string;
 }
 
 export interface PersonalizationRecommendation {
@@ -437,7 +437,7 @@ export interface TierConfig {
 
 export const TIER_CONFIGS: Record<SubscriptionTier, TierConfig> = {
   [SubscriptionTier.OPERATOR]: {
-    name: 'The Essential',
+    name: 'Operator',
     maxUsers: 5,
     maxInventory: 30,
     maxTables: 10,
@@ -447,10 +447,7 @@ export const TIER_CONFIGS: Record<SubscriptionTier, TierConfig> = {
       AppView.BAR_STATION,
       AppView.CONCIERGE,
       AppView.STAFFING,
-      AppView.GUEST_PROFILE,
-      AppView.DISPATCH_DESK,
       AppView.TRAINING,
-      AppView.ESTABLISHMENT_ADMIN,
       AppView.SETTINGS
     ],
     allowAI: false,
@@ -458,7 +455,7 @@ export const TIER_CONFIGS: Record<SubscriptionTier, TierConfig> = {
     financialReporting: 'Basic'
   },
   [SubscriptionTier.VISIONARY]: {
-    name: 'The Growth',
+    name: 'Visionary',
     maxUsers: 25,
     maxInventory: 150,
     maxTables: 40,
@@ -468,8 +465,6 @@ export const TIER_CONFIGS: Record<SubscriptionTier, TierConfig> = {
       AppView.BAR_STATION,
       AppView.CONCIERGE,
       AppView.TRAINING,
-      AppView.GUEST_PROFILE,
-      AppView.DISPATCH_DESK,
       AppView.RETENTION,
       AppView.VISION_AUDITOR,
       AppView.STAFFING,
@@ -487,11 +482,11 @@ export const TIER_CONFIGS: Record<SubscriptionTier, TierConfig> = {
     financialReporting: 'Advanced'
   },
   [SubscriptionTier.ENTERPRISE]: {
-    name: 'The Enterprise',
+    name: 'Enterprise',
     maxUsers: 999,
     maxInventory: 9999,
     maxTables: 999,
-    features: [...Object.values(AppView), AppView.INTEGRATION_HUB],
+    features: Object.values(AppView),
     allowAI: true,
     marketingSuite: true,
     financialReporting: 'Predictive'

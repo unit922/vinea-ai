@@ -17,37 +17,34 @@ interface MasterAdminProps {
   mode?: 'saas' | 'ledger';
 }
 
+interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  location: string;
+  role: string;
+  score: number;
+  downloads: number;
+  date: string;
+  source?: string;
+}
+
 const MasterAdmin: React.FC<MasterAdminProps> = ({ 
   isDeveloper = false, 
   initialTab = 'nodes',
   mode = 'saas'
 }) => {
   const [registry, setRegistry] = useState<EstablishmentRegistry[]>(() => {
-    const saved = localStorage.getItem('intelligence_master_registry') || localStorage.getItem('oenovia_master_registry');
+    const saved = localStorage.getItem('vinetelligence_master_registry') || localStorage.getItem('vinea_master_registry');
     return saved ? JSON.parse(saved) : MOCK_REGISTRY;
   });
-
-  const [networkStats, setNetworkStats] = useState({
-    uptime: '99.9%',
-    load: '32%',
-    latency: '14ms'
-  });
-
-  useEffect(() => {
-    // Simulate real-time heartbeat updates for the "Command Center" feel
-    const interval = setInterval(() => {
-      setNetworkStats(prev => ({
-        ...prev,
-        load: `${Math.floor(25 + Math.random() * 15)}%`,
-        latency: `${Math.floor(10 + Math.random() * 8)}ms`
-      }));
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-  const [activeTab, setActiveTab] = useState<'nodes' | 'ledger' | 'security'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'nodes' | 'ledger' | 'security' | 'leads'>(initialTab as 'nodes' | 'ledger' | 'security' | 'leads');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
     show: boolean;
     title: string;
@@ -96,10 +93,10 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
         setRegistry(cloudData);
       } else if (cloudData === null) {
         // Silo missing or empty, keep local/mock data
-        console.warn("Intelligence: Cloud Silo inactive. Using local node registry.");
+        console.warn("Vinetelligence: Cloud Silo inactive. Using local node registry.");
       }
     } catch (e) {
-      console.error("Intelligence: Cloud Sync Failed", e);
+      console.error("Vinetelligence: Cloud Sync Failed", e);
     } finally {
       setIsSyncing(false);
     }
@@ -119,7 +116,8 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('oenovia_master_registry', JSON.stringify(registry));
+    localStorage.setItem('vinetelligence_master_registry', JSON.stringify(registry));
+    localStorage.setItem('vinea_master_registry', JSON.stringify(registry));
     supabaseSync.pullSaaSInvoices()
       .then(fetchedInvoices => {
         // Only set invoices if we get data from cloud
@@ -127,10 +125,25 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
         setInvoices(fetchedInvoices);
       })
       .catch(e => {
-        console.error("Intelligence: Failed to get invoices from Supabase", e);
+        console.error("Vinetelligence: Failed to get invoices from Supabase", e);
         paymentService.getInvoices().then(setInvoices);
       });
   }, [registry]);
+
+  useEffect(() => {
+    if (activeTab === 'leads') {
+      setIsLoadingLeads(true);
+      fetch('/api/leads')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setLeads(data);
+          }
+        })
+        .catch(err => console.error("Failed to load leads", err))
+        .finally(() => setIsLoadingLeads(false));
+    }
+  }, [activeTab]);
 
   const updateStatus = async (id: string, status: EstablishmentStatus) => {
     const performUpdate = async () => {
@@ -144,7 +157,7 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
           syncWithCloud();
         }
       } catch (e) {
-        console.error("Intelligence: Error updating status", e);
+        console.error("Vinetelligence: Error updating status", e);
         showNotification("Error", "An error occurred while updating the status.", "danger");
         syncWithCloud();
       }
@@ -153,7 +166,7 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
     if (status === 'Suspended') {
       askConfirmation(
         'Suspend Establishment',
-        'Are you sure you want to suspend this establishment? This will restrict their access to the Intelligence platform.',
+        'Are you sure you want to suspend this establishment? This will restrict their access to the Vinetelligence platform.',
         performUpdate,
         'danger',
         'Suspend'
@@ -168,8 +181,8 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
       showNotification("Missing Data", "No owner email found for this establishment.", "info");
       return;
     }
-    const subject = encodeURIComponent(`Intelligence Network Intelligence: ${name}`);
-    const body = encodeURIComponent(`Hello,\n\nThis is an automated message from Intelligence Network Command regarding your establishment: ${name}.\n\n`);
+    const subject = encodeURIComponent(`Vinetelligence Network Intelligence: ${name}`);
+    const body = encodeURIComponent(`Hello,\n\nThis is an automated message from Vinetelligence Network Command regarding your establishment: ${name}.\n\n`);
     window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
   };
 
@@ -197,7 +210,7 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
             showNotification("Error", result.message, "danger");
           }
         } catch (e) {
-          console.error("Intelligence: Delete failed", e);
+          console.error("Vinetelligence: Delete failed", e);
           showNotification("Error", "An error occurred during deletion.", "danger");
         } finally {
           setIsSyncing(false);
@@ -223,7 +236,7 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
             showNotification("Purge Failed", result.message, "danger");
           }
         } catch (e) {
-          console.error("Intelligence: Purge failed", e);
+          console.error("Vinetelligence: Purge failed", e);
           showNotification("Error", "An error occurred during purge.", "danger");
         } finally {
           setIsSyncing(false);
@@ -249,7 +262,7 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
             showNotification("Purge Failed", result.message, "danger");
           }
         } catch (e) {
-          console.error("Intelligence: Ledger Purge failed", e);
+          console.error("Vinetelligence: Ledger Purge failed", e);
           showNotification("Error", "An error occurred during ledger purge.", "danger");
         } finally {
           setIsSyncing(false);
@@ -361,6 +374,7 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
              {mode === 'saas' ? (
                <>
                  <button onClick={() => setActiveTab('nodes')} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'nodes' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}>Node Registry</button>
+                 <button onClick={() => setActiveTab('leads')} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'leads' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}>Tracked Audits & Leads</button>
                  <button onClick={() => setActiveTab('security')} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'security' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}>Network Security</button>
                </>
              ) : (
@@ -374,8 +388,8 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
         {[
           { label: 'Active Silos', value: stats.active, icon: 'fa-server', color: 'text-emerald-500' },
           { label: 'Total Network MRR', value: `${stats.revenue.toLocaleString()}`, icon: 'fa-vault', color: 'text-blue-500' },
-          { label: 'API Load Index', value: networkStats.load, icon: 'fa-microchip', color: 'text-indigo-500' },
-          { label: 'Network Uptime', value: networkStats.uptime, icon: 'fa-heart-pulse', color: 'text-indigo-500' },
+          { label: 'API Load Index', value: '32%', icon: 'fa-microchip', color: 'text-indigo-500' },
+          { label: 'Network Uptime', value: '99.9%', icon: 'fa-heart-pulse', color: 'text-indigo-500' },
         ].map((stat, i) => (
           <div key={i} className="bg-stone-900 border border-white/5 p-6 rounded-3xl shadow-xl hover:scale-[1.02] transition-transform">
             <p className="text-[10px] font-black uppercase text-stone-500 mb-1 tracking-widest">{stat.label}</p>
@@ -505,7 +519,7 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                  <div>
                     <h3 className="text-2xl font-serif font-bold text-stone-900 italic">Global Network Revenue</h3>
-                    <p className="text-stone-500 text-sm font-medium italic">Consolidated ledger for all Intelligence establishment SaaS nodes.</p>
+                    <p className="text-stone-500 text-sm font-medium italic">Consolidated ledger for all Vinetelligence establishment SaaS nodes.</p>
                  </div>
                  <div className="flex flex-col sm:flex-row gap-3">
                     <button className="px-8 py-3 bg-stone-100 text-stone-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-stone-200 transition-all">Export Net Rev</button>
@@ -603,6 +617,87 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
           </div>
         )}
 
+        {activeTab === 'leads' && (
+           <div className="flex-1 p-12 overflow-y-auto custom-scrollbar space-y-8 flex flex-col">
+              <div className="flex justify-between items-end shrink-0">
+                 <div className="space-y-2">
+                    <h3 className="text-2xl font-serif font-bold text-stone-900 italic">Pre-Sales Lead Acquiring & Audit Downloads</h3>
+                    <p className="text-stone-500 text-sm italic font-medium">Tracks who downloaded the Operational self-assessment checklists or requested custom reports, including score outputs and access frequency measurements.</p>
+                 </div>
+                 <div className="flex bg-stone-100 p-1.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] uppercase font-black px-3 py-1 bg-white shadow-sm rounded-lg text-indigo-650">Active Campaign Grounding</span>
+                 </div>
+              </div>
+
+              {isLoadingLeads ? (
+                 <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                    <i className="fas fa-sync-alt animate-spin text-3xl text-indigo-500"></i>
+                    <p className="text-stone-400 font-mono text-xs">LOADING AUDITS REGISTRY...</p>
+                 </div>
+              ) : (
+                <div className="flex-1 bg-white border border-stone-200 rounded-[2rem] overflow-hidden flex flex-col min-h-0 min-w-0">
+                   <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1">
+                      <table className="w-full text-left border-collapse min-w-[800px]">
+                         <thead className="bg-stone-100 sticky top-0 z-10 border-b border-stone-200">
+                            <tr className="text-[9px] font-black uppercase text-stone-400 tracking-widest">
+                               <th className="px-8 py-5">Establishment Details</th>
+                               <th className="px-8 py-5">Professional Contact</th>
+                               <th className="px-8 py-5 text-center">Friction Score</th>
+                               <th className="px-8 py-5 text-center">Download Multiplier</th>
+                               <th className="px-8 py-5">Telemetry Location</th>
+                               <th className="px-8 py-5">Registration Date</th>
+                            </tr>
+                         </thead>
+                         <tbody className="divide-y divide-stone-100 bg-white">
+                            {leads.map((lead: Lead) => (
+                               <tr key={lead.id} className="hover:bg-stone-50/70 transition-all">
+                                  <td className="px-8 py-6">
+                                     <div className="flex items-center gap-4">
+                                        <div className="w-9 h-9 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-black font-mono text-xs shadow-sm">
+                                           {lead.name ? lead.name[0].toUpperCase() : "A"}
+                                        </div>
+                                        <div>
+                                           <p className="text-sm font-bold text-stone-900">{lead.name}</p>
+                                           <p className="text-[10px] text-stone-400 font-mono uppercase tracking-wider">{lead.source || "Web Portal Download"}</p>
+                                        </div>
+                                     </div>
+                                  </td>
+                                  <td className="px-8 py-6">
+                                     <p className="text-xs font-bold text-stone-850">{lead.email}</p>
+                                     <p className="text-[10px] font-black uppercase text-indigo-600 mt-0.5">{lead.role || "Operator"}</p>
+                                  </td>
+                                  <td className="px-8 py-6 text-center">
+                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black font-mono border shadow-sm ${
+                                        lead.score >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                        lead.score >= 50 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                        'bg-stone-100 text-stone-600 border-stone-200'
+                                     }`}>
+                                        {lead.score || 0}% AI Ready
+                                     </span>
+                                  </td>
+                                  <td className="px-8 py-6 text-center">
+                                     <div className="inline-flex items-center gap-2 bg-stone-100/80 px-3 py-1.5 rounded-xl border border-stone-200 font-mono font-black text-xs text-stone-800">
+                                        <i className="fas fa-file-arrow-down text-indigo-500"></i>
+                                        {lead.downloads || 1} Downloads
+                                     </div>
+                                  </td>
+                                  <td className="px-8 py-6 text-stone-600 text-xs italic font-medium">{lead.location}</td>
+                                  <td className="px-8 py-6 text-stone-400 text-[10px] font-mono">{lead.date ? new Date(lead.date).toLocaleDateString() : 'N/A'}</td>
+                               </tr>
+                            ))}
+                            {leads.length === 0 && (
+                               <tr>
+                                  <td colSpan={6} className="py-20 text-center text-stone-300 italic text-sm">No leads captured in current temporal sequence.</td>
+                               </tr>
+                            )}
+                         </tbody>
+                      </table>
+                   </div>
+                </div>
+              )}
+           </div>
+         )}
+
         {activeTab === 'security' && (
           <div className="flex-1 p-12 overflow-y-auto custom-scrollbar space-y-12">
              <div className="flex justify-between items-end">
@@ -624,14 +719,14 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
                    <div className="space-y-4">
                       <div className="p-5 bg-stone-50 rounded-2xl border border-stone-100 flex justify-between items-center group cursor-pointer hover:border-indigo-500 transition-all">
                          <div>
-                            <p className="text-xs font-bold text-stone-900">OENV-ROOT-2025-ALPHA</p>
+                            <p className="text-xs font-bold text-stone-900">VNTL-ROOT-2025-ALPHA</p>
                             <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest mt-1">Status: Operational • Created: 01/2025</p>
                          </div>
                          <i className="fas fa-shield-check text-emerald-500 group-hover:scale-125 transition-transform"></i>
                       </div>
                       <div className="p-5 bg-stone-50 rounded-2xl border border-stone-100 flex justify-between items-center group cursor-pointer hover:border-indigo-500 transition-all">
                          <div>
-                            <p className="text-xs font-bold text-stone-900">OENV-ROOT-2025-OMEGA</p>
+                            <p className="text-xs font-bold text-stone-900">VNTL-ROOT-2025-OMEGA</p>
                             <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest mt-1">Status: Dormant • Created: 02/2025</p>
                          </div>
                          <i className="fas fa-circle-xmark text-stone-300 group-hover:scale-125 transition-transform"></i>
@@ -651,7 +746,7 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
                       <input type="text" placeholder="Search Code Registry..." className="bg-transparent border-none outline-none font-bold text-sm w-full" />
                    </div>
                    <div className="h-[120px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                      {['INTEL-PAID-9821-2025', 'INTEL-ENTP-4402-2025', 'INTEL-PAID-1102-2025'].map(code => (
+                      {['VNTL-PAID-9821-2025', 'VNTL-ENTP-4402-2025', 'VNTL-PAID-1102-2025'].map(code => (
                         <div key={code} className="flex justify-between items-center text-[10px] font-mono font-black text-stone-400 border-b border-stone-50 pb-2">
                            <span>{code}</span>
                            <span className="text-[8px] bg-stone-100 text-stone-400 px-1.5 py-0.5 rounded">USED</span>

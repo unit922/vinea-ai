@@ -15,7 +15,7 @@ const InventoryReport: React.FC<InventoryReportProps> = ({ items, onClose }) => 
 
   const profile = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem('intelligence_profile') || localStorage.getItem('oenovia_profile') || '{}');
+      return JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
     } catch {
       return {};
     }
@@ -102,7 +102,7 @@ const InventoryReport: React.FC<InventoryReportProps> = ({ items, onClose }) => 
       // but usually a4 is enough for scaled inventory if not too many items.
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, Math.min(pdfHeight, 297)); 
       
-      pdf.save(`Intelligence_Inventory_Report_${reportTimestamp.iso}.pdf`);
+      pdf.save(`Vinetelligence_Inventory_Report_${reportTimestamp.iso}.pdf`);
     } catch (error) {
       console.error("PDF Export Error:", error);
     } finally {
@@ -124,7 +124,7 @@ const InventoryReport: React.FC<InventoryReportProps> = ({ items, onClose }) => 
             <div className="flex items-center gap-3 mb-2 flex-wrap">
               <span className="text-[10px] font-black uppercase text-amber-500 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">Logistics Audit</span>
               <div className="hidden sm:block h-4 w-px bg-white/10" />
-              <p className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-widest italic truncate max-w-[200px]">{profile.name || 'Intelligence Sandbox'}</p>
+              <p className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-widest italic truncate max-w-[200px]">{profile.name || 'Vinetelligence Sandbox'}</p>
             </div>
             <h3 className="text-2xl md:text-3xl font-serif font-black italic tracking-tight">Inventory Utilization Report</h3>
             <div className="flex flex-wrap items-center gap-4 mt-2">

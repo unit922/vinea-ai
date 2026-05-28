@@ -488,30 +488,7 @@ CREATE TABLE IF NOT EXISTS public.staff_assignments (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 11. LEADS (Public Site Acquisition)
-CREATE TABLE IF NOT EXISTS public.leads (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    establishment TEXT,
-    message TEXT,
-    type TEXT,
-    status TEXT DEFAULT 'New',
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- 12. ANALYTICS PULSES (Performance Telemetry)
-CREATE TABLE IF NOT EXISTS public.analytics_pulses (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE,
-    type TEXT NOT NULL,
-    value NUMERIC,
-    metadata JSONB DEFAULT '{}'::jsonb,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- 13. HELPER FUNCTIONS
+-- 10. HELPER FUNCTIONS
 CREATE OR REPLACE FUNCTION public.get_user_restaurant_id()
 RETURNS UUID AS $$
 DECLARE
@@ -528,8 +505,8 @@ BEGIN
     END;
   END IF;
 
-  -- 2. Hard-coded Domain Restriction: @vinetelligence.live users ONLY access "Vinetelligence Enterprise"
-  IF (auth.jwt() ->> 'email') LIKE '%@vinetelligence.live' THEN
+  -- 2. Hard-coded Domain Restriction: @vinetelligence.live or @vinea.live users ONLY access "Vinetelligence Enterprise"
+  IF (auth.jwt() ->> 'email') LIKE '%@vinetelligence.live' OR (auth.jwt() ->> 'email') LIKE '%@vinea.live' THEN
     RETURN (SELECT id FROM public.restaurants WHERE name = 'Vinetelligence Enterprise' LIMIT 1);
   END IF;
 
@@ -544,7 +521,7 @@ CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS TEXT AS $$
 BEGIN
   -- 0. Administrative Domain Override
-  IF (auth.jwt() ->> 'email') LIKE '%@vinetelligence.live' OR (auth.jwt() ->> 'email') = 'foritglo@gmail.com' THEN
+  IF (auth.jwt() ->> 'email') LIKE '%@vinetelligence.live' OR (auth.jwt() ->> 'email') LIKE '%@vinea.live' OR (auth.jwt() ->> 'email') = 'foritglo@gmail.com' THEN
     RETURN 'Admin';
   END IF;
 
@@ -567,7 +544,7 @@ DECLARE
     pol TEXT;
 BEGIN
     FOR t IN SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' 
-    AND table_name IN ('restaurants', 'profiles', 'guest_journeys', 'inventory', 'orders', 'order_items', 'tables', 'equipment', 'staff_roster', 'staff_assignments', 'transactions', 'saas_ledger', 'leads', 'analytics_pulses') LOOP
+    AND table_name IN ('restaurants', 'profiles', 'guest_journeys', 'inventory', 'orders', 'order_items', 'tables', 'equipment', 'staff_roster', 'staff_assignments', 'transactions', 'saas_ledger') LOOP
         FOR pol IN SELECT policyname FROM pg_policies WHERE tablename = t AND schemaname = 'public' LOOP
             EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol, t);
         END LOOP;
@@ -609,39 +586,23 @@ CREATE TABLE IF NOT EXISTS public.saas_ledger (
 DROP POLICY IF EXISTS "Admins can manage staff roster" ON public.staff_roster;
 CREATE POLICY "Admins can manage staff roster" ON public.staff_roster FOR ALL USING (
     (restaurant_id = get_user_restaurant_id() AND (get_user_role() IN ('Manager', 'Developer', 'Admin', 'Owner') OR get_user_role() IS NULL)) OR
-    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Staff can manage transactions" ON public.transactions;
 CREATE POLICY "Staff can manage transactions" ON public.transactions FOR ALL USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
-
-DROP POLICY IF EXISTS "Anyone can insert leads" ON public.leads;
-CREATE POLICY "Anyone can insert leads" ON public.leads FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Admins can view leads" ON public.leads;
-CREATE POLICY "Admins can view leads" ON public.leads FOR ALL USING (
-    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
-);
-
-DROP POLICY IF EXISTS "Staff can view their analytics" ON public.analytics_pulses;
-CREATE POLICY "Staff can view their analytics" ON public.analytics_pulses FOR SELECT USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
-);
-
-DROP POLICY IF EXISTS "System can insert analytics" ON public.analytics_pulses;
-CREATE POLICY "System can insert analytics" ON public.analytics_pulses FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Staff can manage saas_ledger" ON public.saas_ledger;
 CREATE POLICY "Staff can manage saas_ledger" ON public.saas_ledger FOR ALL USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Owners can delete their restaurant" ON public.restaurants;
 CREATE POLICY "Owners can delete their restaurant" ON public.restaurants FOR DELETE USING (
     owner_email = auth.jwt() ->> 'email' OR
-    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Owners can seed their roster" ON public.staff_roster;
@@ -685,7 +646,7 @@ CREATE POLICY "Users can update own profile." ON public.profiles FOR UPDATE USIN
 
 DROP POLICY IF EXISTS "Admins can purge profiles" ON public.profiles;
 CREATE POLICY "Admins can purge profiles" ON public.profiles FOR DELETE USING (
-    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com') OR
+    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com') OR
     (restaurant_id = get_user_restaurant_id() AND get_user_role() IN ('Owner', 'Admin', 'Developer'))
 );
 
@@ -704,30 +665,30 @@ DROP POLICY IF EXISTS "Staff can update their restaurant" ON public.restaurants;
 CREATE POLICY "Staff can update their restaurant" ON public.restaurants FOR UPDATE USING (
     id = get_user_restaurant_id() OR
     owner_email = auth.jwt() ->> 'email' OR
-    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 ) WITH CHECK (
     id = get_user_restaurant_id() OR
     owner_email = auth.jwt() ->> 'email' OR
-    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Staff can view their restaurant" ON public.restaurants;
 -- Revised: Vinetelligence Executives and Owners can see their nodes without being locked to session metadata
 CREATE POLICY "Staff can view their restaurant" ON public.restaurants FOR SELECT USING (
     id = get_user_restaurant_id() OR 
-    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com') OR
+    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com') OR
     owner_email = auth.jwt() ->> 'email'
 );
 
 DROP POLICY IF EXISTS "Vinetelligence Executives can manage all restaurants" ON public.restaurants;
 CREATE POLICY "Vinetelligence Executives can manage all restaurants" ON public.restaurants FOR ALL USING (
-    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 -- LEDGER POLICIES
 DROP POLICY IF EXISTS "Vinetelligence Executive access to global ledger" ON public.saas_ledger;
 CREATE POLICY "Vinetelligence Executive access to global ledger" ON public.saas_ledger FOR ALL USING (
-    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Owners can view their ledger" ON public.saas_ledger;
@@ -741,7 +702,7 @@ DROP POLICY IF EXISTS "Public can update guest journeys" ON public.guest_journey
 
 DROP POLICY IF EXISTS "Staff can manage tables" ON public.tables;
 CREATE POLICY "Staff can manage tables" ON public.tables FOR ALL USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Public can view tables" ON public.tables;
@@ -750,12 +711,12 @@ DROP POLICY IF EXISTS "Public can insert tables" ON public.tables;
 
 DROP POLICY IF EXISTS "Staff can manage guest journeys" ON public.guest_journeys;
 CREATE POLICY "Staff can manage guest journeys" ON public.guest_journeys FOR ALL USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Staff can manage inventory" ON public.inventory;
 CREATE POLICY "Staff can manage inventory" ON public.inventory FOR ALL USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Public can view inventory" ON public.inventory;
@@ -764,7 +725,7 @@ DROP POLICY IF EXISTS "Public can insert inventory" ON public.inventory;
 
 DROP POLICY IF EXISTS "Staff can manage orders" ON public.orders;
 CREATE POLICY "Staff can manage orders" ON public.orders FOR ALL USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Public can insert orders" ON public.orders;
@@ -773,7 +734,7 @@ DROP POLICY IF EXISTS "Public can update orders" ON public.orders;
 
 DROP POLICY IF EXISTS "Staff can manage order items" ON public.order_items;
 CREATE POLICY "Staff can manage order items" ON public.order_items FOR ALL USING (
-    order_id IN (SELECT id FROM public.orders WHERE restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com'))
+    order_id IN (SELECT id FROM public.orders WHERE restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com'))
 );
 
 DROP POLICY IF EXISTS "Public can insert order items" ON public.order_items;
@@ -782,17 +743,17 @@ DROP POLICY IF EXISTS "Public can update order items" ON public.order_items;
 
 DROP POLICY IF EXISTS "Staff can manage equipment" ON public.equipment;
 CREATE POLICY "Staff can manage equipment" ON public.equipment FOR ALL USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Staff can manage assignments" ON public.staff_assignments;
 CREATE POLICY "Staff can manage assignments" ON public.staff_assignments FOR ALL USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Staff can manage transactions" ON public.transactions;
 CREATE POLICY "Staff can manage transactions" ON public.transactions FOR ALL USING (
-    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
+    restaurant_id = get_user_restaurant_id() OR (auth.jwt() ->> 'email' LIKE '%@vinetelligence.live' OR auth.jwt() ->> 'email' LIKE '%@vinea.live' OR auth.jwt() ->> 'email' = 'foritglo@gmail.com')
 );
 
 DROP POLICY IF EXISTS "Public can insert transactions" ON public.transactions;

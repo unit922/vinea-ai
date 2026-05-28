@@ -37,7 +37,7 @@ export const VisionPitch: React.FC<VisionPitchProps> = ({ onClose }) => {
     setError(null);
     try {
       const base64Data = base64Image.split(',')[1];
-      const pitch = await geminiService.getIntelligencePitch(base64Data, 'image/jpeg');
+      const pitch = await geminiService.getVinetelligencePitch(base64Data, 'image/jpeg');
       setPitchData(pitch);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to analyze bottle. Please try again.";
@@ -196,7 +196,7 @@ export const VisionPitch: React.FC<VisionPitchProps> = ({ onClose }) => {
                     >
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-[1px] bg-amber-500" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-500 italic">Intelligence Pitch</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-500 italic">Vinetelligence Pitch</span>
                       </div>
                       <h3 className="text-4xl md:text-5xl font-serif font-black text-white leading-none tracking-tighter italic">
                         {pitchData.brandName}

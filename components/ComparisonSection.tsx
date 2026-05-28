@@ -91,7 +91,7 @@ const ComparisonSection: React.FC = () => {
                              </div>
                              <p className="text-[10px] font-black uppercase tracking-widest">The OS Model (Vinetelligence)</p>
                         </div>
-                        <h4 className="text-3xl font-serif font-black italic text-white font-medium">Neural Operating System.</h4>
+                        <h4 className="text-3xl font-serif font-black italic text-white font-medium">AI-Powered Operating System.</h4>
                         <p className="text-stone-400 font-medium italic leading-relaxed">
                             Vinetelligence connects every operational node—from the cellar to the guest—into a single Claude-powered Agentic system. It doesn't just "chat" with guests; it optimizes your entire business intelligence layer.
                         </p>

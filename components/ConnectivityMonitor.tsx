@@ -74,7 +74,7 @@ export const ConnectivityMonitor: React.FC = () => {
                 {!store.isOnline 
                   ? 'Please check your connection to continue syncing.' 
                   : (!store.isDatabaseConnected 
-                    ? 'Connectivity to the Cloud Database is offline.' 
+                    ? 'Connectivity to the Vinetelligence Cloud is offline.' 
                     : 'Updating your establishments data in realtime.')}
               </p>
               

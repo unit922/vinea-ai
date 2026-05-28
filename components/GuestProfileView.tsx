@@ -107,19 +107,6 @@ const GuestProfileView: React.FC<GuestProfileViewProps> = ({ journeys, setJourne
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 pb-10 relative">
-      {/* Demo Notice */}
-      <div className="lg:col-span-2 bg-amber-500/10 border border-amber-500/20 p-4 flex items-center justify-between rounded-2xl shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-500">
-            Guest Sentiment Simulation Active: Visualizing Synthetic Palate Data
-          </p>
-        </div>
-        <p className="text-[9px] italic text-amber-500/60">
-          Sync with POS node to view real-time guest behavioral patterns.
-        </p>
-      </div>
-
       {notification && (
         <div className="fixed top-8 right-8 z-[1000] animate-in slide-in-from-right-8 duration-500">
           <div className="bg-stone-900/90 text-white px-8 py-5 rounded-[2rem] shadow-2xl border border-white/10 backdrop-blur-xl flex items-center gap-4">
@@ -150,7 +137,7 @@ const GuestProfileView: React.FC<GuestProfileViewProps> = ({ journeys, setJourne
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-stone-500 font-medium">Integrated CRM with AI Intelligence.</p>
+                <p className="text-xs text-stone-500 font-medium">SevenRooms-style CRM with AI Intelligence.</p>
               </div>
             </div>
             {journeys.length > 0 && (

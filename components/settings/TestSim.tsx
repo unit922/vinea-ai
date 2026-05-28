@@ -11,7 +11,7 @@ interface TestSimProps {
 
 const TestSim: React.FC<TestSimProps> = ({ onClose, restaurantName }) => {
   const [inventory] = useState<InventoryItem[]>(() => {
-    const saved = localStorage.getItem('intelligence_inventory') || localStorage.getItem('oenovia_inventory');
+    const saved = localStorage.getItem('vinetelligence_inventory') || localStorage.getItem('vinea_inventory');
     return saved ? JSON.parse(saved) : INITIAL_INVENTORY;
   });
   const [cart, setCart] = useState<{item: InventoryItem, qty: number}[]>([]);
@@ -73,7 +73,7 @@ const TestSim: React.FC<TestSimProps> = ({ onClose, restaurantName }) => {
       await supabaseSync.saveOrder(order);
       await supabaseSync.saveTransaction(tx);
 
-      const currentInvStr = localStorage.getItem('intelligence_inventory') || localStorage.getItem('oenovia_inventory') || '[]';
+      const currentInvStr = localStorage.getItem('vinetelligence_inventory') || localStorage.getItem('vinea_inventory') || '[]';
       const currentInv = JSON.parse(currentInvStr);
       const updatedInv = currentInv.map((invItem: InventoryItem) => {
         const cartItem = cart.find(c => c.item.id === invItem.id);
@@ -87,7 +87,8 @@ const TestSim: React.FC<TestSimProps> = ({ onClose, restaurantName }) => {
         return invItem;
       });
 
-      localStorage.setItem('intelligence_inventory', JSON.stringify(updatedInv));
+      localStorage.setItem('vinetelligence_inventory', JSON.stringify(updatedInv));
+      localStorage.setItem('vinea_inventory', JSON.stringify(updatedInv));
       
       window.dispatchEvent(new Event('storage'));
 
@@ -111,7 +112,7 @@ const TestSim: React.FC<TestSimProps> = ({ onClose, restaurantName }) => {
             <div>
               <h2 className="text-white font-black uppercase text-xs tracking-[0.3em] flex items-center gap-3">
                 <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
-                Intelligence POS Simulator
+                Vinetelligence POS Simulator
               </h2>
               <p className="text-stone-500 text-[10px] uppercase font-bold mt-1 tracking-widest">{restaurantName} Node</p>
             </div>
@@ -185,7 +186,7 @@ const TestSim: React.FC<TestSimProps> = ({ onClose, restaurantName }) => {
               {isProcessing ? (
                 <>
                   <i className="fas fa-spinner fa-spin"></i>
-                  Syncing with Intelligence...
+                  Syncing with Vinetelligence...
                 </>
               ) : (
                 <>
@@ -198,7 +199,7 @@ const TestSim: React.FC<TestSimProps> = ({ onClose, restaurantName }) => {
             <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
               <p className="text-[8px] text-stone-500 leading-relaxed italic text-center">
                 <i className="fas fa-info-circle mr-2 text-amber-500"></i>
-                Processing payment will trigger a real-time inventory webhook to the Intelligence Cloud Silo.
+                Processing payment will trigger a real-time inventory webhook to the Vinetelligence Cloud Silo.
               </p>
             </div>
           </div>
@@ -211,7 +212,7 @@ const TestSim: React.FC<TestSimProps> = ({ onClose, restaurantName }) => {
             </div>
             <h3 className="text-white text-4xl font-serif font-black italic mb-2">Order Synced!</h3>
             <p className="text-white/80 text-sm font-medium max-w-xs">
-              The POS has successfully notified Intelligence. Inventory levels have been updated across all nodes.
+              The POS has successfully notified Vinetelligence. Inventory levels have been updated across all nodes.
             </p>
           </div>
         )}

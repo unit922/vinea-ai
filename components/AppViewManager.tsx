@@ -11,7 +11,7 @@ import ConciergeView from './ConciergeView';
 import BarStationView from './BarStationView';
 import MasterAdmin from './MasterAdmin';
 import EstablishmentAdmin from './EstablishmentAdmin';
-import VinetelligenceAcademy from './VinetelligenceAcademy';
+import IntelligenceAcademy from './IntelligenceAcademy';
 import FinancialHub from './FinancialHub';
 import VisionAuditor from './VisionAuditor';
 import FacilityAssets from './FacilityAssets';
@@ -25,8 +25,9 @@ import SustainabilityNode from './operations/SustainabilityNode';
 import RevenueOptimizer from './operations/RevenueOptimizer';
 import SentimentIntelligence from './operations/SentimentIntelligence';
 import ExperienceSentinel from './operations/ExperienceSentinel';
-import IntegrationHubView from './IntegrationHubView';
 import OmnichannelDispatchDesk from './OmnichannelDispatchDesk';
+import IntegrationHubView from './IntegrationHubView';
+import { TrendIntelligenceNode } from './TrendIntelligenceNode';
 
 // Settings Sub-components
 import GeneralSettings from './settings/GeneralSettings';
@@ -41,7 +42,7 @@ interface ViewManagerProps {
   searchQuery: string;
   initialAcademyTab?: 'academy' | 'mixology' | 'signature' | 'roster' | 'pairing';
   setInitialAcademyTab: (tab: 'academy' | 'mixology' | 'signature' | 'roster' | 'pairing' | undefined) => void;
-  setAIChatOpen: (open: boolean) => void;
+  setIsAIChatOpen: (open: boolean) => void;
   setIsPublicRoute: (isPublic: boolean) => void;
   setPublicView: (view: 'book' | 'menu' | 'promo' | null) => void;
   onRelaunchOnboarding: () => void;
@@ -51,7 +52,7 @@ const ViewManager: React.FC<ViewManagerProps> = ({
   searchQuery,
   initialAcademyTab,
   setInitialAcademyTab,
-  setAIChatOpen,
+  setIsAIChatOpen,
   setIsPublicRoute,
   setPublicView,
   onRelaunchOnboarding
@@ -79,7 +80,7 @@ const ViewManager: React.FC<ViewManagerProps> = ({
   const setCurrentUserRole = useVinetelligenceStore(state => state.setCurrentUserRole);
 
   const { handleAddToMenu, handleRemoveFromMenu, updateProfileValue, handleLogout } = useVinetelligenceActions();
-  const isAdmin = ['Owner', 'Manager', 'Developer', 'Admin'].includes(currentUserRole || '');
+  const isAdmin = ['Owner', 'Manager', 'Developer', 'Investor'].includes(currentUserRole || '');
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('general');
 
   // Tier Access Guard
@@ -135,7 +136,6 @@ const ViewManager: React.FC<ViewManagerProps> = ({
           orders={orders}
           transactions={transactions}
           authMode={authMode}
-          setActiveView={setActiveView}
         />
       );
     case AppView.FINANCIAL_HUB:
@@ -160,7 +160,7 @@ const ViewManager: React.FC<ViewManagerProps> = ({
       return <VisionAuditor onCommit={() => setActiveView(AppView.INVENTORY)} onClose={() => setActiveView(AppView.INVENTORY)} />;
     case AppView.TRAINING:
       return (
-        <VinetelligenceAcademy 
+        <IntelligenceAcademy 
           searchQuery={searchQuery} 
           userRole={currentUserRole} 
           inventory={inventory}
@@ -171,15 +171,13 @@ const ViewManager: React.FC<ViewManagerProps> = ({
       );
     case AppView.GUEST_PROFILE:
       return <GuestProfileView journeys={journeys} setJourneys={setJourneys} />;
-    case AppView.DISPATCH_DESK:
-      return <OmnichannelDispatchDesk />;
     case AppView.FACILITY_ASSETS:
       return <FacilityAssets restaurantId={restaurantProfile?.id || 'demo-id'} />;
     case AppView.RETENTION:
       return <RetentionIntelligence />;
     case AppView.OWNER_ANALYTICS: {
       const userEmail = sessions?.user?.email || '';
-      const isStaff = userEmail.endsWith('@vinetelligence.ai') || userEmail.endsWith('@vinea.ai') || currentUserRole === 'Developer';
+      const isStaff = userEmail.endsWith('@vinetelligence.live') || userEmail.endsWith('@vinea.live') || currentUserRole === 'Developer';
       const isEnterprise = (currentUserRole === 'Owner' || currentUserRole === 'Investor') && ownedCount > 1;
       
       if (!isStaff && !isEnterprise) {
@@ -224,8 +222,6 @@ const ViewManager: React.FC<ViewManagerProps> = ({
       return <ExperienceSentinel />;
     case AppView.COMPETITORS:
       return <CompetitorIntelligence inventory={inventory} />;
-    case AppView.INTEGRATION_HUB:
-      return <IntegrationHubView />;
     case AppView.STAFFING:
       return (
         <OperationsView 
@@ -256,7 +252,7 @@ const ViewManager: React.FC<ViewManagerProps> = ({
     case AppView.BAR_STATION:
       return (
         <BarStationView 
-          setAIChatOpen={setAIChatOpen} 
+          setIsAIChatOpen={setIsAIChatOpen} 
           onNavigateToAcademy={(tab) => {
             setInitialAcademyTab(tab);
             setActiveView(AppView.TRAINING);
@@ -265,6 +261,12 @@ const ViewManager: React.FC<ViewManagerProps> = ({
           inventory={inventory}
         />
       );
+    case AppView.DISPATCH:
+      return <OmnichannelDispatchDesk />;
+    case AppView.INTEGRATION_HUB:
+      return <IntegrationHubView />;
+    case AppView.TREND_INTELLIGENCE:
+      return <TrendIntelligenceNode />;
     case AppView.ESTABLISHMENT_ADMIN:
       return (
         <EstablishmentAdmin 
@@ -282,7 +284,7 @@ const ViewManager: React.FC<ViewManagerProps> = ({
           <div className="w-full lg:w-72 shrink-0 bg-white p-5 rounded-[2.5rem] border border-stone-200 shadow-sm flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-visible custom-scrollbar no-scrollbar lg:no-scrollbar-off">
             {[
               { id: 'general', label: 'Establishment', icon: 'fa-building' },
-              { id: 'ai', label: 'Vinetelligence AI', icon: 'fa-brain' },
+              { id: 'ai', label: 'AI Intelligence', icon: 'fa-brain' },
               { id: 'connectivity', label: 'Connectivity', icon: 'fa-network-wired' },
               { id: 'security', label: 'Security & Roster', icon: 'fa-shield-halved' },
               { id: 'setup', label: 'Setup Recovery', icon: 'fa-hammer' }
@@ -292,8 +294,8 @@ const ViewManager: React.FC<ViewManagerProps> = ({
                 onClick={() => setActiveSettingsTab(tab.id as SettingsTab)}
                 className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all text-sm font-bold shrink-0 lg:shrink ${
                   activeSettingsTab === tab.id 
-                    ? 'bg-slate-950 text-slate-100 shadow-xl' 
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-stone-900 text-white shadow-xl' 
+                    : 'text-stone-500 hover:bg-stone-50 hover:text-stone-900'
                 }`}
               >
                 <i className={`fas ${tab.icon} w-5 text-center`}></i>
@@ -319,11 +321,10 @@ const ViewManager: React.FC<ViewManagerProps> = ({
           orders={orders}
           transactions={transactions}
           authMode={authMode}
-          setActiveView={setActiveView}
         />
       ) : (
         <BarStationView 
-          setAIChatOpen={setAIChatOpen} 
+          setIsAIChatOpen={setIsAIChatOpen} 
           orders={orders}
           inventory={inventory}
           authMode={authMode}

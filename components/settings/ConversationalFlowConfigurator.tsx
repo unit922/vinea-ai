@@ -115,7 +115,7 @@ export const ConversationalFlowConfigurator: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string>('node-welcome');
   const [selectedPreset, setSelectedPreset] = useState<string>('sommelier');
   const [simMessages, setSimMessages] = useState<ChatMessage[]>([
-    { sender: 'system', text: 'WhatsApp Sandboxed Simulator Active. Type to interact with your configured Gemini Flow.', timestamp: '12:00' },
+    { sender: 'system', text: 'WhatsApp Simulator Active. Type to interact with your configured Gemini Flow.', timestamp: '12:00' },
     { sender: 'bot', text: 'Hello! I am your Vinea AI Sommelier. Would you like a bespoke wine recommendation or food pairing tonight?', timestamp: '12:01', nodeId: 'node-welcome' }
   ]);
   const [userText, setUserText] = useState('');
@@ -593,7 +593,7 @@ Generate a short 1-2 sentence real-time WhatsApp response that sounds premium, d
             <div className="flex items-center justify-between border-b border-white/5 pb-4">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
-                <p className="text-[10px] font-black uppercase text-stone-300 tracking-widest">WhatsApp Sandbox Sim</p>
+                <p className="text-[10px] font-black uppercase text-stone-300 tracking-widest">WhatsApp Simulator</p>
               </div>
               <div className="px-3 py-1 bg-stone-800 rounded-md text-[8px] font-mono text-stone-400">
                 Active Node: <span className="text-amber-500">{activeNode.name.split(' ')[0]}</span>

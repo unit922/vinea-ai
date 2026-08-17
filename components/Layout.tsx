@@ -85,6 +85,85 @@ const Layout: React.FC<LayoutProps> = ({
   const [notification, setNotification] = useState<string | null>(null);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [isBriefingOpen, setIsBriefingOpen] = useState(false);
+  const [activeSegment, setActiveSegment] = useState(0);
+
+  const isRuthChris = useMemo(() => {
+    return restaurantProfile && (restaurantProfile.name?.includes("Ruth's Chris") || ('isRuthChris' in restaurantProfile && (restaurantProfile as unknown as { isRuthChris?: boolean }).isRuthChris));
+  }, [restaurantProfile]);
+
+  const briefingStages = [
+    {
+      time: "00:00",
+      seconds: 0,
+      title: "Command Center Dashboard",
+      desc: "Interactive workspace monitoring system metrics, live network nodes, and predictive logistics in real-time.",
+      step: "1. Access the global header to view live system health, latency thresholds, and server pulse indicators."
+    },
+    {
+      time: "00:09",
+      seconds: 9,
+      title: "Strategic Sentiment Analysis",
+      desc: "AI-driven Guest Loyalty and Sentiment modeling. Generates executive briefings and highlights guest churn risks.",
+      step: "2. Trigger the Prediction Engine under 'Retention' to categorize reviews and generate instant feedback templates."
+    },
+    {
+      time: "01:30",
+      seconds: 90,
+      title: "Neural Coach Voice Companion",
+      desc: "Bidirectional voice assistant built on real-time audio streams, handling local inventory mapping and sommelier support.",
+      step: "3. Toggle the Neural Coach on the bottom rail and grant microphone permissions to speak with the resident system AI."
+    },
+    {
+      time: "02:02",
+      seconds: 122,
+      title: "Neural Camera Bottle Audit",
+      desc: "Multimodal extraction framework. Upload/capture product labels or menus; the neural matrix auto-syncs items to the live ledger.",
+      step: "4. Open 'Inventory', click 'Vision Audit', and upload any bottle label or receipt for instant OCR and classification."
+    },
+    {
+      time: "03:25",
+      seconds: 205,
+      title: "Supply Chain & Logistics",
+      desc: "Real-time order forecasting, stock depletion curve syncretization, and partner vineyard network monitoring.",
+      step: "5. View active Napa/Sonoma logistics nodes, and verify replenishment routes under the Logistics interface."
+    },
+    {
+      time: "03:34",
+      seconds: 214,
+      title: "Sustainability & Waste Mapping",
+      desc: "Monitors glass, organic, and plastic disposal indices, feeding data into the platform CO2 emission offset ledger.",
+      step: "6. Check the Sustainability Hub to optimize waste management protocols and audit environmental emission credits."
+    },
+    {
+      time: "03:44",
+      seconds: 224,
+      title: "Revenue Yield Optimization",
+      desc: "Automated high-margin dynamic beverage pricing engine, matching local weather catalogs against guest demand waves.",
+      step: "7. Set external catalyst parameters under the Optimizer to adjust house cocktail menus for optimal revenue capture."
+    },
+    {
+      time: "04:04",
+      seconds: 244,
+      title: "Experience Sentinel Roster",
+      desc: "Omnichannel review dashboard compiling digital reviews, guest profiles, and automated neural response desks.",
+      step: "8. Select 'Experience' to view the roster list, claim guest messages, or trigger autonomous AI draft replies."
+    },
+    {
+      time: "04:59",
+      seconds: 299,
+      title: "Somatic Academy & Training",
+      desc: "SaaS system training curriculum for staff, including dynamic wine-pairing knowledge and interactive chat training guides.",
+      step: "9. Explore the Academy workspace to complete certified training modules or converse with the sommelier textbook."
+    },
+    {
+      time: "05:31",
+      seconds: 331,
+      title: "Guest Seating & Robot Escort",
+      desc: "Live Concierge seat allocator, assigning physical floor coordinates and triggering robotic table guidance protocols.",
+      step: "10. In the Concierge panel, configure the floor table layout, finalize walk-in arrival, and deploy automated escorts."
+    }
+  ];
   const serviceAlerts = useVinetelligenceStore(state => state.serviceAlerts);
   const setServiceAlerts = useVinetelligenceStore(state => state.setServiceAlerts);
   const authMode = useVinetelligenceStore(state => state.authMode);
@@ -300,12 +379,16 @@ const Layout: React.FC<LayoutProps> = ({
   
   // Vinetelligence Intelligence Access Control
   const canSeeIntelligence = useMemo(() => {
+    const isDemo = restaurantProfile?.edition === 'demo';
+    const isEnterprise = restaurantProfile?.tier === 'Enterprise';
+    if (isDemo || isEnterprise) return true;
+    
     const userRole = userSession?.user?.user_metadata?.role;
     const userEmail = userSession?.user?.email || '';
-    const isVinetelligenceStaff = userEmail.endsWith('@vinetelligence.live') || userEmail.endsWith('@vinea.live') || userRole === 'Developer';
+    const isVinetelligenceStaff = userEmail.endsWith('@vinea.live') || userRole === 'Developer';
     const isEnterpriseOwner = (userRole === 'Owner' || userRole === 'Investor') && ownedCount > 1;
     return isVinetelligenceStaff || isEnterpriseOwner;
-  }, [userSession?.user?.user_metadata?.role, userSession?.user?.email, ownedCount]);
+  }, [userSession?.user?.user_metadata?.role, userSession?.user?.email, ownedCount, restaurantProfile]);
 
   // Applied MenuItem interface to useMemo return type to fix property errors
   const menuItems = useMemo<MenuItem[]>(() => {
@@ -335,6 +418,7 @@ const Layout: React.FC<LayoutProps> = ({
       { id: AppView.FACILITY_ASSETS, label: getBrandedTerm('facility_assets', restaurantProfile || undefined), icon: 'fa-server' },
       { id: AppView.DISPATCH, label: getBrandedTerm('dispatch', restaurantProfile || undefined), icon: 'fa-comments', color: 'text-orange-500' },
       { id: AppView.INTEGRATION_HUB, label: getBrandedTerm('integration_hub', restaurantProfile || undefined), icon: 'fa-box-open', color: 'text-purple-400' },
+      { id: AppView.PROMO, label: 'Marketing & Syndication', icon: 'fa-bullhorn', color: 'text-purple-400' },
       { id: AppView.TREND_INTELLIGENCE, label: getBrandedTerm('trend_intelligence', restaurantProfile || undefined), icon: 'fa-arrow-trend-up', color: 'text-cyan-400' },
     ];
 
@@ -342,6 +426,11 @@ const Layout: React.FC<LayoutProps> = ({
       const isVisible = (isAdmin || isDemoOperator) || (!isDemoGuest && [AppView.BAR_STATION, AppView.CONCIERGE].includes(view.id));
       
       if (isVisible) {
+        // If Academy Only Mode is enabled, ONLY allow TRAINING view
+        if (restaurantProfile?.academyOnlyMode && view.id !== AppView.TRAINING) {
+          return;
+        }
+
         // Special case for Intelligence which is further gated by staff/enterprise
         if (view.id === AppView.OWNER_ANALYTICS && !canSeeIntelligence) return;
         
@@ -399,7 +488,7 @@ const Layout: React.FC<LayoutProps> = ({
             <div className="space-y-2">
               <h3 className="text-xl font-serif font-black italic">Vinetelligence Trial Active</h3>
               <p className="text-xs text-stone-500 font-medium leading-relaxed">
-                Your 14-day operational sandbox is currently online. You have <span className="text-indigo-600 font-bold">{trialDaysRemaining} days</span> remaining to explore the full intelligence suite.
+                Your 14-day trial environment is currently online. You have <span className="text-indigo-600 font-bold">{trialDaysRemaining} days</span> remaining to explore the full intelligence suite.
               </p>
             </div>
             <div className="w-full space-y-3 pt-2">
@@ -470,11 +559,17 @@ const Layout: React.FC<LayoutProps> = ({
       {restaurantProfile?.recordingMode && (
         <div className="fixed bottom-12 right-12 z-[9999] opacity-40 flex items-center gap-3 pointer-events-none select-none animate-pulse">
           <div className="w-10 h-10 bg-stone-900 flex items-center justify-center rounded-xl border border-white/10 shadow-2xl">
-            <VinetelligenceLogo size="sm" withText={false} accentColor="#4f46e5" />
+            {isRuthChris ? (
+              <span className="font-serif font-black text-amber-500 text-lg">R</span>
+            ) : (
+              <VinetelligenceLogo size="sm" withText={false} accentColor="#4f46e5" />
+            )}
           </div>
           <div className="text-right">
             <div className="text-[8px] font-black uppercase tracking-[0.4em] text-white">Neural Intelligence</div>
-            <div className="text-[10px] font-serif font-black italic text-indigo-500">Live Demonstration</div>
+            <div className="text-[10px] font-serif font-black italic text-amber-500">
+              {isRuthChris ? 'Ruth\'s Chris Benchmark' : 'Live Demonstration'}
+            </div>
           </div>
         </div>
       )}
@@ -486,11 +581,27 @@ const Layout: React.FC<LayoutProps> = ({
               className={`flex cursor-pointer transition-all ${devClicks > 0 ? 'scale-105' : ''}`}
               onClick={handleLogoClick}
             >
-              <VinetelligenceLogo size="sm" withText={false} accentColor={devToolsUnlocked ? '#60a5fa' : '#4f46e5'} />
-              <div className="flex flex-col justify-center ml-2">
-                <span className={`font-serif text-xl font-bold tracking-tight leading-none ${devToolsUnlocked ? 'text-blue-400' : 'text-indigo-600'}`}>VINETELLIGENCE</span>
-                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-stone-500 mt-0.5">{isDeveloper ? 'ROOT ADMIN' : `${tier} Admin`}</span>
-              </div>
+              {isRuthChris ? (
+                <>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center font-serif text-white font-black text-sm border border-amber-400 shrink-0">
+                    R
+                  </div>
+                  <div className="flex flex-col justify-center ml-2">
+                    <span className="font-serif text-lg font-black tracking-tighter leading-none text-amber-500">RUTH'S CHRIS</span>
+                    <span className="text-[7px] font-black uppercase tracking-[0.2em] text-amber-600 mt-0.5">BENCHMARK ACTIVE</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <VinetelligenceLogo size="sm" withText={false} accentColor={restaurantProfile?.academyOnlyMode ? '#8b5cf6' : (devToolsUnlocked ? '#60a5fa' : '#4f46e5')} />
+                  <div className="flex flex-col justify-center ml-2">
+                    <span className={`font-serif text-xl font-bold tracking-tight leading-none ${restaurantProfile?.academyOnlyMode ? 'text-violet-500' : (devToolsUnlocked ? 'text-blue-400' : 'text-indigo-600')}`}>VINETELLIGENCE</span>
+                    <span className="text-[7px] font-black uppercase tracking-[0.2em] text-stone-500 mt-0.5">
+                      {isDeveloper ? 'ROOT ADMIN' : (restaurantProfile?.academyOnlyMode ? 'ACADEMY SOLO EDITION' : `${tier} Admin`)}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           )}
           <button 
@@ -645,10 +756,15 @@ const Layout: React.FC<LayoutProps> = ({
         )}
         <header className="bg-white/80 backdrop-blur-md border-b border-stone-200 z-40 px-4 md:px-8 flex justify-between items-center shrink-0 h-14 md:h-16">
           <div className="flex items-center gap-3 md:gap-4 truncate">
-            <div className="w-1.5 h-5 md:h-6 rounded-full bg-indigo-600 shrink-0"></div>
+            <div className={`w-1.5 h-5 md:h-6 rounded-full ${isRuthChris ? 'bg-amber-500' : 'bg-indigo-600'} shrink-0`}></div>
             <h1 className="text-[10px] md:text-sm font-black text-stone-900 uppercase tracking-widest truncate">
               {activeView.replace('-', ' ')}
             </h1>
+            {isRuthChris && (
+              <span className="bg-amber-500/10 text-amber-700 border border-amber-500/20 text-[7px] md:text-[8px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider">
+                Steak & Wine AI Node
+              </span>
+            )}
             {isDeveloper && (
               <span className={`hidden sm:inline ${devToolsUnlocked ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-stone-100 text-stone-700 border-stone-200'} text-[7px] md:text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all`}>
                 {devToolsUnlocked ? 'Network Root' : 'Observer'}
@@ -728,6 +844,17 @@ const Layout: React.FC<LayoutProps> = ({
                 className="pl-10 pr-6 py-2 bg-stone-100 rounded-2xl text-[11px] font-bold focus:outline-none w-24 md:w-32 transition-all focus:w-48 md:focus:w-64 border border-transparent focus:border-stone-200 focus:bg-white"
               />
             </div>
+            <button 
+              onClick={() => setIsBriefingOpen(true)} 
+              className="px-3 md:px-4 py-1.5 md:py-2 bg-indigo-600 text-white rounded-xl md:rounded-2xl text-[10px] md:text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-[0_4px_12px_rgba(99,102,241,0.3)] hover:scale-105 active:scale-95 duration-200 border border-indigo-500/10"
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+              </span>
+              <i className="fas fa-video text-[9px] md:text-[10px]"></i>
+              <span className="hidden xs:inline">System Briefing</span>
+            </button>
             <button 
               onClick={onOpenTutorial} 
               className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-stone-100 text-stone-400 hover:text-indigo-700 hover:bg-indigo-50 transition-all flex items-center justify-center border border-transparent hover:border-indigo-100"
@@ -962,6 +1089,137 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         </div>
       )}
+
+      {/* Sliding Operational Briefing Drawer */}
+      <AnimatePresence>
+        {isBriefingOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsBriefingOpen(false)}
+              className="fixed inset-0 bg-stone-950/80 backdrop-blur-sm z-[9991]"
+            />
+
+            {/* Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 bottom-0 w-full md:w-[500px] bg-[#0c0a09] border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] z-[9992] flex flex-col text-white"
+            >
+              {/* Drawer Header */}
+              <div className="p-6 border-b border-white/10 flex justify-between items-center bg-stone-900/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[#f5f5f4] font-mono">
+                      System Briefing
+                    </h3>
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">
+                      Vinetelligence Hub Walkthrough Guide
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsBriefingOpen(false)}
+                  className="w-8 h-8 rounded-full bg-stone-900 hover:bg-stone-800 flex items-center justify-center text-stone-400 hover:text-white transition-all border border-white/5"
+                >
+                  <i className="fas fa-times text-xs"></i>
+                </button>
+              </div>
+
+              {/* Video Player Display node */}
+              <div className="p-6 bg-stone-900/20 border-b border-white/10 space-y-4">
+                <div className="relative aspect-video rounded-3xl overflow-hidden border border-white/10 bg-black">
+                  <iframe
+                    key={activeSegment}
+                    src={`https://www.youtube.com/embed/TkSYN10JR-I?autoplay=1&start=${briefingStages[activeSegment].seconds}&playlist=TkSYN10JR-I&modestbranding=1&rel=0`}
+                    className="w-full h-full border-none"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    title="Vinetelligence Interactive Companion"
+                  />
+                </div>
+                
+                {/* Visual Description Panel */}
+                <div className="bg-stone-900 border border-white/5 p-4 rounded-2xl space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-indigo-400 font-mono tracking-widest font-bold">
+                      Active: {briefingStages[activeSegment].time}
+                    </span>
+                    <span className="text-[9px] font-bold uppercase text-stone-500 font-mono">
+                      Segment {activeSegment + 1} of {briefingStages.length}
+                    </span>
+                  </div>
+                  <h4 className="font-serif font-black text-sm text-stone-100 italic">
+                    {briefingStages[activeSegment].title}
+                  </h4>
+                  <p className="text-xs text-stone-400 font-medium leading-relaxed leading-normal">
+                    {briefingStages[activeSegment].desc}
+                  </p>
+                  <div className="pt-2 border-t border-white/5 text-[11px] font-bold text-emerald-400/95 leading-normal flex items-start gap-1.5">
+                    <i className="fas fa-hand-pointer mt-0.5 text-[10px]" />
+                    <span>{briefingStages[activeSegment].step}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timestamp Navigation Grid */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
+                <p className="text-[10px] font-black uppercase text-stone-500 tracking-wider">
+                  Timeline Map & Calibration Points
+                </p>
+                <div className="space-y-2">
+                  {briefingStages.map((stage, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveSegment(idx)}
+                      className={`w-full p-3 text-left rounded-xl border transition-all flex items-start gap-3.5 group ${
+                        activeSegment === idx
+                          ? 'bg-indigo-950/25 border-indigo-500/50 text-white'
+                          : 'bg-stone-900/40 border-white/5 hover:bg-stone-900/90 text-stone-400'
+                      }`}
+                    >
+                      <div className={`w-12 h-6 md:h-8 rounded-lg flex items-center justify-center font-mono text-[10px] font-black uppercase shrink-0 ${
+                        activeSegment === idx
+                          ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
+                          : 'bg-stone-800 text-stone-500 border border-transparent'
+                      }`}>
+                        {stage.time}
+                      </div>
+                      <div className="flex-1 space-y-0.5 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className={`text-[11px] font-black uppercase tracking-wider truncate ${
+                            activeSegment === idx ? 'text-[#f5f5f4]' : 'text-stone-300 group-hover:text-white'
+                          }`}>
+                            {stage.title}
+                          </p>
+                          <i className={`fas fa-chevron-right text-[8px] transition-transform ${
+                            activeSegment === idx ? 'text-indigo-400 translate-x-0.5' : 'text-stone-600'
+                          }`} />
+                        </div>
+                        <p className="text-[10px] font-medium text-stone-500 leading-normal truncate">
+                          {stage.desc}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bottom Support Node Info */}
+              <div className="p-6 border-t border-white/10 bg-stone-900/50 flex justify-between items-center text-[10px] uppercase font-mono tracking-widest text-stone-500">
+                <span>Vinetelligence Client v3.1</span>
+                <span>Active Live Sync</span>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <TermsOfService 
         isOpen={isTermsOpen} 

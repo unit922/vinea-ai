@@ -17,7 +17,7 @@ import { authService } from './services/authService';
 import { supabaseSync, isValidUUID } from './services/supabaseSync';
 import { isVinetelligenceAdmin } from './lib/authUtils';
 import { analyticsService } from './services/analyticsService';
-import { INITIAL_INVENTORY } from './constants';
+import { INITIAL_INVENTORY, RUTH_CHRIS_INVENTORY, RUTH_CHRIS_TRANSACTIONS, INITIAL_TRANSACTIONS, CANLIS_INVENTORY, CANLIS_TRANSACTIONS, FRENCH_LAUNDRY_INVENTORY, FRENCH_LAUNDRY_TRANSACTIONS } from './constants';
 import { calculateDecrementAmount } from './lib/inventoryUtils';
 import { useVinetelligenceStore } from './store/vinetelligenceStore';
 import { useVinetelligenceInitialization } from './hooks/useVinetelligenceInitialization';
@@ -48,6 +48,7 @@ const App: React.FC = () => {
   const setRestaurantProfile = useVinetelligenceStore(state => state.setRestaurantProfile);
   const setInventory = useVinetelligenceStore(state => state.setInventory);
   const setOrders = useVinetelligenceStore(state => state.setOrders);
+  const setTransactions = useVinetelligenceStore(state => state.setTransactions);
   const setJourneys = useVinetelligenceStore(state => state.setJourneys);
   const setTables = useVinetelligenceStore(state => state.setTables);
   const setSession = useVinetelligenceStore(state => state.setSession);
@@ -63,7 +64,7 @@ const App: React.FC = () => {
   useVinetelligenceInitialization();
   const { handleLogout, updateProfileValue } = useVinetelligenceActions();
 
-  const [initialAcademyTab, setInitialAcademyTab] = useState<'academy' | 'mixology' | 'signature' | 'roster' | 'pairing' | undefined>(undefined);
+  const [initialAcademyTab, setInitialAcademyTab] = useState<'academy' | 'mixology' | 'signature' | 'roster' | 'pairing' | 'market' | 'cognitive-lab' | undefined>(undefined);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
   const [showAuth, setShowAuth] = useState<'login' | 'signup' | null>(null);
@@ -109,8 +110,49 @@ const App: React.FC = () => {
       const viewParam = params.get('view');
       const ridParam = params.get('rid');
       const tableParam = params.get('table');
-      
       const modeParam = params.get('mode');
+      const demoParam = params.get('demo');
+      
+      // Auto-setup sandbox for direct instant demo entry
+      if (demoParam === 'true') {
+        const auditPos = localStorage.getItem('vinetelligence_audit_pos') || 'Legacy';
+        const autoProfile: RestaurantProfile = {
+          id: 'demo-id',
+          name: `The Velvet Apron (${auditPos} Node Connected)`,
+          type: 'Restaurant',
+          focus: 'Wine & Spirits',
+          edition: 'demo',
+          demoMode: 'operator',
+          aesthetic: 'elite',
+          brandVoice: 'luxury',
+          tier: 'Enterprise',
+          status: 'Active',
+          aiPersona: 'technical'
+        };
+        localStorage.setItem('vinetelligence_profile', JSON.stringify(autoProfile));
+        localStorage.setItem('vinea_profile', JSON.stringify(autoProfile));
+        localStorage.setItem('vinetelligence_onboarded', 'true');
+        localStorage.setItem('vinea_onboarded', 'true');
+        setRestaurantProfile(autoProfile);
+        setAuthMode('demo');
+        setShowOnboarding(false);
+        setActiveView(AppView.DASHBOARD);
+        
+        // Hydrate initial mock inventory and sales transaction metrics
+        localStorage.setItem('vinetelligence_inventory', JSON.stringify(INITIAL_INVENTORY));
+        localStorage.setItem('vinea_inventory', JSON.stringify(INITIAL_INVENTORY));
+        localStorage.setItem('vinetelligence_transactions', JSON.stringify(INITIAL_TRANSACTIONS));
+        localStorage.setItem('vinea_transactions', JSON.stringify(INITIAL_TRANSACTIONS));
+        setInventory(INITIAL_INVENTORY);
+        setTransactions(INITIAL_TRANSACTIONS);
+
+        setIsReady(true);
+        // Scrub the query parameters to keep the address bar clean
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('demo');
+        window.history.pushState({}, '', cleanUrl.toString());
+        return;
+      }
       
       const pathname = window.location.pathname;
       const pathParts = pathname.split('/').filter(p => p);
@@ -198,12 +240,12 @@ const App: React.FC = () => {
         } else if (targetRid === 'demo-id' || targetRid === 'demo') {
           setRestaurantProfile({
             id: 'demo-id',
-            name: 'Vinetelligence Explorer (Demo)',
+            name: 'Vinea Enterprise',
             type: 'Restaurant',
             focus: 'General',
             description: 'Demo environment',
             edition: 'demo',
-            demoMode: 'operator',
+            demoMode: 'guest',
             tier: 'Operator',
             aiPersona: 'technical'
           });
@@ -413,6 +455,23 @@ const App: React.FC = () => {
     }
   }, [session, activeView, restaurantProfile, setActiveView, setCurrentUserRole]);
 
+  useEffect(() => {
+    if (restaurantProfile?.academyOnlyMode) {
+      const userRole = session?.user?.user_metadata?.role;
+      const isAdmin = ['Owner', 'Manager', 'Developer', 'Investor'].includes(userRole || '') || (restaurantProfile?.edition === 'demo');
+      
+      const allowedViews = [AppView.TRAINING];
+      if (isAdmin) {
+        allowedViews.push(AppView.ESTABLISHMENT_ADMIN);
+        allowedViews.push(AppView.SETTINGS);
+      }
+      
+      if (!allowedViews.includes(activeView)) {
+        setActiveView(AppView.TRAINING);
+      }
+    }
+  }, [restaurantProfile?.academyOnlyMode, activeView, session, isDeveloper, setActiveView]);
+
   const handlePublicExit = () => {
     const params = new URLSearchParams(window.location.search);
     const returnUrl = params.get('return_url');
@@ -489,12 +548,23 @@ const App: React.FC = () => {
     }
 
     if (restaurantProfile?.edition === 'demo' && restaurantProfile?.demoMode === 'guest') {
-      localStorage.removeItem('vinetelligence_profile');
-      localStorage.removeItem('vinea_profile');
-      localStorage.removeItem('vinetelligence_onboarded');
-      localStorage.removeItem('vinea_onboarded');
-      setRestaurantProfile(null);
-      setShowOnboarding(true);
+      const restoredProfile = { ...restaurantProfile, demoMode: 'operator' as const };
+      setRestaurantProfile(restoredProfile);
+      localStorage.setItem('vinetelligence_profile', JSON.stringify(restoredProfile));
+      localStorage.setItem('vinea_profile', JSON.stringify(restoredProfile));
+      localStorage.setItem('vinetelligence_onboarded', 'true');
+      localStorage.setItem('vinea_onboarded', 'true');
+      
+      setIsPublicRoute(false);
+      setPublicView(null);
+      setPublicTable(null);
+      setPublicRid(null);
+      setIsPublicEntry(false);
+      
+      const url = new URL(window.location.href);
+      url.search = '';
+      url.pathname = '/';
+      window.history.pushState({}, '', '/');
       return;
     }
 
@@ -508,12 +578,13 @@ const App: React.FC = () => {
       setPublicTable(null);
       
       const targetSlug = restaurantProfile.slug || pathParts[0];
-      if (targetSlug) {
+      if (targetSlug && targetSlug !== 'vinea-enterprise') {
         window.history.pushState({}, '', `/${targetSlug}`);
       } else {
         const url = new URL(window.location.href);
-        url.search = `?view=promo&rid=${restaurantProfile.id}`;
-        window.history.pushState({}, '', url.toString());
+        url.search = '';
+        url.pathname = '/';
+        window.history.pushState({}, '', '/');
       }
       return;
     }
@@ -526,7 +597,8 @@ const App: React.FC = () => {
     
     const url = new URL(window.location.href);
     url.search = '';
-    window.history.pushState({}, '', url.toString());
+    url.pathname = '/';
+    window.history.pushState({}, '', '/');
     
     if (restaurantProfile?.edition !== 'demo' && !session) {
       setShowOnboarding(true);
@@ -555,6 +627,39 @@ const App: React.FC = () => {
     }
 
     if (profile.edition === 'demo') {
+      const isRuthChris = profile.name?.includes("Ruth's Chris") || ('isRuthChris' in profile && (profile as unknown as { isRuthChris?: boolean }).isRuthChris);
+      const isCanlis = profile.name?.includes("Canlis") || ('isCanlis' in profile && (profile as unknown as { isCanlis?: boolean }).isCanlis);
+      const isFrenchLaundry = profile.name?.includes("French Laundry") || ('isFrenchLaundry' in profile && (profile as unknown as { isFrenchLaundry?: boolean }).isFrenchLaundry);
+
+      if (isRuthChris) {
+        localStorage.setItem('vinetelligence_inventory', JSON.stringify(RUTH_CHRIS_INVENTORY));
+        localStorage.setItem('vinea_inventory', JSON.stringify(RUTH_CHRIS_INVENTORY));
+        localStorage.setItem('vinetelligence_transactions', JSON.stringify(RUTH_CHRIS_TRANSACTIONS));
+        localStorage.setItem('vinea_transactions', JSON.stringify(RUTH_CHRIS_TRANSACTIONS));
+        setInventory(RUTH_CHRIS_INVENTORY);
+        setTransactions(RUTH_CHRIS_TRANSACTIONS);
+      } else if (isCanlis) {
+        localStorage.setItem('vinetelligence_inventory', JSON.stringify(CANLIS_INVENTORY));
+        localStorage.setItem('vinea_inventory', JSON.stringify(CANLIS_INVENTORY));
+        localStorage.setItem('vinetelligence_transactions', JSON.stringify(CANLIS_TRANSACTIONS));
+        localStorage.setItem('vinea_transactions', JSON.stringify(CANLIS_TRANSACTIONS));
+        setInventory(CANLIS_INVENTORY);
+        setTransactions(CANLIS_TRANSACTIONS);
+      } else if (isFrenchLaundry) {
+        localStorage.setItem('vinetelligence_inventory', JSON.stringify(FRENCH_LAUNDRY_INVENTORY));
+        localStorage.setItem('vinea_inventory', JSON.stringify(FRENCH_LAUNDRY_INVENTORY));
+        localStorage.setItem('vinetelligence_transactions', JSON.stringify(FRENCH_LAUNDRY_TRANSACTIONS));
+        localStorage.setItem('vinea_transactions', JSON.stringify(FRENCH_LAUNDRY_TRANSACTIONS));
+        setInventory(FRENCH_LAUNDRY_INVENTORY);
+        setTransactions(FRENCH_LAUNDRY_TRANSACTIONS);
+      } else {
+        localStorage.setItem('vinetelligence_inventory', JSON.stringify(INITIAL_INVENTORY));
+        localStorage.setItem('vinea_inventory', JSON.stringify(INITIAL_INVENTORY));
+        localStorage.setItem('vinetelligence_transactions', JSON.stringify(INITIAL_TRANSACTIONS));
+        localStorage.setItem('vinea_transactions', JSON.stringify(INITIAL_TRANSACTIONS));
+        setInventory(INITIAL_INVENTORY);
+        setTransactions(INITIAL_TRANSACTIONS);
+      }
       setShowOnboarding(false);
       setAuthMode('demo');
       if (profile.demoMode === 'guest') {

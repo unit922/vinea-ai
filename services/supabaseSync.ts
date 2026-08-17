@@ -2,6 +2,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { GuestJourney, GuestProfile, RetailTransaction, FacilityAsset, StaffAssignment, ServiceOrder, Table, RestaurantProfile } from '../lib/types';
 import { ensureISOString } from '../utils';
+import { isFirebaseConfigured } from '../firebase';
+import { firebaseService } from './firebaseService';
 
 let supabaseInstance: SupabaseClient | null = null;
 let currentConfig: { url: string, anonKey: string } | null = null;
@@ -257,6 +259,10 @@ export const supabaseSync = {
   },
 
   async verifySchema() {
+    if (isFirebaseConfigured) {
+      console.log("Vinetelligence: Skipping Supabase schema verification as Firebase is configured.");
+      return { success: true };
+    }
     const supabase = getSupabaseClient();
     if (!supabase) {
       console.error("Vinetelligence: verifySchema failed - Supabase client not initialized");
@@ -269,7 +275,7 @@ export const supabaseSync = {
       
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
       const timeoutPromise = new Promise((_, reject) => 
-        timeoutId = setTimeout(() => reject(new Error('Schema verification timeout')), 90000)
+        timeoutId = setTimeout(() => reject(new Error('Schema verification timeout')), 4000)
       );
 
       const verifyPromise = (async () => {
@@ -537,7 +543,7 @@ export const supabaseSync = {
     if (id === 'demo' || id === 'demo-id') {
       return {
         id: 'demo-id',
-        name: 'Vinetelligence Explorer (Demo)',
+        name: 'Vinea Enterprise',
         type: 'Restaurant',
         focus: 'General',
         description: 'Demo environment',
@@ -545,6 +551,16 @@ export const supabaseSync = {
         aiPersona: 'technical',
         status: 'Active'
       };
+    }
+
+    if (isFirebaseConfigured) {
+      console.log("Vinetelligence: Fetching restaurant profile from Firebase...", id);
+      try {
+        const profile = await firebaseService.getRestaurantProfile(id);
+        if (profile) return profile;
+      } catch (err) {
+        console.error("Vinetelligence: Firebase getRestaurantProfile failed", err);
+      }
     }
 
     // Validate UUID format to prevent 400 errors from Supabase
@@ -557,7 +573,7 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
 
-    const maxRetries = 2;
+    const maxRetries = 1;
     let lastError = null;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -567,7 +583,7 @@ export const supabaseSync = {
         const startTime = Date.now();
         
         const timeoutPromise = new Promise((_, reject) => 
-          timeoutId = setTimeout(() => reject(new Error('Profile fetch timeout')), 45000)
+          timeoutId = setTimeout(() => reject(new Error('Profile fetch timeout')), 4000)
         );
 
         const fetchPromise = (async () => {
@@ -623,17 +639,35 @@ export const supabaseSync = {
     if (!supabase) return null;
     
     console.log("Vinetelligence: getRestaurantBySlug - fetching for slug:", slug);
-    const { data, error } = await supabase
-      .from('restaurants')
-      .select('*')
-      .eq('slug', slug)
-      .maybeSingle();
-      
-    if (error) {
-      console.error("Vinetelligence: getRestaurantBySlug error:", error);
-      throw error;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    
+    try {
+      const timeoutPromise = new Promise((_, reject) => 
+        timeoutId = setTimeout(() => reject(new Error('Slug resolution timeout')), 4000)
+      );
+
+      const fetchPromise = (async () => {
+        const { data, error } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('slug', slug)
+          .maybeSingle();
+          
+        if (error) {
+          console.error("Vinetelligence: getRestaurantBySlug error:", error);
+          throw error;
+        }
+        return data;
+      })();
+
+      const result = await Promise.race([fetchPromise, timeoutPromise]);
+      if (timeoutId) clearTimeout(timeoutId);
+      return result;
+    } catch (e) {
+      if (timeoutId) clearTimeout(timeoutId);
+      console.error("Vinetelligence: Failed to get restaurant by slug due to exception or timeout", e);
+      return null;
     }
-    return data;
   },
 
   async getStaffRoster(restaurantId: string) {
@@ -1462,15 +1496,27 @@ export const supabaseSync = {
     const supabase = getSupabaseClient();
     if (!supabase || !email) return 0;
     
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const { count, error } = await supabase
-        .from('restaurants')
-        .select('*', { count: 'exact', head: true })
-        .eq('owner_email', email);
-      
-      if (error) throw error;
-      return count || 0;
+      const timeoutPromise = new Promise((_, reject) => 
+        timeoutId = setTimeout(() => reject(new Error('Owned restaurant count timeout')), 4000)
+      );
+
+      const fetchPromise = (async () => {
+        const { count, error } = await supabase
+          .from('restaurants')
+          .select('*', { count: 'exact', head: true })
+          .eq('owner_email', email);
+        
+        if (error) throw error;
+        return count || 0;
+      })();
+
+      const result = await Promise.race([fetchPromise, timeoutPromise]) as number;
+      if (timeoutId) clearTimeout(timeoutId);
+      return result;
     } catch (e) {
+      if (timeoutId) clearTimeout(timeoutId);
       console.error("Vinetelligence: Failed to get owned restaurant count", e);
       return 0;
     }

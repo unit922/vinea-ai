@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, ArrowRight, ShieldCheck, Mail, Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import VinetelligenceLogo from '../components/VinetelligenceLogo';
 import AHLALogo from '../components/AHLALogo';
 import { getPublicBrand } from '../utils/branding';
+import { useVinetelligenceStore } from '../store/vinetelligenceStore';
+import { SocialPromo } from '../components/SocialPromo';
 
 interface HomeProps {
   onLogin?: () => void;
@@ -15,17 +17,81 @@ interface HomeProps {
 const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) => {
   const brand = getPublicBrand();
   const primaryText = brand.theme === 'vinea' ? 'text-amber-600' : 'text-indigo-600';
+  const restaurantProfile = useVinetelligenceStore(state => state.restaurantProfile);
 
+  const isVinea = brand.theme === 'vinea';
+  const brandName = isVinea ? 'Vinea' : 'Vinetelligence';
+
+  // Dynamic tailwind class strings for branding colors
+  const textBrand400 = isVinea ? 'text-amber-400' : 'text-indigo-400';
+  const textBrand600 = isVinea ? 'text-amber-600' : 'text-indigo-600';
+  const bgBrand500 = isVinea ? 'bg-amber-500' : 'bg-indigo-500';
+  const bgBrand600 = isVinea ? 'bg-amber-600' : 'bg-indigo-600';
+  const hoverBgBrand600 = isVinea ? 'hover:bg-amber-600' : 'hover:bg-indigo-600';
+  const hoverBgBrand700 = isVinea ? 'hover:bg-amber-700' : 'hover:bg-indigo-700';
+  const borderBrand500_50 = isVinea ? 'hover:border-amber-500/50' : 'hover:border-indigo-500/50';
+  const bgBrand500_10 = isVinea ? 'bg-amber-500/10' : 'bg-indigo-500/10';
+  const shadowBrand100 = isVinea ? 'shadow-amber-100' : 'shadow-indigo-100';
+  const bgBrand950_60 = isVinea ? 'bg-amber-950/60' : 'bg-indigo-950/60';
+
+  const [isSocialFunnelActive, setIsSocialFunnelActive] = useState(false);
   const [activeModal, setActiveModal] = useState<'demo' | 'contact' | 'success' | 'verify' | null>(null);
   const [leadForm, setLeadForm] = useState({ name: '', email: '', establishment: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [activePromoSlide, setActivePromoSlide] = useState(0);
+  const [isPromoPlaying, setIsPromoPlaying] = useState(true);
 
-  // ROI Calculator State
-  const [monthlyRev, setMonthlyRev] = useState(50000);
-  const [atrophyRate, setAtrophyRate] = useState(15);
-  const calculatedEfficiency = (atrophyRate * 0.72).toFixed(1);
-  const annualRecovery = Math.round(monthlyRev * 12 * (parseFloat(calculatedEfficiency) / 100));
+  const scrollToSolutions = () => {
+    const element = document.getElementById('solutions');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    if (!isPromoPlaying) return;
+    const interval = setInterval(() => {
+      setActivePromoSlide((prev) => (prev + 1) % 3);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isPromoPlaying]);
+
+  // Auto-detect social traffic source on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref') || params.get('source') || params.get('funnel') || params.get('utm_source');
+    const isSocialRef = ref === 'linkedin' || ref === 'linkedin-pro' || ref === 'facebook' || ref === 'fb' || ref === 'facebook-human' || ref === 'social';
+    const isReferrerSocial = document.referrer.includes('linkedin.com') || 
+                             document.referrer.includes('facebook.com') || 
+                             document.referrer.includes('fb.me') || 
+                             document.referrer.includes('instagram.com') || 
+                             document.referrer.includes('t.co');
+                             
+    if (isSocialRef || isReferrerSocial) {
+      setIsSocialFunnelActive(true);
+    }
+  }, []);
+
+  if (isSocialFunnelActive) {
+    const fallbackProfile = {
+      id: isVinea ? 'vinea-landing-id' : 'vinetelligence-demo-id',
+      name: isVinea ? 'Vinea Enterprise' : 'Vinetelligence Enterprise',
+      type: 'Bespoke Restaurant & Bar',
+      focus: 'Beverage Yield Optimization',
+      aesthetic: 'elite' as const,
+      manualPromoUrl: '',
+      slug: 'demo-funnel'
+    };
+    
+    return (
+      <SocialPromo 
+        profile={restaurantProfile || fallbackProfile}
+        onBack={() => setIsSocialFunnelActive(false)}
+        onLogin={onLogin}
+      />
+    );
+  }
 
   const handleLeadSubmit = async () => {
     setEmailError(null);
@@ -78,8 +144,8 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full ${brand.theme === 'vinea' ? 'bg-amber-50 border-amber-100 text-amber-600' : 'bg-indigo-50 border-indigo-100 text-indigo-600'} text-[10px] font-black uppercase tracking-widest`}>
-                <i className="fas fa-chart-line"></i>
-                Direct Sandbox Access — No Signup Required
+                <i className="fas fa-sparkles text-[9px]"></i>
+                {brand.theme === 'vinea' ? 'Autonomous Fine-Wine & Sommelier Platform' : 'Autonomous Restaurant & Beverage System'}
               </div>
               <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full uppercase tracking-wider">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -87,21 +153,21 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
               </span>
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif font-black leading-tight tracking-tighter text-stone-900">
-              Transform your <br />
-              <span className={`${primaryText} italic`}>Establishment in 48h.</span>
+              Optimize your <br />
+              <span className={`${primaryText} italic`}>operations step-by-step.</span>
             </h1>
             <p className="text-lg md:text-xl text-stone-600 leading-relaxed max-w-xl font-medium">
               {brand.theme === 'vinea'
-                ? "Vinea AI is an 80% autonomous, AI-powered fine-wine and hospitality service platform. Skip the demo calls—launch our instant sandbox and see how sommelier intelligence optimizes your floor, staff, and beverage inventory right now."
-                : "Vinetelligence is an 80% autonomous, AI-powered system for restaurant and beverage operations. Skip the demo calls—launch our instant sandbox and see how predictive intelligence optimizes your floor, staff, and inventory right now."}
+                ? "Vinea AI is an 80% autonomous, AI-powered fine-wine and hospitality service platform. We seamlessly synchronize with your existing POS systems to predict beverage demand, automate stock depletions, and guide floor staff with real-time sommelier intelligence."
+                : "Vinetelligence is an 80% autonomous, AI-powered system for restaurant and beverage operations. We seamlessly synchronize with your existing POS systems to predict demand, automate stock depletions, and guide floor staff with real-time predictive intelligence."}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <button 
-                onClick={() => onEnterDemo?.()}
-                className="px-10 py-5 bg-stone-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl shadow-stone-200 active:scale-95 flex items-center justify-center gap-3"
+                onClick={scrollToSolutions}
+                className={`px-10 py-5 bg-stone-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest ${hoverBgBrand600} transition-all shadow-xl shadow-stone-200 active:scale-95 flex items-center justify-center gap-3 cursor-pointer`}
               >
-                Instant Sandbox Access
+                Explore What We Offer
                 <ArrowRight className="w-3.5 h-3.5 text-white/50" />
               </button>
               <button 
@@ -112,31 +178,42 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
                     setActiveModal('demo');
                   }
                 }}
-                className="px-10 py-5 bg-white text-stone-900 border border-stone-200 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-stone-50 transition-all active:scale-95 flex items-center justify-center gap-3"
+                className="px-10 py-5 bg-white text-stone-900 border border-stone-200 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-stone-50 transition-all active:scale-95 flex items-center justify-center gap-3 cursor-pointer"
               >
-                Initialize your Node
+                Consultation Call
               </button>
             </div>
             
             <div className="flex flex-col gap-6 pt-4">
-              <div className="flex items-center gap-4">
-                 <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Already a Partner?</p>
-                 <button 
-                   onClick={() => {
-                     if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence')) {
-                       localStorage.setItem('platform_selected_app', 'vinetelligence');
-                        const hUrl = new URL(window.location.href);
-                        hUrl.searchParams.set('mode', 'login');
-                        window.history.replaceState({}, '', hUrl.toString());
-                        window.location.reload();
-                       return;
-                     }
-                     onLogin?.();
-                   }}
-                   className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:scale-105 transition-all"
-                 >
-                   Sign In to your establishment
-                 </button>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                 <div className="flex items-center gap-2">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Already a Partner?</p>
+                   <button 
+                     onClick={() => {
+                       if (typeof window !== 'undefined' && window.location.hostname.includes('vinetelligence')) {
+                         localStorage.setItem('platform_selected_app', 'vinetelligence');
+                          const hUrl = new URL(window.location.href);
+                          hUrl.searchParams.set('mode', 'login');
+                          window.history.replaceState({}, '', hUrl.toString());
+                          window.location.reload();
+                         return;
+                       }
+                       onLogin?.();
+                     }}
+                     className={`text-[10px] font-black uppercase tracking-widest ${textBrand600} hover:underline transition-all cursor-pointer`}
+                   >
+                     Sign In
+                   </button>
+                 </div>
+                 <div className="flex items-center gap-2 border-l border-stone-200 pl-6">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Want a preview?</p>
+                   <button 
+                     onClick={() => onEnterDemo?.()}
+                     className={`text-[10px] font-black uppercase tracking-widest ${textBrand600} hover:underline transition-all cursor-pointer`}
+                   >
+                     Try Instant Sandbox Demo
+                   </button>
+                 </div>
               </div>
 
               {/* Quick Feature List */}
@@ -235,10 +312,10 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
                   
                   <div className="flex justify-center pt-4">
                     <button 
-                      onClick={() => onEnterDemo?.()}
-                      className="px-8 py-4 bg-white text-stone-950 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 transition-all flex items-center gap-3 group/btn"
+                      onClick={scrollToSolutions}
+                      className="px-8 py-4 bg-white text-stone-950 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 transition-all flex items-center gap-3 group/btn cursor-pointer"
                     >
-                      Step Inside the Sandbox
+                      See Our Full Suite
                       <i className="fas fa-arrow-right group-hover/btn:translate-x-1 transition-transform"></i>
                     </button>
                   </div>
@@ -277,6 +354,66 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
         </div>
       </section>
 
+      {/* Services & Offerings (Inspired by Restaurant Suite 360) */}
+      <section id="solutions" className="py-24 md:py-32 px-6 bg-white overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center space-y-4 mb-16 md:mb-20">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600">Solutions Suite</h2>
+            <h3 className="text-3xl md:text-5xl font-serif font-black tracking-tighter leading-tight italic">Optimized for Operational Alpha.</h3>
+            <p className="text-sm md:text-base text-stone-500 max-w-2xl mx-auto font-medium italic">We provide neural infrastructure and beverage intelligence for the world's most demanding establishments.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { 
+                title: "Predictive Inventory Nodes", 
+                desc: "Real-time depletion alerts and automated restocking protocols optimized for high-velocity environments.",
+                icon: "fa-box-open",
+                link: "/platform"
+              },
+              { 
+                title: "Staff Mastery Training", 
+                desc: "AI-driven coaching nodes that transform staff into beverage experts through continuous micro-learning.",
+                icon: "fa-user-graduate",
+                link: "/academy"
+              },
+              { 
+                title: "Neural Guest Analytics", 
+                desc: "Deep pattern matching for personalized hospitality, decanting the perfect guest experience at scale.",
+                icon: "fa-brain",
+                link: "/intelligence"
+              }
+            ].map((service, i) => (
+              <motion.div 
+                key={i}
+                whileHover={{ y: -10 }}
+                className="p-8 md:p-10 bg-stone-50 border border-stone-100 rounded-[3rem] space-y-6 hover:bg-white hover:shadow-2xl transition-all group flex flex-col justify-between"
+              >
+                <div className="space-y-6">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-indigo-600 text-2xl shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    <i className={`fas ${service.icon}`}></i>
+                  </div>
+                  <h4 className="text-xl font-serif font-black italic">{service.title}</h4>
+                  <p className="text-sm text-stone-500 font-medium leading-relaxed italic">{service.desc}</p>
+                </div>
+                <div className="pt-4 border-t border-stone-100/50">
+                   <Link to={service.link} className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-2 group/link">
+                      Explore Module <ArrowRight className="w-3 h-3 group-hover/link:translate-x-1 transition-transform" />
+                   </Link>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-12 text-center">
+             <Link to="/platform" className="inline-flex items-center gap-3 text-xs font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors group">
+               <span>Explore the Full 6-Module Platform Suite</span>
+               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+             </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Stats Matrix */}
       <section className="py-24 bg-white border-b border-stone-100">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
@@ -304,10 +441,10 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
         <div className="max-w-7xl mx-auto space-y-24">
           <div className="grid lg:grid-cols-2 gap-20 items-center">
             <div className="space-y-8">
-               <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">Deep Integration</h2>
+               <h2 className="text-[10px] font-black uppercase tracking-[0.4em] ${textBrand400}">Deep Integration</h2>
                <h3 className="text-4xl md:text-6xl font-serif font-black italic tracking-tighter leading-none">Interoperable <br /> with your Tech Stack.</h3>
                <p className="text-stone-400 text-lg leading-relaxed italic">
-                 Vinetelligence isn't a walled garden. We provide native interop nodes for the world's most trusted hospitality platforms, ensuring your neural data flows seamlessly across your entire operation.
+                 {brandName} isn't a walled garden. We provide native interop nodes for the world's most trusted hospitality platforms, ensuring your neural data flows seamlessly across your entire operation.
                </p>
                
                <div className="grid grid-cols-2 gap-6 pt-8">
@@ -319,8 +456,8 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
                     { name: "Stripe", type: "Neural Payment Hub" },
                     { name: "Salesforce", type: "Enterprise CRM Interop" }
                   ].map((tech, i) => (
-                    <div key={i} className="p-6 bg-white/5 border border-white/10 rounded-[2rem] hover:border-indigo-500/50 transition-colors">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-1">{tech.name}</p>
+                    <div key={i} className={`p-6 bg-white/5 border border-white/10 rounded-[2rem] ${borderBrand500_50} transition-colors`}>
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${textBrand400} mb-1`}>{tech.name}</p>
                       <p className="text-[9px] text-white/50 font-medium italic">{tech.type}</p>
                     </div>
                   ))}
@@ -328,18 +465,18 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
             </div>
             
             <div className="relative">
-               <div className="aspect-square bg-indigo-500/10 rounded-full flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#4f46e5_0%,transparent_70%)] opacity-30"></div>
+               <div className={`aspect-square ${bgBrand500_10} rounded-full flex items-center justify-center relative overflow-hidden`}>
+                  <div className={`absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,${isVinea ? '#f59e0b' : '#4f46e5'}_0%,transparent_70%)] opacity-30`}></div>
                   <div className="relative z-10 w-full p-12">
                      <div className="bg-white/10 backdrop-blur-3xl border border-white/20 p-8 rounded-[3rem] shadow-2xl space-y-6">
                         <div className="flex items-center justify-between">
-                           <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Node Status</div>
+                           <div className={`text-[10px] font-black uppercase tracking-widest ${textBrand400}`}>Node Status</div>
                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                         </div>
                         <div className="space-y-4">
                            <p className="text-xl font-serif font-bold italic">Neural Handshake Successful</p>
                            <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                              <motion.div initial={{ width: 0 }} whileInView={{ width: '100%' }} transition={{ duration: 2 }} className="h-full bg-indigo-500" />
+                              <motion.div initial={{ width: 0 }} whileInView={{ width: '100%' }} transition={{ duration: 2 }} className={`h-full ${bgBrand500}`} />
                            </div>
                            <div className="grid grid-cols-2 gap-4 pt-4">
                               <div className="text-center">
@@ -360,125 +497,54 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
         </div>
       </section>
 
-      {/* Services & Offerings (Inspired by Restaurant Suite 360) */}
-      <section className="py-32 px-6 bg-white overflow-hidden">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center space-y-4 mb-16 md:mb-24">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600">Solutions Suite</h2>
-            <h3 className="text-3xl md:text-5xl font-serif font-black tracking-tighter leading-tight italic">Optimized for Operational Alpha.</h3>
-            <p className="text-sm md:text-base text-stone-500 max-w-2xl mx-auto font-medium italic">We provide neural infrastructure and beverage intelligence for the world's most demanding establishments.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { 
-                title: "Predictive Inventory Nodes", 
-                desc: "Real-time depletion alerts and automated restocking protocols optimized for high-velocity environments.",
-                icon: "fa-box-open",
-                link: "/platform"
-              },
-              { 
-                title: "Staff Mastery Training", 
-                desc: "AI-driven coaching nodes that transform staff into beverage experts through continuous micro-learning.",
-                icon: "fa-user-graduate",
-                link: "/academy"
-              },
-              { 
-                title: "Neural Guest Analytics", 
-                desc: "Deep pattern matching for personalized hospitality, decanting the perfect guest experience at scale.",
-                icon: "fa-brain",
-                link: "/intelligence"
-              },
-              { 
-                title: "Operations Command", 
-                desc: "Executive-level visibility across all operational sectors with real-time health metrics.",
-                icon: "fa-tower-control",
-                link: "/platform"
-              },
-              { 
-                title: "Yield Alpha Engine", 
-                desc: "Dynamic optimization of high-margin beverage inventory to maximize every glass served.",
-                icon: "fa-chart-pie",
-                link: "/intelligence"
-              },
-              { 
-                title: "Supply Chain Synthesis", 
-                desc: "Automated integration with global premium distributors for frictionless procurement.",
-                icon: "fa-truck-fast",
-                link: "/pricing"
-              }
-            ].map((service, i) => (
-              <motion.div 
-                key={i}
-                whileHover={{ y: -10 }}
-                className="p-10 bg-stone-50 border border-stone-100 rounded-[3rem] space-y-6 hover:bg-white hover:shadow-2xl transition-all group flex flex-col justify-between"
-              >
-                <div className="space-y-6">
-                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-indigo-600 text-2xl shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                    <i className={`fas ${service.icon}`}></i>
-                  </div>
-                  <h4 className="text-xl font-serif font-black italic">{service.title}</h4>
-                  <p className="text-sm text-stone-500 font-medium leading-relaxed italic">{service.desc}</p>
-                </div>
-                <div className="pt-4">
-                   <Link to={service.link} className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-2 group/link opacity-0 group-hover:opacity-100 transition-opacity">
-                      Learn More <ArrowRight className="w-3 h-3 group-hover/link:translate-x-1 transition-transform" />
-                   </Link>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Video Demo Section */}
-      <section className="py-32 px-6 bg-[#0c0e0e] text-white overflow-hidden relative">
-        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
-        <div className="max-w-7xl mx-auto relative z-10 text-center space-y-16">
+      {/* Platform Experience Section - Featuring Warm human hospitality */}
+      <section className="py-24 md:py-32 px-6 bg-[#0c0e0e] text-white overflow-hidden relative border-y border-stone-800">
+        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+        <div className="max-w-5xl mx-auto relative z-10 text-center space-y-12">
           <div className="space-y-4">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">See it in Action</h2>
-            <h3 className="text-3xl md:text-5xl lg:text-7xl font-serif font-black tracking-tighter leading-none italic">The Neural Experience.</h3>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">Integrated Harmony</h2>
+            <h3 className="text-3xl md:text-5xl lg:text-6xl font-serif font-black tracking-tighter leading-none italic">The Neural Experience.</h3>
+            <p className="text-xs md:text-sm text-stone-400 font-medium max-w-xl mx-auto leading-relaxed italic">
+              Our backend intelligence runs continuously behind the scenes so your team can focus on what truly matters: authentic, unforgettable guest connections and premium wine service.
+            </p>
           </div>
           
-          <div className="relative group max-w-5xl mx-auto">
-            <div className="absolute -inset-4 bg-indigo-500/20 rounded-[3rem] blur-3xl opacity-50 group-hover:opacity-100 transition-opacity"></div>
-            <div className="relative aspect-video rounded-[3rem] overflow-hidden border border-white/10 shadow-3xl bg-stone-900">
-               <video 
-                 className="w-full h-full object-cover grayscale brightness-50 group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-1000"
-                 muted loop playsInline autoPlay
-                 poster="https://images.unsplash.com/photo-1551218808-94e220e0349c?auto=format&fit=crop&q=80&w=1200"
-               >
-                 <source src="https://assets.mixkit.co/videos/preview/mixkit-bartender-preparing-a-drink-86-large.mp4" type="video/mp4" />
-               </video>
+          <div className="relative group max-w-4xl mx-auto">
+            <div className="absolute -inset-4 bg-indigo-500/10 rounded-[3rem] blur-3xl opacity-50"></div>
+            <div className="relative w-full rounded-[3rem] overflow-hidden border border-white/10 shadow-3xl bg-stone-900">
+               {/* Warm, friendly luxury dining image showing people clinking wine glasses and smiling */}
+               <img 
+                 src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=1600" 
+                 alt="Warm hospitality experience with wine service and happy guests"
+                 className="w-full h-auto object-cover max-h-[500px]"
+                 referrerPolicy="no-referrer"
+               />
+               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
                
-               {/* UI Overlays to simulate app interaction */}
-               <div className="absolute top-10 left-10 space-y-4 animate-float">
-                  <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-3xl shadow-2xl">
-                     <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                        <span className="text-[8px] font-black uppercase text-indigo-400">Neural Node Active</span>
-                     </div>
-                  </div>
-               </div>
-
-               <div className="absolute bottom-10 right-10 max-w-xs text-right space-y-4">
-                 <p className="text-2xl font-serif font-black italic text-white leading-tight">"Mapping palate DNA in real-time..."</p>
-                 <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      whileInView={{ width: '100%' }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                      className="h-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)]" 
-                    />
+               {/* Floating descriptive badge cards to overlay technology markers onto the warm dining scene */}
+               <div className="absolute bottom-8 left-8 right-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 text-left">
+                 <div className="space-y-2 max-w-md bg-stone-900/95 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-2xl">
+                   <div className={`flex items-center gap-2 ${textBrand400} text-[10px] font-black uppercase tracking-widest`}>
+                     <span className={`w-2 h-2 rounded-full ${bgBrand500} animate-pulse`}></span>
+                     <span>Digital Cellar & Dining Harmony</span>
+                   </div>
+                   <h4 className="text-base font-serif font-bold italic text-white">Data-driven, humanly delivered.</h4>
+                   <p className="text-[11px] text-stone-400 leading-relaxed font-medium">
+                     Through passive POS mesh, real-time inventory adjustments, and conversational coaching nodes, {brandName} empowers your establishment with premium automation while amplifying classic hospitality.
+                   </p>
+                 </div>
+                 
+                 <div className="flex gap-3 flex-wrap">
+                   <span className="px-4 py-2.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-bold text-white flex items-center gap-2 shadow-lg">
+                     <i className="fas fa-handshake text-emerald-400"></i>
+                     Seamless Integrations
+                   </span>
+                   <span className="px-4 py-2.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-xl text-[10px] font-bold text-white flex items-center gap-2 shadow-lg">
+                     <i className="fas fa-wine-glass text-amber-400"></i>
+                     Yield Optimization
+                   </span>
                  </div>
                </div>
-            </div>
-          </div>
-          
-          <div className="pt-8">
-            <div className="inline-flex flex-col items-center gap-4">
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500 italic">Visual Showcase: Proprietary Node Logic</span>
-              <div className="h-0.5 w-12 bg-indigo-500/30"></div>
             </div>
           </div>
         </div>
@@ -530,52 +596,240 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
         </div>
       </section>
 
-      {/* Demo & Sandbox Experience Highlight */}
-      <section className="py-32 px-6 bg-stone-50 border-y border-stone-100">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
-          <div className="order-2 lg:order-1 relative">
-            <div className="absolute -inset-10 bg-indigo-500/10 rounded-full blur-[100px] animate-pulse"></div>
-            <div className="relative z-10 glass rounded-[3rem] border border-white/40 p-2 shadow-3xl bg-white">
-              <div className="bg-stone-900 rounded-[2.8rem] overflow-hidden aspect-video border border-stone-800 shadow-inner flex items-center justify-center relative">
-                 <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
-                 <div className="text-center space-y-6 relative z-10 p-12">
-                    <i className="fas fa-play-circle text-6xl text-white opacity-40 hover:opacity-100 hover:scale-110 transition-all cursor-pointer"></i>
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">Launch Sandbox Interface</p>
-                 </div>
+      {/* Brand Promo Showcase & Safe Sandbox Article */}
+      <section className="py-24 md:py-32 px-6 bg-stone-50 border-y border-stone-100">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-16 md:gap-20 items-center">
+          
+          {/* Interactive Promo Film Player (Left / 7 Cols on lg) */}
+          <div className="lg:col-span-7 space-y-6 relative order-2 lg:order-1">
+            <div className="absolute -inset-10 bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none"></div>
+            
+            {/* Player Container */}
+            <div className="relative z-10 bg-stone-900 rounded-[3rem] p-3 shadow-3xl border border-stone-800/80">
+              {/* Screen Area */}
+              <div className="relative aspect-video rounded-[2.5rem] overflow-hidden bg-stone-950 flex flex-col justify-between p-8">
+                {/* Dynamic Backgrounds matching video scenes */}
+                <div className="absolute inset-0 z-0">
+                  <div 
+                    className={`absolute inset-0 bg-cover bg-center transition-all duration-[1.5s] ease-in-out transform ${activePromoSlide === 0 ? 'opacity-30 scale-100' : 'opacity-0 scale-110'}`}
+                    style={{ backgroundImage: `url('https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&q=80&w=1200')` }}
+                  />
+                  <div 
+                    className={`absolute inset-0 bg-cover bg-center transition-all duration-[1.5s] ease-in-out transform ${activePromoSlide === 1 ? 'opacity-30 scale-100' : 'opacity-0 scale-110'}`}
+                    style={{ backgroundImage: `url('https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&q=80&w=1200')` }}
+                  />
+                  <div 
+                    className={`absolute inset-0 bg-cover bg-center transition-all duration-[1.5s] ease-in-out transform ${activePromoSlide === 2 ? 'opacity-30 scale-100' : 'opacity-0 scale-110'}`}
+                    style={{ backgroundImage: `url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200')` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/40 to-stone-950/20" />
+                </div>
+
+                {/* Top Overlay Bar */}
+                <div className="relative z-10 flex justify-between items-center">
+                  <span className="px-3.5 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-[8px] font-black uppercase tracking-[0.2em] text-indigo-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block mr-1.5 animate-pulse"></span>
+                    Brand Promo Loop
+                  </span>
+                  <div className="flex gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${activePromoSlide === 0 ? 'bg-indigo-500' : 'bg-white/30'}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${activePromoSlide === 1 ? 'bg-indigo-500' : 'bg-white/30'}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${activePromoSlide === 2 ? 'bg-indigo-500' : 'bg-white/30'}`} />
+                  </div>
+                </div>
+
+                {/* Main Caption Displays - Mirroring the promo video frames exactly */}
+                <div className="relative z-10 my-auto text-left max-w-2xl">
+                  <AnimatePresence mode="wait">
+                    {activePromoSlide === 0 && (
+                      <motion.div 
+                        key="slide0"
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -15 }}
+                        transition={{ duration: 0.5 }}
+                        className="space-y-3"
+                      >
+                        <h4 className="text-xs font-black uppercase text-indigo-400 tracking-widest font-mono">SCENE 01 // OPERATIONAL AUDIT</h4>
+                        <h5 className="text-3xl md:text-4xl font-serif font-black tracking-tight leading-tight text-white italic">
+                          Replace Chaos with Intelligence.
+                        </h5>
+                        <p className="text-stone-400 text-xs md:text-sm font-medium leading-relaxed italic">
+                          When kitchen and cellar operations speed up, guesswork yields friction. Let automation do the heavy lifting.
+                        </p>
+                      </motion.div>
+                    )}
+                    
+                    {activePromoSlide === 1 && (
+                      <motion.div 
+                        key="slide1"
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -15 }}
+                        transition={{ duration: 0.5 }}
+                        className="space-y-3"
+                      >
+                        <h4 className="text-xs font-black uppercase text-indigo-400 tracking-widest font-mono">SCENE 02 // MITIGATING ERROR RANGES</h4>
+                        <h5 className="text-3xl md:text-4xl font-serif font-black tracking-tight leading-tight text-white italic">
+                          Consistency • Inventory mistakes • Guest experience.
+                        </h5>
+                        <p className="text-stone-400 text-xs md:text-sm font-medium leading-relaxed italic">
+                          Eradicate expensive manual counting errors. Protect margins and guarantee a premium guest journey.
+                        </p>
+                      </motion.div>
+                    )}
+
+                    {activePromoSlide === 2 && (
+                      <motion.div 
+                        key="slide2"
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -15 }}
+                        transition={{ duration: 0.5 }}
+                        className="space-y-3"
+                      >
+                        <h4 className="text-xs font-black uppercase text-indigo-400 tracking-widest font-mono">SCENE 03 // ACTIONABLE OPTIMIZATION</h4>
+                        <h5 className="text-3xl md:text-4xl font-serif font-black tracking-tight leading-tight text-white italic">
+                          See how predictive intelligence optimizes your floor, staff, and inventory right now.
+                        </h5>
+                        <p className="text-stone-400 text-xs md:text-sm font-medium leading-relaxed italic">
+                          Seamlessly synchronize workflows. Instantly elevate junior staff members into master sommeliers.
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Video Playback Subtitle Overlay */}
+                <div className="relative z-10 flex justify-between items-end border-t border-white/5 pt-4 text-stone-500">
+                  <span className={`text-[9px] font-mono uppercase tracking-widest font-black ${textBrand400}`}>
+                    {activePromoSlide === 0 ? "01 / REPLACING CHAOS" : activePromoSlide === 1 ? "02 / PAIN POINTS" : "03 / THE REMEDY"}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-mono uppercase">{brandName} OS</span>
+                    <i className="fas fa-signal text-[8px] text-emerald-500 animate-pulse"></i>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Playhead Line */}
+              <div className="h-1.5 w-full bg-stone-950 relative overflow-hidden rounded-full mt-3">
+                <motion.div 
+                  key={activePromoSlide}
+                  initial={{ width: '0%' }}
+                  animate={{ width: '100%' }}
+                  transition={{ duration: 5, ease: 'linear' }}
+                  className={`h-full ${bgBrand500}`}
+                />
+              </div>
+
+              {/* Player Controllers */}
+              <div className="flex flex-col sm:flex-row gap-4 items-center justify-between pt-3 px-2">
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setIsPromoPlaying(!isPromoPlaying)}
+                    className="w-10 h-10 bg-white/10 hover:bg-white/25 rounded-full flex items-center justify-center text-white transition-all cursor-pointer text-xs"
+                    title={isPromoPlaying ? "Pause Video Simulation" : "Play Video Simulation"}
+                  >
+                    <i className={`fas ${isPromoPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsPromoPlaying(false);
+                      setActivePromoSlide((prev) => (prev === 0 ? 2 : prev - 1));
+                    }}
+                    className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center text-white/70 transition-all cursor-pointer text-xs"
+                    title="Previous Slide"
+                  >
+                    <i className="fas fa-backward"></i>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsPromoPlaying(false);
+                      setActivePromoSlide((prev) => (prev + 1) % 3);
+                    }}
+                    className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center text-white/70 transition-all cursor-pointer text-xs"
+                    title="Next Slide"
+                  >
+                    <i className="fas fa-forward"></i>
+                  </button>
+                </div>
+
+                {/* Chapter Selectors */}
+                <div className="flex gap-2 w-full sm:w-auto">
+                  {[
+                    { label: "01. BOH Chaos", index: 0 },
+                    { label: "02. Core Errors", index: 1 },
+                    { label: "03. Live Solution", index: 2 }
+                  ].map((chapter) => (
+                    <button
+                      key={chapter.index}
+                      onClick={() => {
+                        setIsPromoPlaying(false);
+                        setActivePromoSlide(chapter.index);
+                      }}
+                      className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer border ${
+                        activePromoSlide === chapter.index 
+                          ? 'bg-indigo-600 text-white border-indigo-500' 
+                          : 'bg-white/5 text-stone-400 border-white/5 hover:bg-white/10'
+                      }`}
+                    >
+                      {chapter.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
           
-          <div className="order-1 lg:order-2 space-y-8">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 italic">Interactive Sandbox</h2>
-            <h3 className="text-4xl md:text-6xl font-serif font-black italic tracking-tighter leading-none">Experience the <br /> System Today.</h3>
-            <p className="text-lg text-stone-500 font-medium italic leading-relaxed">
-              Why wait? Explore the full Vinetelligence suite in our synchronized sandbox. Test the "Staff Mastery" nodes, run a mock "Yield Alpha" report, and experience how "Guest Palate DNA" transforms service.
-            </p>
-            <div className="space-y-6 pt-4">
-              {[
-                "Zero-configuration demo environment",
-                "Explore all Professional & Enterprise features",
-                "Test AI interactions in real-time",
-                "Instant local-first storage synchronization"
-              ].map((benefit, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-white text-[8px] font-black">
-                    <Check className="w-3 h-3" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-stone-600 italic">{benefit}</span>
-                </div>
-              ))}
+          {/* Promo Article Call-to-Action (Right / 5 Cols on lg) */}
+          <div className="lg:col-span-5 space-y-8 order-1 lg:order-2">
+            <div className="space-y-4">
+              <span className="inline-flex items-center gap-1.5 text-[9px] font-mono font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                Featured Promo Insight
+              </span>
+              <h3 className="text-4xl md:text-5xl font-serif font-black italic tracking-tighter leading-none text-stone-900">
+                A Cure for <br /> Restaurant Chaos.
+              </h3>
             </div>
-            <div className="pt-6">
-              <button 
-                onClick={() => onEnterDemo?.()}
-                className="px-14 py-6 bg-stone-900 text-white rounded-2xl font-black text-sm uppercase tracking-[0.4em] hover:bg-indigo-600 transition-all shadow-2xl active:scale-95"
-              >
-                Launch Sandbox Demo
-              </button>
+            
+            <div className="space-y-6 text-stone-600 font-medium leading-relaxed italic text-sm md:text-base">
+              <p>
+                Behind every exquisite service is a high-pressure dance of inventory depletions, team alignment, and guest intuition. Yet, legacy restaurant workflows too often mean constant firefighting—plagued by painful inventory mistakes, training lag, and lost revenue.
+              </p>
+              <p>
+                Our promo film exposes this universal battleground. By layering predictive intelligence over your existing setup, {brandName} seamlessly takes the guesswork out of daily operations. We replace back-of-house friction with real-time operational alpha.
+              </p>
+            </div>
+
+            {/* Premium Safe Sandbox Reassurance Container */}
+            <div className="p-8 bg-white border border-stone-200 rounded-[2.5rem] space-y-5 shadow-xl shadow-stone-100 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none"></div>
+              
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <h4 className="font-serif font-bold text-stone-900 italic text-base">Step In Safely & Confidently</h4>
+              </div>
+              
+              <p className="text-xs text-stone-500 leading-relaxed italic font-medium">
+                We believe you should see our software without barriers. Our interactive demo is a fully isolated, client-side sandbox. It is <strong className="text-stone-800 font-semibold">100% free, runs instantly in your browser, and requires no phone calls, no email lists, and no credit card</strong>. Feel completely secure to explore our operating tools at your own leisure.
+              </p>
+
+              <div className="pt-2">
+                <button 
+                  onClick={() => onEnterDemo?.()}
+                  className={`w-full py-5 bg-stone-900 ${hoverBgBrand600} text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-stone-200 active:scale-95 flex items-center justify-center gap-3 cursor-pointer`}
+                >
+                  <span>Launch Safe Sandbox Demo</span>
+                  <ArrowRight className="w-4 h-4 text-white/50" />
+                </button>
+              </div>
             </div>
           </div>
+
         </div>
       </section>
 
@@ -583,8 +837,8 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
       <section className="py-32 px-6 bg-stone-50 border-t border-stone-100">
         <div className="max-w-7xl mx-auto">
           <div className="text-center space-y-4 mb-24">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600">The Operating System</h2>
-            <h3 className="text-5xl font-serif font-black tracking-tighter leading-tight italic">Inside the Vinetelligence App.</h3>
+            <h2 className={`text-[10px] font-black uppercase tracking-[0.4em] ${textBrand600}`}>The Operating System</h2>
+            <h3 className="text-5xl font-serif font-black tracking-tighter leading-tight italic">Inside the {brandName} App.</h3>
             <p className="text-xl text-stone-500 max-w-2xl mx-auto italic">A professional-grade interface for managers who demand absolute clarity and real-time control.</p>
           </div>
 
@@ -684,120 +938,42 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
         </div>
       </section>
 
-      {/* Competitive Edge - 2026 Horizon Comparison */}
-      <section className="py-32 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center space-y-4 mb-24">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600">Competitive Landscape</h2>
-            <h3 className="text-5xl font-serif font-black tracking-tighter leading-tight italic">2026 Horizon Comparison.</h3>
-            <p className="text-xl text-stone-500 max-w-2xl mx-auto italic">How Vinetelligence outperforms legacy systems and emerging 2026 startups.</p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="border-b border-stone-200">
-                  <th className="py-8 px-4 text-[10px] font-black uppercase tracking-widest text-stone-400">Capabilities</th>
-                  <th className="py-8 px-4 text-[10px] font-black uppercase tracking-widest text-stone-900 border-l border-stone-100 bg-stone-50/50">Vinetelligence AI</th>
-                  <th className="py-8 px-4 text-[10px] font-black uppercase tracking-widest text-stone-400">2026 Startups</th>
-                  <th className="py-8 px-4 text-[10px] font-black uppercase tracking-widest text-stone-400">Legacy Systems (Toast/Olo)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {[
-                  { feature: "Neural Inventory Sync", vt: "Native / Real-time", s26: "Partial / Manual", legacy: "Reactive / Lagged" },
-                  { feature: "Guest Palate DNA", vt: "Generative AI Sync", s26: "Basic CRM", legacy: "Static Profile" },
-                  { feature: "Operational Command", vt: "Executive Level", s26: "Standard Dashboard", legacy: "Tabular Lists" },
-                  { feature: "AI Training Node", vt: "Bespoke / Multi-model", s26: "Generic LMS", legacy: "PDF / Video" },
-                  { feature: "Prediction Horizon", vt: "72 Hours", s26: "24 Hours", legacy: "None (Historical only)" },
-                  { feature: "Neural Personalization", vt: "Deep / Generative", s26: "Template Based", legacy: "Rigid / Standard" }
-                ].map((row, i) => (
-                  <tr key={i} className="group hover:bg-stone-50 transition-all">
-                    <td className="py-6 px-4 text-xs font-bold text-stone-900">{row.feature}</td>
-                    <td className="py-6 px-4 text-xs font-black text-indigo-600 border-l border-stone-100 bg-indigo-50/30">{row.vt}</td>
-                    <td className="py-6 px-4 text-xs font-medium text-stone-500 italic">{row.s26}</td>
-                    <td className="py-6 px-4 text-xs font-medium text-stone-400 italic line-through">{row.legacy}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-20 p-10 bg-indigo-600 rounded-[3rem] text-center space-y-6 shadow-2xl">
-             <p className="text-xl text-white italic max-w-2xl mx-auto">"Vinetelligence is the first system we've seen that actually understands the soul of hospitality while using the brain of silicon. It makes legacy systems look like typewriters."</p>
-             <p className="text-[10px] font-black uppercase tracking-widest text-white/70">— Leading Hospitality Futurist, 2026</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ROI Calculator Section */}
-      <section id="roi" className="py-20 md:py-32 px-6 bg-[#FDF8F0]">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 md:gap-24 items-center">
-          <div className="space-y-8">
+      {/* Sleek Funnel Promo: Operational Leakage Audit Link */}
+      <section className="py-24 px-6 bg-[#FDF8F0] border-t border-b border-stone-100">
+         <div className="max-w-4xl mx-auto text-center space-y-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-50 rounded-full text-[10px] font-black uppercase text-red-500 tracking-wider">
+               <i className="fas fa-triangle-exclamation"></i> B2B Operational Risk Assessment
+            </div>
             <div className="space-y-4">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600">Growth Optimization</h2>
-              <h3 className="text-4xl md:text-5xl font-serif font-black leading-tight">Calculate your <br /> <span className="text-indigo-600 italic">Success Index.</span></h3>
+               <h3 className="text-3xl md:text-5xl font-serif font-black tracking-tight text-stone-900 leading-tight">
+                  Are you losing up to <span className="text-red-500 italic">12.5% of beverage revenue</span>?
+               </h3>
+               <p className="text-sm text-stone-500 max-w-xl mx-auto italic leading-relaxed">
+                  Most upscale establishments suffer from silent spillage, manual inventory errors, and high-margin dead stock. Run your operational coordinates in our B2B calculator to see your custom report.
+               </p>
             </div>
-            <div className="space-y-12 md:pt-8">
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-500">Monthly Beverage Revenue</label>
-                  <span className="text-lg md:text-xl font-serif font-black text-stone-900 italic">${monthlyRev.toLocaleString()}</span>
-                </div>
-                <input 
-                  type="range" min="10000" max="500000" step="5000" value={monthlyRev}
-                  onChange={(e) => setMonthlyRev(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                />
-              </div>
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-500">Current Atrophy Rate (Loss)</label>
-                  <span className="text-lg md:text-xl font-serif font-black text-red-500 italic">{atrophyRate}%</span>
-                </div>
-                <input 
-                   type="range" min="5" max="35" step="1" value={atrophyRate}
-                   onChange={(e) => setAtrophyRate(parseInt(e.target.value))}
-                   className="w-full h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-red-500"
-                />
-              </div>
+            <div>
+               <Link 
+                 to="/pricing" 
+                 className={`inline-flex items-center gap-3 px-8 py-4.5 ${bgBrand600} text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-stone-900 shadow-xl ${shadowBrand100} active:scale-95 transition-all`}
+               >
+                  <span>Launch Margin Leakage Calculator</span>
+                  <ArrowRight className="w-4 h-4" />
+               </Link>
             </div>
-          </div>
- 
-          <div className="bg-white p-8 md:p-12 rounded-[3rem] md:rounded-[4rem] border border-stone-100 shadow-2xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-             <div className="space-y-8 md:space-y-12 relative">
-                <div className="flex items-center gap-4">
-                   <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-lg md:text-xl">
-                      <i className="fas fa-chart-line-up"></i>
-                   </div>
-                   <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 italic">Projected Annual Recovery</p>
-                </div>
-                <div className="space-y-2">
-                   <p className="text-5xl md:text-7xl font-serif font-black text-indigo-600 tracking-tighter">${annualRecovery.toLocaleString()}</p>
-                   <p className="text-[10px] md:text-[11px] font-bold text-stone-400 uppercase tracking-widest italic leading-relaxed">
-                     Projected operational recovery through strategic <br className="hidden md:block" /> inventory & workforce optimization.
-                   </p>
-                </div>
-                <button 
-                  onClick={() => setActiveModal('demo')}
-                  className="w-full py-4 md:py-5 bg-stone-900 text-white rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-stone-800 transition-all shadow-xl shadow-stone-100 active:scale-95"
-                >
-                  Download Growth Analysis
-                </button>
-             </div>
-          </div>
-        </div>
+         </div>
       </section>
+
+
 
       {/* Modals */}
       <AnimatePresence>
         {activeModal === 'demo' || activeModal === 'contact' ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-indigo-950/60 backdrop-blur-md">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`fixed inset-0 z-[100] flex items-center justify-center p-6 ${bgBrand950_60} backdrop-blur-md`}>
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl relative">
               <button onClick={() => setActiveModal(null)} className="absolute top-8 right-8 text-stone-400 hover:text-stone-900"><X className="w-6 h-6" /></button>
               <div className="grid md:grid-cols-5 h-full">
-                <div className="md:col-span-2 bg-indigo-600 p-12 text-white space-y-8">
+                <div className={`md:col-span-2 ${bgBrand600} p-12 text-white space-y-8`}>
                   <VinetelligenceLogo size="sm" withText={false} className="text-white" />
                 <div className="space-y-2">
                    <h4 className="text-2xl font-serif font-black leading-tight text-white">{activeModal === 'demo' ? 'Strategic Consultation' : 'Growth Support'}</h4>
@@ -817,7 +993,7 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
                       </div>
                     </div>
                     {emailError && <p className="text-red-500 text-[9px] font-black uppercase">{emailError}</p>}
-                    <button onClick={handleLeadSubmit} disabled={isSubmitting} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all">{isSubmitting ? 'Syncing...' : 'Submit Request'}</button>
+                    <button onClick={handleLeadSubmit} disabled={isSubmitting} className={`w-full py-5 ${bgBrand600} text-white rounded-2xl font-black text-[10px] uppercase tracking-widest ${hoverBgBrand700} transition-all`}>{isSubmitting ? 'Syncing...' : 'Submit Request'}</button>
                   </div>
                 </div>
               </div>
@@ -826,7 +1002,7 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
         ) : null}
         
         {activeModal === 'success' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-indigo-950/60 backdrop-blur-md">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`fixed inset-0 z-[110] flex items-center justify-center p-6 ${bgBrand950_60} backdrop-blur-md`}>
              <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-[3rem] p-12 max-w-sm text-center space-y-8">
                 <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto"><Check /></div>
                 <h4 className="text-2xl font-serif font-black">Intel Received</h4>
@@ -837,9 +1013,9 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
         )}
 
         {activeModal === 'verify' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-indigo-950/60 backdrop-blur-md">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`fixed inset-0 z-[110] flex items-center justify-center p-6 ${bgBrand950_60} backdrop-blur-md`}>
              <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-[3rem] p-12 max-w-md text-center space-y-8">
-                <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto animate-pulse">
+                <div className={`w-20 h-20 ${bgBrand500_10} ${textBrand600} rounded-full flex items-center justify-center mx-auto animate-pulse`}>
                   <Mail className="w-10 h-10" />
                 </div>
                 <div className="space-y-4">
@@ -858,15 +1034,15 @@ const Home: React.FC<HomeProps> = ({ onEnterDemo, onStartOnboarding, onLogin }) 
                     onClick={() => {
                        onEnterDemo?.();
                     }}
-                    className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
+                    className={`w-full py-5 ${bgBrand600} text-white rounded-2xl font-black text-[10px] uppercase tracking-widest ${hoverBgBrand700} transition-all shadow-xl ${shadowBrand100}`}
                   >
                     Neural Access Granted
                   </button>
                   <button onClick={() => setActiveModal(null)} className="text-[10px] font-black uppercase text-stone-400 tracking-widest hover:text-stone-600 transition-colors">Abort Access Request</button>
                 </div>
-             </motion.div>
-          </motion.div>
-        )}
+              </motion.div>
+            </motion.div>
+          )}
       </AnimatePresence>
     </div>
   );

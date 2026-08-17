@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, Clock, Tag } from 'lucide-react';
+import { ArrowRight, Clock, Tag, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const BlogCard = ({ category, title, excerpt, date, image, onClick, externalUrl, internalUrl }: { category: string, title: string, excerpt: string, date: string, image: string, onClick?: () => void, externalUrl?: string, internalUrl?: string }) => {
@@ -55,7 +55,7 @@ const BlogSection: React.FC<{ onAction?: () => void }> = ({ onAction }) => {
   const posts = [
     {
       category: "Protocol",
-      title: "Direct Sandbox Access: The 60-Second Transformation",
+      title: "Direct Demo Access: The 60-Second Transformation",
       excerpt: "Skip the demo calls. Access the Vinetelligence Neural OS instantly and see how predictive intelligence optimizes your establishment in real-time.",
       date: "May 18, 2026",
       image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop",
@@ -115,6 +115,71 @@ const BlogSection: React.FC<{ onAction?: () => void }> = ({ onAction }) => {
               // We remove the blanket onClick from the card mapping if the original post object doesn't have it explicitly enabled via a boolean or if we want to honor the user's request for "only placeholder if no link"
             />
           ))}
+        </div>
+
+        {/* Active Community Dialogue Widget */}
+        <div className="mt-32 border-t border-stone-200 pt-20">
+          <div className="max-w-4xl mx-auto bg-stone-50 border border-stone-200/80 rounded-[3rem] p-8 md:p-12 space-y-8 shadow-sm">
+            <div className="flex items-center gap-3">
+              <MessageSquare className="w-5 h-5 text-indigo-600" />
+              <h4 className="text-xs font-black uppercase tracking-[0.3em] text-indigo-600">Active Dialogue</h4>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-3xl font-serif font-black text-stone-900 italic">Community Dispatch & Engagement</h3>
+              <p className="text-stone-500 text-sm leading-relaxed max-w-xl italic">
+                Our initiatives are backed by trusted global service partners. Read the ongoing exchange on our latest operational publication.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 pt-6">
+              {/* Zentro's Supporter Comment */}
+              <div className="p-8 bg-white border border-stone-200 rounded-[2rem] space-y-4 shadow-sm relative group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-sm">ZS</div>
+                    <div>
+                      <h5 className="font-bold text-stone-900 text-sm font-sans">Zentro Supply</h5>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Strategic Supporter</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-stone-400 font-mono">Today</span>
+                </div>
+                <div className="bg-stone-50 rounded-xl p-4 border border-stone-150">
+                  <p className="text-stone-600 text-xs italic leading-relaxed font-sans">
+                    "Great concept! Restaurants also save a lot by having a dependable wholesale supplier for everyday essentials. At Zentro Supply, we help businesses source bulk A4 paper, household products, appliances, and other commercial supplies at competitive prices. Wishing you continued success!"
+                  </p>
+                </div>
+                <div className="flex gap-2 items-center text-[9px] font-black uppercase tracking-widest text-stone-400">
+                  <i className="fas fa-handshake"></i> Verified Supply Partner
+                </div>
+              </div>
+
+              {/* Vinetelligence Prompter Response */}
+              <div className="p-8 bg-stone-900 text-white rounded-[2rem] space-y-4 shadow-xl relative group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-serif italic font-bold text-lg">V</div>
+                    <div>
+                      <h5 className="font-bold text-white text-sm font-sans">Vinetelligence</h5>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Author Response</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-mono">Just Now</span>
+                </div>
+                <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                  <p className="text-stone-300 text-xs italic leading-relaxed font-sans font-medium">
+                    "Thank you, Zentro Supply! Streamlining backend overhead—whether it's sourcing commercial essentials with wholesale leaders like Zentro, or maximizing floor margins with Vinetelligence—is how smart operators stay ahead. 
+                    <br/><br/>
+                    <strong>To restaurant owners and managers on our channel:</strong> How are you currently balancing the ratio between everyday dry-goods overhead and high-margin premium beverage scaling? Share your protocol below!"
+                  </p>
+                </div>
+                <div className="flex gap-2 items-center text-[9px] font-black uppercase tracking-widest text-indigo-400 animate-pulse">
+                  <i className="fas fa-comment-dots"></i> Engagement Prompt Active
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

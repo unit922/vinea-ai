@@ -160,7 +160,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
                    </div>
                    <div>
                       <p className="text-stone-900 font-bold">No Active Cloud Session</p>
-                      <p className="text-[10px] text-stone-400 uppercase font-black">Sandbox Mode Only</p>
+                      <p className="text-[10px] text-stone-400 uppercase font-black">Demo Mode Only</p>
                    </div>
                    {!isDemo && (
                      <button onClick={() => window.location.reload()} className="px-6 py-2 bg-stone-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Sign In to Continue</button>

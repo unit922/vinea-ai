@@ -32,9 +32,24 @@ const VinetelligenceAcademy: React.FC<VinetelligenceAcademyProps> = ({
   const [activeTab, setActiveTab] = useState<'academy' | 'mixology' | 'signature' | 'roster' | 'pairing' | 'market'>(initialTab || 'academy');
   const [pairingSuggestions, setPairingSuggestions] = useState<AIPairingSuggestion[]>([]);
   const [isLoadingPairings, setIsLoadingPairings] = useState(false);
-  const [messages, setMessages] = useState<{role: 'user' | 'vinetelligence', text: string, feedback?: number}[]>([
-    { role: 'vinetelligence', text: `Vinetelligence Academy operational. Caribbean-tuned nodes ready for ${userRole} level technical coaching. Inquire about tropical chemistry, Caribbean flair, or service protocols.` }
-  ]);
+  const [messages, setMessages] = useState<{role: 'user' | 'vinetelligence', text: string, feedback?: number}[]>(() => {
+    const isRC = typeof window !== 'undefined' && (() => {
+      try {
+        const p = JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
+        return p && (p.name?.includes("Ruth's Chris") || ('isRuthChris' in p && (p as unknown as { isRuthChris?: boolean }).isRuthChris));
+      } catch {
+        return false;
+      }
+    })();
+    return [
+      { 
+        role: 'vinetelligence', 
+        text: isRC
+          ? `Ruth's Chris Steak House Benchmark operational. System calibrated for USDA Prime steak pairing matrices and sizzling 500°F butter serving protocols. Ask about steak chemistry, dry aging, or luxury Cabernet pairings.`
+          : `Vinetelligence Academy operational. Caribbean-tuned nodes ready for ${userRole} level technical coaching. Inquire about tropical chemistry, Caribbean flair, or service protocols.` 
+      }
+    ];
+  });
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [showTransparencyNotice, setShowTransparencyNotice] = useState(false);

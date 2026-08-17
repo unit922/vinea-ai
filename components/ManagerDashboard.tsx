@@ -1,9 +1,10 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ExecutiveKPI, RetailTransaction, ExternalCatalyst, GuestJourney, RestaurantProfile } from '../lib/types';
+import { ExecutiveKPI, RetailTransaction, ExternalCatalyst, GuestJourney, RestaurantProfile, AppView } from '../lib/types';
 import { INITIAL_SHIFTS } from '../constants';
 import { supabaseSync, isValidUUID } from '../services/supabaseSync';
+import { useVinetelligenceStore } from '../store/vinetelligenceStore';
 import { motion } from 'motion/react';
 import { 
   Activity, 
@@ -37,6 +38,12 @@ const CATALYSTS: ExternalCatalyst[] = [
   { type: 'Weather', label: 'Heavy Rain (Expected 20:00)', impactScore: 0.8, description: 'Increased demand for interior seating & warm beverages.' },
   { type: 'Event', label: 'Local Jazz Festival', impactScore: 0.95, description: 'Higher walk-in velocity expected between 18:00-21:00.' },
   { type: 'Holiday', label: 'Mid-Week Anniversary', impactScore: 0.4, description: 'Slight uptick in premium wine pairing requests.' }
+];
+
+const RUTH_CHRIS_CATALYSTS: ExternalCatalyst[] = [
+  { type: 'Event', label: 'Sizzling Steak Banquet (19:30)', impactScore: 0.95, description: 'High demand for USDA Prime cuts, dry-aged ribeyes.' },
+  { type: 'Weather', label: 'Corporate Dinner Catalyst', impactScore: 0.88, description: 'Elevated premium Cabernet Sauvignon glass & bottle flow.' },
+  { type: 'Holiday', label: 'VIP Anniversary Celebrations', impactScore: 0.92, description: 'Surge in Veuve Clicquot champagne & lobster tail attachments.' }
 ];
 
 const MOCK_JOURNEYS: GuestJourney[] = [
@@ -90,6 +97,57 @@ const MOCK_JOURNEYS: GuestJourney[] = [
   }
 ];
 
+const RUTH_CHRIS_MOCK_JOURNEYS: GuestJourney[] = [
+  {
+    id: 'j-rc1',
+    arrivalTime: '2026-04-01T17:45:00Z',
+    status: 'Seated',
+    tableNumber: '4',
+    partySize: 2,
+    profile: {
+      name: 'Dr. Evelyn Harris',
+      location: 'New Orleans, LA (Corporate Board)',
+      favoriteBeverages: 'Silver Oak Oakville Cabernet, Double Eagle Bourbon',
+      dietaryRestrictions: 'None',
+      pastOrders: 'Ribeye 16oz, Lobster Mac & Cheese',
+      pairingStyle: 'Classic'
+    },
+    pacingMode: 'Leisurely'
+  },
+  {
+    id: 'j-rc2',
+    arrivalTime: '2026-04-01T18:15:00Z',
+    status: 'Arrived',
+    tableNumber: 'V2',
+    partySize: 4,
+    profile: {
+      name: 'Thomas Vance',
+      location: 'Houston, TX (Elite regular)',
+      favoriteBeverages: 'Caymus Cabernet Sauvignon, Premium Royal Pour',
+      dietaryRestrictions: 'Gluten-Free',
+      pastOrders: 'Prime Filet Mignon, Creamed Spinach',
+      pairingStyle: 'Classic'
+    },
+    pacingMode: 'Standard'
+  },
+  {
+    id: 'j-rc3',
+    arrivalTime: '2026-04-01T18:30:00Z',
+    status: 'Confirmed',
+    tableNumber: '1',
+    partySize: 2,
+    profile: {
+      name: 'Amelia DuPont',
+      location: 'New York, NY',
+      favoriteBeverages: 'Veuve Clicquot Champagne, Pinot Noir',
+      dietaryRestrictions: 'No Shellfish',
+      pastOrders: 'Chilean Sea Bass, Garlic Mashed Potatoes',
+      pairingStyle: 'Adventurous'
+    },
+    pacingMode: 'Brisk'
+  }
+];
+
 interface ManagerDashboardProps {
   searchQuery?: string;
   inventory?: InventoryItem[];
@@ -106,6 +164,35 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
   transactions = [],
   authMode = 'demo'
 }) => {
+  const isRuthChris = useMemo(() => {
+    const profile = restaurantProfile || JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
+    return profile && (profile.name?.includes("Ruth's Chris") || ('isRuthChris' in profile && (profile as unknown as { isRuthChris?: boolean }).isRuthChris));
+  }, [restaurantProfile]);
+
+  const setActiveView = useVinetelligenceStore(state => state.setActiveView);
+  const [hideAuditBanner, setHideAuditBanner] = useState(false);
+
+  const auditData = useMemo(() => {
+    try {
+      const active = localStorage.getItem('vinetelligence_audit_active');
+      const rev = localStorage.getItem('vinetelligence_audit_rev');
+      const pos = localStorage.getItem('vinetelligence_audit_pos');
+      const cost = localStorage.getItem('vinetelligence_audit_cost');
+      const leakage = localStorage.getItem('vinetelligence_audit_leakage');
+      if (active === 'true' && rev && pos && cost) {
+        return {
+          rev: parseFloat(rev),
+          pos: pos,
+          cost: parseFloat(cost),
+          leakage: parseFloat(leakage || '0')
+        };
+      }
+    } catch (e) {
+      console.error("Failed to load audit data in dashboard:", e);
+    }
+    return null;
+  }, []);
+
   const [staff] = useState(() => {
     const saved = localStorage.getItem('vinetelligence_staff_list') || localStorage.getItem('vinea_staff_list');
     const profile = restaurantProfile || JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
@@ -135,7 +222,8 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     if (profileStr) {
       const profile: RestaurantProfile = JSON.parse(profileStr);
       if (profile.edition === 'demo' && !isValidUUID(profile.id)) {
-        return MOCK_JOURNEYS;
+        const isRC = profile.name?.includes("Ruth's Chris") || ('isRuthChris' in profile && (profile as unknown as { isRuthChris?: boolean }).isRuthChris);
+        return isRC ? RUTH_CHRIS_MOCK_JOURNEYS : MOCK_JOURNEYS;
       }
     }
     return [];
@@ -225,12 +313,22 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     return "Supply Chain Optimal: All core inventory nodes reporting healthy stock levels. No immediate intervention required.";
   }, [depletionItems]);
 
-  const kpis: ExecutiveKPI[] = [
-    { label: getBrandedTerm('yield_alpha', restaurantProfile || undefined), value: '94.2%', change: 3.8, trend: 'up', benchmark: 'Model Confidence', description: 'Forecasted vs Actual capture' },
-    { label: 'LTV / CAC Ratio', value: '18.2x', change: 5.4, trend: 'up', benchmark: 'Industry Avg: 4.2x', description: 'Lifetime Value vs Acquisition' },
-    { label: 'Sentiment Alpha', value: '4.9/5', change: 1.4, trend: 'up', benchmark: 'Target 4.5', description: 'AI-derived guest satisfaction' },
-    { label: 'Waste Index', value: '3.2%', change: -12.4, trend: 'down', benchmark: 'Target < 5%', description: 'Spillage & inventory loss' },
-  ];
+  const kpis: ExecutiveKPI[] = useMemo(() => {
+    if (isRuthChris) {
+      return [
+        { label: 'Sizzling Platter Temp Avg', value: '498°F', change: 2.1, trend: 'up', benchmark: 'Target 500°F (99.6%)', description: 'Platter temperature at table serving' },
+        { label: 'Steak Pairing Rate', value: '89.2%', change: 6.5, trend: 'up', benchmark: 'Corp Match Avg: 82%', description: 'Prime Steaks with wine attachments' },
+        { label: 'USDA Prime Gross Margins', value: '69.4%', change: 1.4, trend: 'up', benchmark: 'Target 68%', description: 'Sizzling Ribeye & Filet margins' },
+        { label: 'Sentiment Alpha', value: '4.95/5', change: 0.8, trend: 'up', benchmark: 'Target 4.7', description: 'Steak house custom satisfaction score' }
+      ];
+    }
+    return [
+      { label: getBrandedTerm('yield_alpha', restaurantProfile || undefined), value: '94.2%', change: 3.8, trend: 'up', benchmark: 'Model Confidence', description: 'Forecasted vs Actual capture' },
+      { label: 'LTV / CAC Ratio', value: '18.2x', change: 5.4, trend: 'up', benchmark: 'Industry Avg: 4.2x', description: 'Lifetime Value vs Acquisition' },
+      { label: 'Sentiment Alpha', value: '4.9/5', change: 1.4, trend: 'up', benchmark: 'Target 4.5', description: 'AI-derived guest satisfaction' },
+      { label: 'Waste Index', value: '3.2%', change: -12.4, trend: 'down', benchmark: 'Target < 5%', description: 'Spillage & inventory loss' },
+    ];
+  }, [isRuthChris, restaurantProfile]);
 
   return (
     <div className="flex flex-col min-h-full bg-[#E4E3E0] text-[#141414] font-sans selection:bg-[#141414] selection:text-[#E4E3E0]">
@@ -278,16 +376,67 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
       <div className="flex-1 p-4 md:p-8 space-y-6 md:space-y-8">
         {authMode === 'demo' && (
-          <div className="bg-indigo-500/10 border border-indigo-500/20 p-3 md:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-              <p className="text-[8px] md:text-[10px] font-mono font-bold uppercase tracking-widest text-indigo-500">
-                Simulation Environment Active: Using Synthetic Intelligence Data
-              </p>
-            </div>
-            <p className="text-[8px] md:text-[9px] italic text-indigo-500/60">
-              Connect a production profile to view live beverage intelligence.
-            </p>
+          <div className="space-y-4">
+            {/* If they ran the Margin Leakage Audit lead magnet, show this gorgeous personalized welcome container */}
+            {auditData && !hideAuditBanner ? (
+              <div className="p-8 bg-gradient-to-br from-indigo-900 to-indigo-950 text-white rounded-[2rem] border border-indigo-700/30 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl"></div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                  <div className="space-y-4 max-w-3xl">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] font-mono font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 animate-pulse">
+                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                        {auditData.pos} Marketplace Node Sync Active
+                      </span>
+                      <span className="px-3 py-1 bg-indigo-400/20 border border-indigo-400/30 text-indigo-300 text-[9px] font-mono font-black uppercase tracking-widest rounded-full">
+                        Audited Demo Environment
+                      </span>
+                    </div>
+                    <h3 className="text-2xl font-serif font-black italic tracking-tight text-white leading-tight">
+                      Vinetelligence Live Demo Active: Personalized Audit Synthesis
+                    </h3>
+                    <p className="text-sm text-indigo-100/80 leading-relaxed font-medium">
+                      Welcome! We've automatically tailored this demo based on your audited parameters: <span className="text-white font-black">${auditData.rev.toLocaleString()}/mo</span> beverage revenue with <span className="text-white font-black">{auditData.cost}% COGS</span>. 
+                      Under standard manual floor counts, your venue is losing an estimated <span className="text-red-300 font-bold">${auditData.leakage.toLocaleString()}/mo</span> (${(auditData.leakage * 12).toLocaleString()}/yr) to spillage, counting errors, and dead-stock atrophy. 
+                      Click below to view the Integration Hub and see how the native marketplace connector completely automates depletion logs.
+                    </p>
+                    <div className="flex gap-4 pt-2">
+                      <button 
+                        onClick={() => setActiveView(AppView.INTEGRATION_HUB)}
+                        className="px-6 py-3 bg-white text-indigo-950 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-stone-100 transition-all active:scale-95 flex items-center gap-2"
+                      >
+                        <i className="fas fa-network-wired"></i> Configure POS marketplace integrations
+                      </button>
+                      <button 
+                        onClick={() => setHideAuditBanner(true)}
+                        className="px-6 py-3 bg-indigo-800/40 text-indigo-200 border border-indigo-700/50 hover:bg-indigo-800/60 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95"
+                      >
+                        Dismiss Audit Alert
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Big Live Stats Card for Sandbox */}
+                  <div className="p-6 bg-white/5 border border-white/10 rounded-2xl text-right shrink-0">
+                    <p className="text-[9px] font-black uppercase text-indigo-300 tracking-widest mb-1">Target Annual Recovery</p>
+                    <p className="text-3xl font-serif font-black text-emerald-400">${Math.round(auditData.leakage * 12 * 0.88).toLocaleString()}</p>
+                    <p className="text-[8px] font-mono text-indigo-200/50 mt-2 uppercase tracking-wider">Mitigating 88% of Atrophy Risks</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-indigo-500/10 border border-indigo-500/20 p-3 md:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                  <p className="text-[8px] md:text-[10px] font-mono font-bold uppercase tracking-widest text-indigo-500">
+                    Simulation Environment Active: Using Synthetic Intelligence Data
+                  </p>
+                </div>
+                <p className="text-[8px] md:text-[9px] italic text-indigo-500/60">
+                  Connect a production profile to view live beverage intelligence.
+                </p>
+              </div>
+            )}
           </div>
         )}
         {/* Guest QR Modal */}
@@ -330,7 +479,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
            <div className="h-10 md:h-12 w-full lg:w-[1px] bg-[#E4E3E0]/20 block"></div>
            
            <div className="flex-1 flex gap-4 md:gap-6 overflow-x-auto custom-scrollbar no-scrollbar relative z-10 w-full pb-2 lg:pb-0 touch-scrolling">
-              {CATALYSTS.map((c, i) => (
+               {(isRuthChris ? RUTH_CHRIS_CATALYSTS : CATALYSTS).map((c, i) => (
                 <div key={i} className="bg-[#E4E3E0]/5 px-4 md:px-6 py-3 md:py-4 border border-[#E4E3E0]/10 flex items-center gap-3 md:gap-4 shrink-0 hover:bg-[#E4E3E0]/10 transition-all cursor-default">
                    <div className="text-emerald-500 shrink-0">
                      {c.type === 'Weather' ? <Clock className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
@@ -378,20 +527,41 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest">{getBrandedTerm('neural_yield', restaurantProfile || undefined)}</h3>
               </div>
               <div className="space-y-4">
-                 <div className="p-4 bg-white/5 border border-white/10 rounded-none space-y-2">
-                    <div className="flex justify-between items-center">
-                       <span className="text-[10px] font-mono font-bold uppercase opacity-50">Item: Barolo 2016</span>
-                       <span className="text-[10px] font-mono font-bold text-emerald-500">+12.5%</span>
-                    </div>
-                    <p className="text-xs font-bold italic">"Dynamic pricing suggested: $185 → $208. High demand catalyst detected."</p>
-                 </div>
-                 <div className="p-4 bg-white/5 border border-white/10 rounded-none space-y-2">
-                    <div className="flex justify-between items-center">
-                       <span className="text-[10px] font-mono font-bold uppercase opacity-50">Item: Negroni Classico</span>
-                       <span className="text-[10px] font-mono font-bold text-indigo-500 underline decoration-indigo-500/30">Inventory Shift</span>
-                    </div>
-                    <p className="text-xs font-bold italic">"Move 12 units from Node 04 to Node 01. Prep for 20:00 rush."</p>
-                 </div>
+                 {isRuthChris ? (
+                   <>
+                     <div className="p-4 bg-white/5 border border-white/10 rounded-none space-y-2">
+                        <div className="flex justify-between items-center">
+                           <span className="text-[10px] font-mono font-bold uppercase opacity-50">Pour: Caymus Vineyards Cab Glass</span>
+                           <span className="text-[10px] font-mono font-bold text-emerald-500">+8.3%</span>
+                        </div>
+                        <p className="text-xs font-bold italic">"Dynamic wine pairing suggestion: Increase glass pour from $42 → $48 during corporate dinner surge. Projections show zero guest attrition."</p>
+                     </div>
+                     <div className="p-4 bg-white/5 border border-white/10 rounded-none space-y-2">
+                        <div className="flex justify-between items-center">
+                           <span className="text-[10px] font-mono font-bold uppercase opacity-50">Cuts: USDA Prime Filet Mignon</span>
+                           <span className="text-[10px] font-mono font-bold text-indigo-500 underline decoration-indigo-500/30">Aging Rotation</span>
+                        </div>
+                        <p className="text-xs font-bold italic">"Dry aging timeline complete for Cabinet 1 (Loin #24A). Ready for placement in sizzling serving cycle."</p>
+                     </div>
+                   </>
+                 ) : (
+                   <>
+                     <div className="p-4 bg-white/5 border border-white/10 rounded-none space-y-2">
+                        <div className="flex justify-between items-center">
+                           <span className="text-[10px] font-mono font-bold uppercase opacity-50">Item: Barolo 2016</span>
+                           <span className="text-[10px] font-mono font-bold text-emerald-500">+12.5%</span>
+                        </div>
+                        <p className="text-xs font-bold italic">"Dynamic pricing suggested: $185 → $208. High demand catalyst detected."</p>
+                     </div>
+                     <div className="p-4 bg-white/5 border border-white/10 rounded-none space-y-2">
+                        <div className="flex justify-between items-center">
+                           <span className="text-[10px] font-mono font-bold uppercase opacity-50">Item: Negroni Classico</span>
+                           <span className="text-[10px] font-mono font-bold text-indigo-500 underline decoration-indigo-500/30">Inventory Shift</span>
+                        </div>
+                        <p className="text-xs font-bold italic">"Move 12 units from Node 04 to Node 01. Prep for 20:00 rush."</p>
+                     </div>
+                   </>
+                 )}
               </div>
               <button className="w-full py-3 bg-emerald-600 text-[#141414] text-[10px] font-mono font-black uppercase tracking-widest hover:bg-white transition-all">
                  Apply All Optimizations
@@ -550,7 +720,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                     <h4 className="text-[10px] font-mono font-bold uppercase tracking-[0.4em] text-emerald-500">AI Operational Pulse</h4>
                  </div>
                  <p className="text-3xl font-serif font-black italic leading-[1.1] tracking-tight">
-                   "Atmospheric Shift Detected: Heavy Rain @ 20:00. <span className="text-emerald-500 underline underline-offset-8 decoration-1">Optimize Interior Node 02</span>. Restock premium reds; catalyst suggests 22% uptick in high-margin pairings."
+                    {isRuthChris ? (
+                      `"Steak House Optimization Vector: Surge in Prime Ribeye attachments expected @ 19:30. Warm platter temperature target: 500°F. Ensure Silver Oak Oakville Cabernet Sauvignon is pre-decanted."`
+                    ) : (
+                      `"Atmospheric Shift Detected: Heavy Rain @ 20:00. Optimize Interior Node 02. Restock premium reds; catalyst suggests 22% uptick in high-margin pairings."`
+                    )}
                  </p>
               </div>
               
@@ -638,9 +812,9 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                  <div className="flex items-center gap-2">
                                     <Brain className="w-3 h-3 text-emerald-500" />
                                     <span className="text-[10px] italic font-medium">
-                                      {j.profile.pairingStyle === 'Classic' ? 'Suggest 2010 Margaux' : 
-                                       j.profile.pairingStyle === 'Adventurous' ? 'Offer Franciacorta Flight' : 
-                                       'Prioritize Zero-Proof Botanical'}
+                                      {j.profile.pairingStyle === 'Classic' ? (isRuthChris ? 'Caymus Oakville Pour' : 'Suggest 2010 Margaux') : 
+                                       j.profile.pairingStyle === 'Adventurous' ? (isRuthChris ? 'Champagne & Prime Tail' : 'Offer Franciacorta Flight') : 
+                                       (isRuthChris ? 'Artisanal Ginger Sizzle' : 'Prioritize Zero-Proof Botanical')}
                                     </span>
                                   </div>
                               </td>

@@ -101,7 +101,7 @@ const DevPortal: React.FC<DevPortalProps> = ({ onSelect, userEmail }) => {
             <div className="space-y-3">
               <h3 className="text-2xl font-serif font-bold text-white italic">The Explorer</h3>
               <p className="text-xs text-stone-500 leading-relaxed font-medium italic">
-                Enter the sandbox environment. Local-first persistence for rapid prototyping and feature testing.
+                Enter the demo environment. Local-first persistence for rapid prototyping and feature testing.
               </p>
             </div>
             <div className="pt-6 border-t border-white/5 flex justify-between items-center">

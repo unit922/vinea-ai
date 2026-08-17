@@ -20,6 +20,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
   const primaryBgClass = brand.theme === 'vinea' ? 'bg-amber-600' : 'bg-indigo-600';
   const primaryHoverBgClass = brand.theme === 'vinea' ? 'hover:bg-amber-700' : 'hover:bg-indigo-700';
   const hoverTextClass = brand.theme === 'vinea' ? 'hover:text-amber-600' : 'hover:text-indigo-600';
+  const selectionClass = brand.theme === 'vinea' ? 'selection:bg-amber-100 selection:text-amber-900' : 'selection:bg-indigo-100 selection:text-indigo-900';
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -69,19 +70,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
   ];
 
   return (
-    <div className="min-h-screen bg-white font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      {/* Mobile Experience Notice */}
-      <div className={`md:hidden ${primaryBgClass} text-white px-6 py-3 flex items-center justify-between gap-4 sticky top-0 z-[60]`}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-            <i className="fas fa-laptop text-xs"></i>
-          </div>
-          <p className="text-[10px] font-black uppercase tracking-widest leading-tight">
-            Laptop or Tablet recommended <br /> for the full experience.
-          </p>
-        </div>
-      </div>
-
+    <div className={`min-h-screen bg-white font-sans ${selectionClass}`}>
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-200">
         <div className={`absolute bottom-0 left-0 h-0.5 ${primaryBgClass} transition-all duration-150 ease-out`} style={{ width: `${progress}%` }}></div>
@@ -202,7 +191,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
                     }
                     setIsMobileMenuOpen(false);
                   }}
-                  className="mt-2 w-full py-4 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest text-center"
+                  className={`mt-2 w-full py-4 ${primaryBgClass} text-white rounded-2xl text-xs font-black uppercase tracking-widest text-center`}
                 >
                   Get Started
                 </button>
@@ -325,7 +314,12 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
               </div>
               <div className="space-y-1">
                 <p className="text-[8px] uppercase tracking-widest text-stone-400">Support Node</p>
-                <a href="mailto:business@vinetelligence.live" className="text-stone-900 hover:text-indigo-600 lowercase transition-colors">business@vinetelligence.live</a>
+                <a 
+                  href={brand.theme === 'vinea' ? "mailto:business@vinea.live" : "mailto:business@vinetelligence.live"} 
+                  className={`text-stone-900 ${hoverTextClass} lowercase transition-colors`}
+                >
+                  {brand.theme === 'vinea' ? 'business@vinea.live' : 'business@vinetelligence.live'}
+                </a>
               </div>
             </div>
           </div>
@@ -333,7 +327,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
 
         <div className="max-w-7xl mx-auto mt-32 pt-10 border-t border-stone-200 flex flex-col md:flex-row justify-between items-center gap-10">
            <div className="flex flex-col items-center md:items-start gap-2">
-             <p className="text-[10px] font-black uppercase text-stone-400 tracking-widest font-mono">© 2026 Vinetelligence Neural Systems. ALL RIGHTS RESERVED.</p>
+             <p className="text-[10px] font-black uppercase text-stone-400 tracking-widest font-mono">
+               {brand.theme === 'vinea' 
+                 ? "© 2026 Vinea App Platform. ALL RIGHTS RESERVED." 
+                 : "© 2026 Vinetelligence Neural Systems. ALL RIGHTS RESERVED."}
+             </p>
              <p className="text-[8px] font-medium text-stone-300 uppercase tracking-[0.2em]">Inventory. Intelligence. Operational Excellence. Fueling Hospitality.</p>
            </div>
         </div>
@@ -346,7 +344,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
             onClick={() => setAIChatOpen(true)}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-black hover:text-white transition-all group relative border-2 border-transparent hover:border-indigo-400"
+            className={`w-14 h-14 ${primaryBgClass} text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-black hover:text-white transition-all group relative border-2 border-transparent ${brand.theme === 'vinea' ? 'hover:border-amber-400' : 'hover:border-indigo-400'}`}
           >
             <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white animate-pulse"></div>
             <i className="fas fa-brain text-xl"></i>
@@ -375,7 +373,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
       {/* Universal Modal */}
       <AnimatePresence>
         {activeModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-indigo-950/60 backdrop-blur-md">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`fixed inset-0 z-[100] flex items-center justify-center p-6 ${brand.theme === 'vinea' ? 'bg-amber-950/60' : 'bg-indigo-950/60'} backdrop-blur-md`}>
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl relative max-h-[90vh] overflow-y-auto p-12">
               <button onClick={() => setActiveModal(null)} className="absolute top-8 right-8 text-stone-400 hover:text-stone-900"><X /></button>
               
@@ -391,7 +389,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
                       <input placeholder="Email" className="w-full p-4 bg-stone-50 border border-stone-100 rounded-2xl text-sm" value={leadForm.email} onChange={e => setLeadForm({...leadForm, email: e.target.value})} />
                     </div>
                     <textarea placeholder="Establishment & Inquiry" rows={4} className="w-full p-4 bg-stone-50 border border-stone-100 rounded-2xl text-sm resize-none" value={leadForm.message} onChange={e => setLeadForm({...leadForm, message: e.target.value})} />
-                    <button onClick={handleLeadSubmit} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest">Submit Transmission</button>
+                    <button onClick={handleLeadSubmit} className={`w-full py-5 ${primaryBgClass} text-white rounded-2xl font-black text-[10px] uppercase tracking-widest`}>Submit Transmission</button>
                   </div>
                 </div>
               )}
@@ -420,7 +418,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
                     </p>
                     <p>Adhering to GDPR, CCPA, and ISO 27001 data security standards.</p>
                   </div>
-                  <button onClick={() => setActiveModal(null)} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest">Acknowledge Policy</button>
+                  <button onClick={() => setActiveModal(null)} className={`w-full py-4 ${primaryBgClass} text-white rounded-2xl font-black text-[10px] uppercase tracking-widest`}>Acknowledge Policy</button>
                 </div>
               )}
 
@@ -438,7 +436,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onEnterDemo, onStartOnboardin
                        **Service Continuity:** We guarantee a 99.8% Uptime Index. During neural maintenance cycles, fallback manual inventory protocols are recommended.
                     </p>
                   </div>
-                  <button onClick={() => setActiveModal(null)} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest">Accept Terms</button>
+                  <button onClick={() => setActiveModal(null)} className={`w-full py-4 ${primaryBgClass} text-white rounded-2xl font-black text-[10px] uppercase tracking-widest`}>Accept Terms</button>
                 </div>
               )}
             </motion.div>

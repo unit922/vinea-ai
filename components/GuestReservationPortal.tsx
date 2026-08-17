@@ -21,7 +21,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
   const hasLoadedRef = useRef(false);
   const hasFetchedDirectRef = useRef<string | null>(null);
   const [venueName, setVenueName] = useState(() => {
-    if (rid === 'demo' || rid === 'demo-id') return 'Vinetelligence Explorer (Demo)';
+    if (rid === 'demo' || rid === 'demo-id') return 'Vinea Enterprise';
     if (rid) return 'Connecting to Establishment...';
     try {
       const profileStr = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
@@ -40,7 +40,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
     setPrevRid(rid);
     setSelectedRid(rid);
     if (rid === 'demo' || rid === 'demo-id') {
-      setVenueName('Vinetelligence Explorer (Demo)');
+      setVenueName('Vinea Enterprise');
     } else if (rid) {
       setVenueName('Connecting to Establishment...');
     }
@@ -125,7 +125,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
             console.log("Vinetelligence: No active establishments found, adding demo fallback.");
             activeVenues.push({
               id: 'demo-id',
-              name: 'Vinetelligence Explorer (Demo)',
+              name: 'Vinea Enterprise',
               type: 'Restaurant',
               focus: 'General',
               description: 'Demo environment',
@@ -146,7 +146,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
               setVenueName(matchedVenue.name);
               setCurrentVenue(matchedVenue);
             } else if (selectedRid === 'demo-id' || selectedRid === 'demo') {
-              setVenueName('Vinetelligence Explorer (Demo)');
+              setVenueName('Vinea Enterprise');
             } else {
               console.log("Vinetelligence: Rid not found in registry, will attempt direct fetch.");
               // Trigger direct fetch
@@ -164,7 +164,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
           // Fallback to demo on error
           const fallbackVenues = [{
             id: 'demo-id',
-            name: 'Vinetelligence Explorer (Demo)',
+            name: 'Vinea Enterprise',
             type: 'Restaurant',
             focus: 'General',
             description: 'Demo environment',
@@ -176,7 +176,7 @@ const GuestReservationPortal: React.FC<GuestReservationPortalProps> = ({ onCompl
           
           if (!selectedRid || selectedRid === 'demo-id') {
             setSelectedRid('demo-id');
-            setVenueName('Vinetelligence Explorer (Demo)');
+            setVenueName('Vinea Enterprise');
           }
         }
       };

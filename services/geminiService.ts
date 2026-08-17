@@ -27,6 +27,16 @@ const getPersonaInstruction = (userRole?: string) => {
   
   let instruction = personas[profile.aiPersona] || personas['technical'];
   
+  const isRuthChris = profile && (profile.name?.includes("Ruth's Chris") || ('isRuthChris' in profile && (profile as unknown as { isRuthChris?: boolean }).isRuthChris));
+
+  if (isRuthChris) {
+    instruction += `\n\nSPECIAL RUTH'S CHRIS STEAK HOUSE CONTEXT ACTIVE:
+    - You are representing Ruth's Chris Steak House Benchmark simulation.
+    - Focus heavily on USDA Prime Steaks (cooked in custom 1800°F infrared broilers, served on ceramic plates heated to 500°F, topped with a tablespoon of sizzling melted butter and chopped parsley). Yes, the sizzle is legendary!
+    - Provide wine pairings matching dry-aged Ribeyes, Filet Mignon, and Porterhouses with prestigious Cabernets (such as Caymus, Silver Oak Oakville, Stag's Leap, Faust, Duckhorn) or luxury Champagnes (like Veuve Clicquot) and Classic cocktails.
+    - Maintain classic steakhouse standards: impeccable hospitality, elegant table settings, and warm tableside connection with guests. Mention the 500°F sizzle in your responses when appropriate!`;
+  }
+  
   instruction += `\n\nCORE IDENTITY:
   - You are the integrated intelligence layer of Vinetelligence (vinetelligence.live).
   - Your purpose is to bridge the gap between technical scholarship and world-class hospitality.
@@ -487,6 +497,70 @@ export const geminiService = {
     }, fallback);
   },
 
+  async generateCourseMaterial(topic: string, category: string, difficulty: string) {
+    const fallback = {
+      lessons: [
+        `Introduction to ${topic}: Understanding core somatic foundations and service principles.`,
+        `Advanced Practice of ${topic}: Analyzing flavor chemistry, sequence protocol, and guest interactions.`,
+        `Commercial Upselling & Calibration: Integrating brand standard techniques to optimize restaurant yield.`
+      ],
+      quizQuestions: [
+        {
+          question: `What is the primary operational objective when applying ${topic}?`,
+          options: [
+            "Maximizing guest turnover as quickly as possible",
+            "Balancing technical somatic perfection with brand-aligned conversion and guest delight",
+            "Reducing staff interaction time to absolute zero",
+            "Replacing human sommelier recommendations with generic lists"
+          ],
+          correctIndex: 1,
+          explanation: `The primary objective is to balance elite technical somatic skills with high-conversion brand standards to elevate both yield and guest experience.`
+        }
+      ]
+    };
+
+    return callWithRetry(async () => {
+      const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `Create a highly educational training course material for the topic: "${topic}". Category: ${category}, Difficulty level: ${difficulty}. 
+Return exactly 3 detailed study slides (lessons) and 3 multiple-choice questions (quizQuestions) testing advanced concepts.
+The lessons should be professional, deeply technical, and full of somatic details, wine pairing/mixology guidelines, or luxury service protocols.
+The quiz questions should be challenging, with 4 plausible options, a single correctIndex (0-3), and a thorough explanation.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              lessons: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              quizQuestions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    question: { type: Type.STRING },
+                    options: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING }
+                    },
+                    correctIndex: { type: Type.NUMBER },
+                    explanation: { type: Type.STRING }
+                  },
+                  required: ["question", "options", "correctIndex", "explanation"]
+                }
+              }
+            },
+            required: ["lessons", "quizQuestions"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
   async getTrainingResponse(query: string, history: {role: string, text: string}[], userRole?: string) {
     const contents = history.map(m => ({
       role: m.role === 'vinetelligence' ? 'model' : 'user',
@@ -606,6 +680,45 @@ export const geminiService = {
     }, fallback);
   },
 
+  async getNeuromarketingCopy(itemName: string, category: string, price: number) {
+    const fallback = {
+      sensoryDescription: "Artisanal selection curated for technical flavor profiles and premium sensory balance.",
+      neurologicalHook: "Utilizes sensory-rich adjective clustering to activate memory zones of comfort and quality, shifting focus from financial pain to visceral premium value.",
+      optimizedPriceText: `${price}`
+    };
+    return callWithRetry(async () => {
+      const apiKey = getApiKey();
+      if (!apiKey) return fallback;
+      
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: `You are a high-end luxury menu engineer and neuro-copywriter. Optimize the following menu item for a premium, high-contrast, neuromarketing-enhanced menu:
+        Item Name: ${itemName}
+        Category: ${category}
+        Original Price: $${price}
+        
+        Deliver three outputs:
+        1. A deeply evocative, sensory-rich 1-sentence or 2-sentence description using adjectives of warmth, artisanal action, texture, and origin (e.g., "slow-roasted over sweet hickory, finished with an exquisite glaze..."). Avoid generic hyperbole like "best" or "delicious", instead focus on specific sensory dimensions.
+        2. A sophisticated 'Neurological Hook' explaining why this copywriting triggers positive consumer behavior (e.g., "Targeting gustatory memory grids to bypass price-scrutiny by activating the ventral striatum's reward receptors").
+        3. An elegant text representation of the price without currency symbols (usually just the bare whole number or a written word if appropriate).`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              sensoryDescription: { type: Type.STRING },
+              neurologicalHook: { type: Type.STRING },
+              optimizedPriceText: { type: Type.STRING }
+            },
+            required: ["sensoryDescription", "neurologicalHook", "optimizedPriceText"]
+          }
+        }
+      });
+      return JSON.parse(response.text || JSON.stringify(fallback));
+    }, fallback);
+  },
+
   async getWelcomeBrief(profile: Record<string, unknown>) {
     return callWithRetry(async () => {
       const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
@@ -701,10 +814,16 @@ export const geminiService = {
   async getAIPairingSuggestions(foodItems: InventoryItem[], beverageInventory: InventoryItem[]): Promise<AIPairingSuggestion[]> {
     const fallback: AIPairingSuggestion[] = [];
     return callWithRetry(async () => {
+      const profile = getProfile();
+      const isRC = profile && (profile.name?.includes("Ruth's Chris") || ('isRuthChris' in profile && (profile as unknown as { isRuthChris?: boolean }).isRuthChris));
+      const customInstruction = isRC 
+        ? "Match Ruth's Chris signature USDA Prime steaks (Filet, Ribeye, New York Strip) with premium Cabernet Sauvignon (e.g., Caymus or Silver Oak) or Veuve Clicquot Champagne. Highlight how the 500°F sizzling butter plate enhances fat-dissolving mouthfeel and pairing synergy."
+        : "Match the food items with beverage inventory dynamically based on category, flavor profiles, and regional alignment.";
+
       const ai = new GoogleGenAI({ apiKey: getApiKey() || "" });
       const response = await ai.models.generateContent({
         model: 'gemini-flash-latest',
-        contents: `Food Items: ${JSON.stringify(foodItems)}\nBeverage Inventory: ${JSON.stringify(beverageInventory)}`,
+        contents: `Food Items: ${JSON.stringify(foodItems)}\nBeverage Inventory: ${JSON.stringify(beverageInventory)}\nPairing Guidelines: ${customInstruction}`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {

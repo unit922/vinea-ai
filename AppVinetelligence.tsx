@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import AppRoutes from './AppRoutes';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import AIAvatarChat from './components/AIAvatarChat';
+import { analyticsService } from './services/analyticsService';
 
 const AppVinetelligence: React.FC = () => {
   const [isAIChatOpen, setAIChatOpen] = useState<boolean>(false);
+  const location = useLocation();
+
+  // Initialize Analytics
+  useEffect(() => {
+    analyticsService.initGA();
+  }, []);
+
+  // Track Page Views via Google Analytics on Route/Location change
+  useEffect(() => {
+    analyticsService.logPageView(location.pathname + location.search);
+    console.log("Vinetelligence Analytics Sync: Page View Tracked", location.pathname + location.search);
+  }, [location]);
 
   // Auto-open AI Avatar for new visitors
   useEffect(() => {
@@ -26,10 +40,22 @@ const AppVinetelligence: React.FC = () => {
     }
   }, []);
 
-  const handleInstantDemo = () => {
+  const getTargetApp = () => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('platform_selected_app', 'vinetelligence');
-      localStorage.setItem('vinetelligence_preview_target', 'vinetelligence');
+      const hostname = window.location.hostname;
+      if (hostname.includes('vinea')) {
+        return 'vinea';
+      }
+    }
+    return 'vinetelligence';
+  };
+
+  const handleInstantDemo = () => {
+    analyticsService.logEvent('Public Landing', 'Instant Demo Clicked');
+    if (typeof window !== 'undefined') {
+      const targetApp = getTargetApp();
+      localStorage.setItem('platform_selected_app', targetApp);
+      localStorage.setItem('vinetelligence_preview_target', targetApp);
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.set('demo', 'true');
       window.history.replaceState({}, '', newUrl.toString());
@@ -38,9 +64,11 @@ const AppVinetelligence: React.FC = () => {
   };
 
   const handleStartOnboarding = () => {
+    analyticsService.logEvent('Public Landing', 'Onboarding Started');
     if (typeof window !== 'undefined') {
-      localStorage.setItem('platform_selected_app', 'vinetelligence');
-      localStorage.setItem('vinetelligence_preview_target', 'vinetelligence');
+      const targetApp = getTargetApp();
+      localStorage.setItem('platform_selected_app', targetApp);
+      localStorage.setItem('vinetelligence_preview_target', targetApp);
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.set('onboarding', 'true');
       window.history.replaceState({}, '', newUrl.toString());
@@ -49,9 +77,11 @@ const AppVinetelligence: React.FC = () => {
   };
 
   const handleLogin = () => {
+    analyticsService.logEvent('Public Landing', 'Login Clicked');
     if (typeof window !== 'undefined') {
-      localStorage.setItem('platform_selected_app', 'vinetelligence');
-      localStorage.setItem('vinetelligence_preview_target', 'vinetelligence');
+      const targetApp = getTargetApp();
+      localStorage.setItem('platform_selected_app', targetApp);
+      localStorage.setItem('vinetelligence_preview_target', targetApp);
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.set('mode', 'login');
       window.history.replaceState({}, '', newUrl.toString());

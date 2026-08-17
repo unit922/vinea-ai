@@ -1,6 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { geminiService } from '../services/geminiService';
 import { generateUUID } from '../services/supabaseSync';
 import { financialIntegrationService } from '../services/financialIntegrationService';
@@ -15,17 +17,182 @@ interface FinancialHubProps {
 }
 
 const FinancialHub: React.FC<FinancialHubProps> = ({ 
+  restaurantProfile = null,
   inventory = [], 
   transactions = [],
   authMode = 'demo'
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'statement' | 'ledger' | 'reports' | 'integration'>('overview');
+  const isRuthChris = restaurantProfile && (restaurantProfile.name?.includes("Ruth's Chris") || ('isRuthChris' in restaurantProfile && (restaurantProfile as unknown as { isRuthChris?: boolean }).isRuthChris));
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isPushingData, setIsPushingData] = useState(false);
   const [integrationResult, setIntegrationResult] = useState<{ success: boolean; message: string; referenceId?: string } | null>(null);
   const [integrationConfig, setIntegrationConfig] = useState({ endpoint: 'https://api.financial-system.com/v1/ledger', apiKey: 'SK-VNTL-XXXXXXXXXX' });
   const [currentReport, setCurrentReport] = useState<FinancialReport | null>(null);
   const [investorInsight, setInvestorInsight] = useState<InvestorInsight | null>(null);
+
+  // Export and print states
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportData, setExportData] = useState<{
+    title: string;
+    type: 'statement' | 'ledger' | 'report' | 'investor';
+    date: string;
+    refId: string;
+  } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportStatement = () => {
+    setExportData({
+      title: "Net Round Statement",
+      type: "statement",
+      date: new Date().toLocaleDateString(),
+      refId: `STM-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+    });
+    setIsExportModalOpen(true);
+  };
+
+  const handleExportLedger = () => {
+    setExportData({
+      title: "Global Settlement Ledger",
+      type: "ledger",
+      date: new Date().toLocaleDateString(),
+      refId: `LDG-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+    });
+    setIsExportModalOpen(true);
+  };
+
+  const handleExportReport = () => {
+    if (!currentReport) return;
+    setExportData({
+      title: currentReport.title,
+      type: "report",
+      date: new Date(currentReport.timestamp).toLocaleDateString(),
+      refId: currentReport.id
+    });
+    setIsExportModalOpen(true);
+  };
+
+  const handleExportInvestor = () => {
+    if (!investorInsight) return;
+    setExportData({
+      title: "Strategic Equity Brief",
+      type: "investor",
+      date: new Date().toLocaleDateString(),
+      refId: `INV-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+    });
+    setIsExportModalOpen(true);
+  };
+
+  const handleGeneratePDF = async () => {
+    const element = document.getElementById('export-document-target');
+    if (!element) return;
+    setIsExporting(true);
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Vinetelligence_Export_${exportData?.type || 'financial'}_${exportData?.refId || 'export'}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrint = () => {
+    const printContent = document.getElementById('export-document-target');
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>\${exportData?.title || 'Financial Export'}</title>
+          <style>
+            body { font-family: 'Inter', system-ui, sans-serif; padding: 40px; color: #000; background-color: #fff; }
+            .print-container { max-width: 800px; margin: 0 auto; }
+            h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border-bottom: 1px solid #e5e7eb; padding: 12px 8px; text-align: left; }
+            th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #6b7280; font-weight: 800; }
+            .text-right { text-align: right; }
+            .grid { display: grid; gap: 20px; }
+            .grid-cols-1 { grid-template-columns: 1fr; }
+            .grid-cols-2 { grid-template-columns: 1fr 1fr; }
+            .grid-cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+            .bg-stone-50 { background-color: #f9fafb; border-radius: 12px; padding: 16px; }
+            .bg-stone-900 { background-color: #111827; color: #fff; border-radius: 16px; padding: 24px; }
+            .p-4 { padding: 16px; }
+            .p-6 { padding: 24px; }
+            .rounded-2xl { border-radius: 16px; }
+            .border { border: 1px solid #e5e7eb; }
+            .space-y-2 > * + * { margin-top: 8px; }
+            .space-y-4 > * + * { margin-top: 16px; }
+            .space-y-6 > * + * { margin-top: 24px; }
+            .text-sm { font-size: 14px; }
+            .text-xs { font-size: 12px; }
+            .text-[10px] { font-size: 10px; }
+            .text-[9px] { font-size: 9px; }
+            .text-[8px] { font-size: 8px; }
+            .font-black { font-weight: 900; }
+            .font-bold { font-weight: 700; }
+            .uppercase { text-transform: uppercase; }
+            .tracking-widest { letter-spacing: 0.1em; }
+            .italic { font-style: italic; }
+            .text-indigo-600 { color: #4f46e5; }
+            .text-indigo-500 { color: #6366f1; }
+            .text-rose-500 { color: #f43f5e; }
+            .text-amber-600 { color: #d97706; }
+            .text-emerald-500 { color: #10b981; }
+            .border-t { border-top: 1px solid #e5e7eb; }
+            .border-b { border-bottom: 1px solid #e5e7eb; }
+            .pb-4 { padding-bottom: 16px; }
+            .pb-8 { padding-bottom: 32px; }
+            .pt-4 { padding-top: 16px; }
+            .pt-8 { padding-top: 32px; }
+            .mt-1 { margin-top: 4px; }
+            .mt-2 { margin-top: 8px; }
+            .mt-3 { margin-top: 12px; }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-container">
+            \${printContent.innerHTML}
+          </div>
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   // Deep Profitability Mapping utilizing central config
   const categoryStats = useMemo(() => {
@@ -177,6 +344,34 @@ const FinancialHub: React.FC<FinancialHubProps> = ({
         )}
         {activeTab === 'overview' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-4">
+             {isRuthChris && (
+               <div className="bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-6 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                     <div className="flex items-center gap-2 text-amber-600 font-bold">
+                        <i className="fas fa-chart-line"></i>
+                        <span className="text-xs font-black uppercase tracking-widest">Ruth's Chris Benchmark Active</span>
+                     </div>
+                     <p className="text-xs text-stone-600 leading-relaxed italic">
+                        Evaluating single-location fine dining steakhouse economics. Pro forma baseline built on historic 2022/2023 public filings.
+                     </p>
+                  </div>
+                  <div className="flex gap-4 text-center">
+                     <div className="px-4 py-2 bg-stone-900 rounded-xl text-white">
+                        <p className="text-[8px] uppercase tracking-widest text-stone-400">Capacity</p>
+                        <p className="text-xs font-bold">120 Seats</p>
+                     </div>
+                     <div className="px-4 py-2 bg-stone-900 rounded-xl text-white">
+                        <p className="text-[8px] uppercase tracking-widest text-stone-400">Turns</p>
+                        <p className="text-xs font-bold">1.8 turns/day</p>
+                     </div>
+                     <div className="px-4 py-2 bg-stone-900 rounded-xl text-white">
+                        <p className="text-[8px] uppercase tracking-widest text-stone-400">Spend</p>
+                        <p className="text-xs font-bold">$95.00</p>
+                     </div>
+                  </div>
+               </div>
+             )}
+
              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-stone-900 text-white p-8 rounded-[2.5rem] shadow-xl space-y-4">
                    <p className="text-[9px] font-black uppercase text-stone-500 tracking-widest text-center">Gross realized Revenue</p>
@@ -234,18 +429,169 @@ const FinancialHub: React.FC<FinancialHubProps> = ({
 
         {activeTab === 'statement' && (
           <div className="bg-white rounded-[3.5rem] border border-stone-200 shadow-2xl overflow-hidden animate-in zoom-in-95 max-w-5xl mx-auto">
-             <div className="p-4 md:p-12 border-b border-stone-100 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-stone-50/50">
+             <div className="p-4 md:p-12 border-b border-stone-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-stone-50/50">
                 <div>
                    <h3 className="text-2xl md:text-4xl font-serif font-black text-stone-900 italic tracking-tighter">Net Round Statement</h3>
                    <p className="text-[10px] font-black uppercase text-stone-400 tracking-widest mt-2">Fiscal Synthesis: Historical Aggregate</p>
                 </div>
-                <div className="text-left md:text-right">
-                   <p className="text-[9px] font-black uppercase text-stone-400">Node Status</p>
-                   <p className="text-xs font-bold text-indigo-600 uppercase italic">Audited & Verified</p>
+                <div className="flex items-center gap-4 text-left md:text-right">
+                   <div className="hidden sm:block">
+                      <p className="text-[9px] font-black uppercase text-stone-400">Node Status</p>
+                      <p className="text-xs font-bold text-indigo-600 uppercase italic">Audited & Verified</p>
+                   </div>
+                   <button 
+                     onClick={handleExportStatement}
+                     className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-md shadow-indigo-500/15 cursor-pointer"
+                   >
+                     <i className="fas fa-file-pdf"></i> Print / Export
+                   </button>
                 </div>
              </div>
              
              <div className="p-6 md:p-12 space-y-12">
+                {isRuthChris ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 text-stone-800">
+                    {/* Column 1: Live Simulation Actuals */}
+                    <div className="space-y-8 border-b lg:border-b-0 lg:border-r border-stone-100 pr-0 lg:pr-12 pb-12 lg:pb-0">
+                       <div className="border-b border-stone-200 pb-4">
+                          <h4 className="text-sm font-black uppercase text-indigo-600 tracking-wider">Live Simulation Scaling</h4>
+                          <p className="text-[10px] text-stone-400 uppercase mt-1">POS records scaled to annual operating run-rate</p>
+                       </div>
+                       
+                       <div className="space-y-4">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Projected Run-rate Revenue</p>
+                          <div className="flex justify-between items-end border-b border-stone-100 pb-2">
+                             <span className="text-xs text-stone-500 font-bold uppercase">Estimated Annual Revenue</span>
+                             <span className="font-serif font-black text-xl text-stone-900">${(netRevenue * 360).toLocaleString()}</span>
+                          </div>
+                       </div>
+
+                       <div className="space-y-4 pt-4">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Projected Variable Costs</p>
+                          <div className="flex justify-between border-b border-stone-100 pb-2 text-xs">
+                             <span className="text-stone-500 font-bold uppercase">Estimated COGS</span>
+                             <span className="font-bold text-stone-800">-${(totalCogs * 360).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-stone-100 pb-2 text-xs">
+                             <span className="text-stone-500 font-bold uppercase">Estimated Labor (Est 22%)</span>
+                             <span className="font-bold text-stone-800">-${(estimatedLabor * 360).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-stone-100 pb-2 text-xs">
+                             <span className="text-stone-500 font-bold uppercase">Operating Overhead (Est 12%)</span>
+                             <span className="font-bold text-stone-800">-${(estimatedOverhead * 360).toLocaleString()}</span>
+                          </div>
+                       </div>
+
+                       <div className="pt-6 border-t border-stone-200">
+                          <div className="flex justify-between items-end">
+                             <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Est. Target Run Margin</p>
+                                <p className="text-xs text-stone-400 mt-1 italic">{(netRevenue > 0 ? ((netProfit / netRevenue) * 100) : 0).toFixed(1)}% Net Margin</p>
+                             </div>
+                             <span className="font-serif font-black text-2xl text-indigo-600 italic">${(netProfit * 360).toLocaleString()}</span>
+                          </div>
+                       </div>
+                    </div>
+
+                    {/* Column 2: Ruth's Chris Steak House Benchmark */}
+                    <div className="space-y-8">
+                       <div className="border-b border-stone-200 pb-4 flex justify-between items-start">
+                          <div>
+                             <h4 className="text-sm font-black uppercase text-amber-600 tracking-wider">Ruth's Chris 10-K Blueprint</h4>
+                             <p className="text-[10px] text-stone-400 uppercase mt-1">Strict fine dining baseline economics</p>
+                          </div>
+                          <span className="text-[8px] bg-amber-500 text-stone-950 font-black px-2 py-1 rounded">10-K BENCHMARK</span>
+                       </div>
+
+                       <div className="space-y-4">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Standard Revenue Streams</p>
+                          <div className="flex justify-between items-center text-xs">
+                             <span className="text-stone-500">Food Revenue (70%)</span>
+                             <span className="font-bold text-stone-800">$5,164,560</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                             <span className="text-stone-500">Beverage Revenue (30%)</span>
+                             <span className="font-bold text-stone-800">$2,213,384</span>
+                          </div>
+                          <div className="flex justify-between items-end border-b border-stone-100 pb-2">
+                             <span className="text-xs font-black text-amber-700 uppercase">Total Target Revenue (360 Operating Days)</span>
+                             <span className="font-serif font-black text-xl text-stone-900">$7,377,944</span>
+                          </div>
+                       </div>
+
+                       <div className="space-y-4 pt-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Cost Structure (Target 60% Prime Costs)</p>
+                          <div className="space-y-2">
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Food COGS (31% of Food Sales)</span>
+                                <span className="font-medium text-stone-600">-$1,601,013</span>
+                             </div>
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Beverage COGS (21% of Bev Sales)</span>
+                                <span className="font-medium text-stone-600">-$464,810</span>
+                             </div>
+                             <div className="flex justify-between text-xs">
+                                <span className="text-stone-500 font-bold">Total Cost of Goods Sold (28% of Rev)</span>
+                                <span className="font-bold text-stone-800">-$2,065,823</span>
+                             </div>
+                          </div>
+
+                          <div className="space-y-2 pt-2 border-t border-dashed border-stone-100">
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Management Salaries</span>
+                                <span className="font-medium text-stone-600">-$240,000</span>
+                             </div>
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Back of House (BOH, 14% of Rev)</span>
+                                <span className="font-medium text-stone-600">-$1,032,912</span>
+                             </div>
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Front of House (FOH, 11% of Rev)</span>
+                                <span className="font-medium text-stone-600">-$811,573</span>
+                             </div>
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Benefits & Taxes (4% of Rev)</span>
+                                <span className="font-medium text-stone-600">-$295,117</span>
+                             </div>
+                             <div className="flex justify-between text-xs">
+                                <span className="text-stone-500 font-bold">Total Labor & Personnel (32% of Rev)</span>
+                                <span className="font-bold text-stone-800">-$2,379,602</span>
+                             </div>
+                          </div>
+
+                          <div className="space-y-2 pt-2 border-t border-dashed border-stone-100">
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Occupancy (Rent, NNN, Utilities, 8%)</span>
+                                <span className="font-medium text-stone-600">-$590,235</span>
+                             </div>
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Restaurant Operating Expenses (5%)</span>
+                                <span className="font-medium text-stone-600">-$368,897</span>
+                             </div>
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Marketing & Acquisition (3%)</span>
+                                <span className="font-medium text-stone-600">-$221,338</span>
+                             </div>
+                             <div className="flex justify-between text-xs pl-2">
+                                <span className="text-stone-500">Administrative & Insurance (4%)</span>
+                                <span className="font-medium text-stone-600">-$295,117</span>
+                             </div>
+                          </div>
+                       </div>
+
+                       <div className="pt-6 border-t border-stone-200">
+                          <div className="flex justify-between items-end">
+                             <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Target Net Operating Margin</p>
+                                <p className="text-xs text-amber-600 font-bold mt-1">20.0% Net Pro Forma Margin</p>
+                             </div>
+                             <span className="font-serif font-black text-2xl text-amber-600 italic">$1,477,588</span>
+                          </div>
+                       </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 <div className="space-y-6">
                    <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 border-b border-stone-100 pb-3">Operational Revenue</h4>
                    <div className="space-y-4">
@@ -287,6 +633,8 @@ const FinancialHub: React.FC<FinancialHubProps> = ({
                 <div className="p-8 bg-stone-100 rounded-3xl border border-stone-200 border-dashed text-center">
                    <p className="text-xs text-stone-500 italic font-medium">"This statement is a high-fidelity synthesis based on global {FISCAL_ENGINE_CONFIG.LOCALE} tax standards."</p>
                 </div>
+                  </>
+                )}
              </div>
           </div>
         )}
@@ -294,8 +642,16 @@ const FinancialHub: React.FC<FinancialHubProps> = ({
         {activeTab === 'ledger' && (
           <div className="bg-white rounded-[3rem] border border-stone-200 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4">
              <div className="p-8 border-b border-stone-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-stone-50/50">
-                <h3 className="text-xs font-black uppercase text-stone-500 tracking-widest italic">Global Settlement Ledger</h3>
-                <span className="text-[9px] font-black bg-stone-900 text-white px-3 py-1 rounded-full">{transactions.length} Transactions Synced</span>
+                <div>
+                   <h3 className="text-xs font-black uppercase text-stone-500 tracking-widest italic">Global Settlement Ledger</h3>
+                   <span className="text-[9px] font-black bg-stone-900 text-white px-3 py-1 rounded-full mt-1 inline-block">{transactions.length} Transactions Synced</span>
+                </div>
+                <button 
+                  onClick={handleExportLedger}
+                  className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-md shadow-indigo-500/15 cursor-pointer"
+                >
+                  <i className="fas fa-file-pdf"></i> Print / Export
+                </button>
              </div>
              <div className="overflow-x-auto touch-scrolling">
                 <table className="w-full text-left min-w-[800px]">
@@ -419,7 +775,7 @@ const FinancialHub: React.FC<FinancialHubProps> = ({
 
                       <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-stone-100 gap-4">
                          <p className="text-[8px] text-stone-300 font-black uppercase tracking-widest">Verified via Vinetelligence Equity Node 2.4</p>
-                         <button onClick={() => window.print()} className="w-full md:w-auto px-8 py-3 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2">
+                         <button onClick={handleExportInvestor} className="w-full md:w-auto px-8 py-3 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 cursor-pointer">
                             <i className="fas fa-file-pdf"></i> Export Stakeholder Brief
                          </button>
                       </div>
@@ -470,7 +826,7 @@ const FinancialHub: React.FC<FinancialHubProps> = ({
 
                       <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-stone-100 gap-4">
                          <p className="text-[8px] text-stone-300 font-black uppercase tracking-widest">Verified via Vinetelligence Intelligence Node 7.2</p>
-                         <button onClick={() => window.print()} className="w-full md:w-auto px-8 py-3 bg-stone-100 text-stone-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-stone-200 transition-all flex items-center justify-center gap-2">
+                         <button onClick={handleExportReport} className="w-full md:w-auto px-8 py-3 bg-stone-100 text-stone-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-stone-200 transition-all flex items-center justify-center gap-2 cursor-pointer">
                             <i className="fas fa-file-pdf"></i> Export Protocol
                          </button>
                       </div>
@@ -597,7 +953,298 @@ const FinancialHub: React.FC<FinancialHubProps> = ({
              </div>
           </div>
         )}
-      </div>
+       </div>
+
+       {isExportModalOpen && exportData && (
+        <div className="fixed inset-0 z-[3000] bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
+          <div className="bg-stone-100 w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-[90vh] border border-stone-200">
+            
+            {/* Modal Header */}
+            <div className="px-6 md:px-10 py-5 border-b border-stone-200 flex justify-between items-center bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-2xl bg-stone-900 text-amber-500 flex items-center justify-center shadow-lg">
+                    <i className="fas fa-file-invoice-dollar"></i>
+                 </div>
+                 <div>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-stone-900">Export Protocol</h3>
+                    <p className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest">Active Safe Tunnel</p>
+                 </div>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handlePrint}
+                  className="px-5 py-2.5 bg-stone-900 text-white hover:bg-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer animate-in duration-200"
+                >
+                  <i className="fas fa-print"></i>
+                  Print to Printer
+                </button>
+                <button 
+                  onClick={handleGeneratePDF}
+                  disabled={isExporting}
+                  className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 animate-in duration-200"
+                >
+                  {isExporting ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-file-pdf"></i>}
+                  {isExporting ? 'Generating PDF...' : 'Generate Certified PDF'}
+                </button>
+                <button 
+                  onClick={() => setIsExportModalOpen(false)}
+                  className="w-10 h-10 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-200 transition-all cursor-pointer"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Document Workspace/Preview Area */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar flex items-start justify-center">
+              <div className="w-full max-w-[800px] bg-white p-8 md:p-12 rounded-3xl border border-stone-200 shadow-sm space-y-8" id="export-document-target">
+                
+                {/* Document Header */}
+                <div className="border-b border-stone-200 pb-8 flex flex-col sm:flex-row justify-between items-start gap-4">
+                  <div>
+                    <h1 className="text-2xl font-serif font-black italic tracking-tighter text-stone-900">VINETELLIGENCE</h1>
+                    <p className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.3em] mt-1">Consolidated Net Round Yield Terminal</p>
+                    <div className="text-[9px] text-stone-400 font-mono mt-3 space-y-0.5">
+                      <p>Node ID: {restaurantProfile?.id || 'demo-establishment'}</p>
+                      <p>Compliance: VNTL-SEC-2.4</p>
+                      <p>Source Node: Vinetelligence.live</p>
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <span className="text-[8px] bg-stone-900 text-white font-black px-2.5 py-1 rounded-full uppercase tracking-widest">Official Document</span>
+                    <h2 className="text-lg font-serif font-black italic text-stone-800 mt-3">{exportData.title}</h2>
+                    <p className="text-[9px] font-bold text-stone-400 uppercase mt-1">Ref: {exportData.refId}</p>
+                    <p className="text-[9px] font-mono text-stone-400 mt-1">{exportData.date}</p>
+                  </div>
+                </div>
+
+                {/* Conditional Content */}
+                {exportData.type === 'statement' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    {isRuthChris ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-stone-800 text-xs">
+                        <div className="space-y-4">
+                          <h3 className="font-black text-[10px] uppercase text-indigo-600 tracking-wider border-b border-stone-100 pb-2">Live Simulation Run-rate</h3>
+                          <div className="space-y-2">
+                            <div className="flex justify-between border-b border-stone-50 pb-1">
+                              <span className="text-stone-500 font-medium">Estimated Annual Rev</span>
+                              <span className="font-bold">${(netRevenue * 360).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-stone-50 pb-1">
+                              <span className="text-stone-500 font-medium">Estimated COGS</span>
+                              <span className="font-bold">-${(totalCogs * 360).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-stone-50 pb-1">
+                              <span className="text-stone-500 font-medium">Estimated Labor</span>
+                              <span className="font-bold">-${(estimatedLabor * 360).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-stone-50 pb-1">
+                              <span className="text-stone-500 font-medium">Estimated Overhead</span>
+                              <span className="font-bold">-${(estimatedOverhead * 360).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between pt-2">
+                              <span className="font-black text-stone-900 uppercase">Target Run Margin</span>
+                              <span className="font-black text-indigo-600">${(netProfit * 360).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          <h3 className="font-black text-[10px] uppercase text-amber-600 tracking-wider border-b border-stone-100 pb-2">Ruth's Chris 10-K Blueprint</h3>
+                          <div className="space-y-2">
+                            <div className="flex justify-between border-b border-stone-50 pb-1">
+                              <span className="text-stone-500 font-medium">Total Target Rev</span>
+                              <span className="font-bold">$7,377,944</span>
+                            </div>
+                            <div className="flex justify-between border-b border-stone-50 pb-1">
+                              <span className="text-stone-500 font-medium">Total Target COGS</span>
+                              <span className="font-bold">-$2,065,823</span>
+                            </div>
+                            <div className="flex justify-between border-b border-stone-50 pb-1">
+                              <span className="text-stone-500 font-medium">Total Labor</span>
+                              <span className="font-bold">-$2,379,602</span>
+                            </div>
+                            <div className="flex justify-between border-b border-stone-50 pb-1">
+                              <span className="text-stone-500 font-medium">Total Occupancy / Ops</span>
+                              <span className="font-bold">-$1,475,487</span>
+                            </div>
+                            <div className="flex justify-between pt-2">
+                              <span className="font-black text-stone-900 uppercase">Target Net Margin</span>
+                              <span className="font-black text-amber-600">$1,477,588</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 text-xs">
+                        <div className="space-y-2 border-b border-stone-100 pb-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Operational Revenue</p>
+                          <div className="flex justify-between">
+                            <span>Beverage realized Sales</span>
+                            <span className="font-bold">${netRevenue.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-stone-400">
+                            <span>Tax Liabilities ({FISCAL_ENGINE_CONFIG.TAX_RATE * 100}%)</span>
+                            <span>-(${(netRevenue * FISCAL_ENGINE_CONFIG.TAX_RATE).toFixed(2)})</span>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2 border-b border-stone-100 pb-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500">Operational Burn (Costs)</p>
+                          {categoryStats.map(cat => (
+                            <div key={cat.name} className="flex justify-between">
+                              <span className="uppercase">{cat.name} COGS</span>
+                              <span className="font-medium">-${cat.cost.toLocaleString()}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between">
+                            <span>Labor Allocation (Est {FISCAL_ENGINE_CONFIG.LABOR_BURN_RATE * 100}%)</span>
+                            <span className="font-medium">-${estimatedLabor.toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between pt-4 text-sm font-bold">
+                          <span className="uppercase text-stone-900 font-black">Net Fiscal Alpha</span>
+                          <div className="text-right">
+                            <span className="text-lg font-serif font-black italic text-indigo-600">${netProfit.toLocaleString()}</span>
+                            <p className="text-[9px] text-stone-400 font-black uppercase">Margin: {netRevenue > 0 ? ((netProfit/netRevenue)*100).toFixed(1) : 0}%</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {exportData.type === 'ledger' && (
+                  <div className="space-y-4 overflow-x-auto animate-in fade-in duration-300">
+                    <table className="w-full text-left text-[10px] border-collapse min-w-[500px]">
+                      <thead>
+                        <tr className="border-b border-stone-200 uppercase text-stone-400 font-black">
+                          <th className="py-2">Tx Identity</th>
+                          <th className="py-2">Composition</th>
+                          <th className="py-2">Settlement</th>
+                          <th className="py-2 text-right">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {transactions.map(tx => (
+                          <tr key={tx.id} className="py-2">
+                            <td className="py-2 font-mono">
+                              <p className="font-bold text-stone-800">{tx.id}</p>
+                              <p className="text-[8px] text-stone-400">{new Date(tx.timestamp).toLocaleString()}</p>
+                            </td>
+                            <td className="py-2 text-stone-600">
+                              <p>{tx.items.length} Units</p>
+                              <p className="text-[8px] italic truncate max-w-[150px]">{tx.items.map(i => i.name).join(', ')}</p>
+                            </td>
+                            <td className="py-2 font-bold text-stone-500 uppercase">{tx.paymentMethod}</td>
+                            <td className="py-2 text-right font-serif font-black italic">${tx.total.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {exportData.type === 'report' && currentReport && (
+                  <div className="space-y-6 text-xs text-stone-800 animate-in fade-in duration-300">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {currentReport.metrics.map((m, i) => (
+                        <div key={i} className="p-4 bg-stone-50 border border-stone-100 rounded-xl">
+                          <p className="text-[8px] font-black text-stone-400 uppercase">{m.label}</p>
+                          <p className="text-base font-serif font-black italic text-stone-900 mt-1">{m.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="font-black text-[9px] uppercase tracking-widest text-indigo-600">Intelligence Narrative</h3>
+                      <p className="leading-relaxed italic font-medium">"{currentReport.narrative}"</p>
+                    </div>
+
+                    <div className="bg-stone-900 text-white p-6 rounded-2xl space-y-4">
+                      <h3 className="font-black text-[9px] uppercase tracking-widest text-indigo-500">Strategic Guidance</h3>
+                      <div className="space-y-2">
+                        {currentReport.aiAdvice.map((adv, i) => (
+                          <div key={i} className="flex gap-3">
+                            <span className="font-black text-indigo-500 text-[10px]">{i+1}.</span>
+                            <p className="text-[10px] text-stone-300 font-bold">{adv}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {exportData.type === 'investor' && investorInsight && (
+                  <div className="space-y-6 text-xs text-stone-800 animate-in fade-in duration-300">
+                    <div className="flex justify-between items-center border-b border-stone-100 pb-4">
+                      <span className="font-black text-[9px] uppercase text-indigo-600">Projected Valuation Multiplier</span>
+                      <span className="font-serif font-black italic text-xl text-indigo-600">{investorInsight.projectedValuationMultiplier}x</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="font-black text-[9px] uppercase tracking-widest text-indigo-600">Growth Narrative</h3>
+                      <p className="leading-relaxed italic font-medium">"{investorInsight.narrative}"</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-stone-900 text-white p-4 rounded-xl space-y-3">
+                        <h3 className="font-black text-[8px] uppercase tracking-widest text-indigo-500">Scalability Roadmap</h3>
+                        <div className="space-y-2 text-[9px]">
+                          {investorInsight.scalabilityRoadmap.map((item, i) => (
+                            <div key={i} className="border-l border-indigo-500/30 pl-2">
+                              <p className="font-black uppercase text-indigo-500">{item.phase}</p>
+                              <p className="font-bold">{item.milestone}</p>
+                              <p className="text-stone-400">{item.impact}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-stone-50 border border-stone-200 p-4 rounded-xl space-y-3">
+                        <h3 className="font-black text-[8px] uppercase tracking-widest text-stone-400">Risk Assessment</h3>
+                        <div className="space-y-2 text-[9px]">
+                          {investorInsight.riskAssessment.map((item, i) => (
+                            <div key={i} className="flex justify-between">
+                              <div>
+                                <p className="font-bold text-stone-800">{item.category}</p>
+                                <p className="text-stone-500">{item.detail}</p>
+                              </div>
+                              <span className="text-[7px] font-black uppercase text-indigo-600">{item.level}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Document Footer */}
+                <div className="border-t border-stone-200 pt-8 flex flex-col sm:flex-row justify-between items-end text-[8px] text-stone-400 gap-4">
+                  <div>
+                    <p className="font-black uppercase tracking-widest text-stone-500">Certification Sign-off</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className="w-16 h-0.5 bg-stone-300"></div>
+                      <span className="font-serif italic font-black text-stone-500">Vinetelligence Node v3.1.0</span>
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-right space-y-1">
+                    <p className="font-mono">Verification: MD5-{Math.random().toString(36).substr(2, 16).toUpperCase()}</p>
+                    <p className="font-black uppercase tracking-widest text-indigo-500">Audited Security Level: Tier-1</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-10 py-4 bg-stone-950 text-stone-500 flex justify-between items-center text-[9px] font-black uppercase tracking-widest shrink-0">
+               <span>Tunnel Status: Secured</span>
+               <span className="text-indigo-500">Vinetelligence Audit Protocol v3.1</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

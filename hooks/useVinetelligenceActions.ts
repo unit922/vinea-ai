@@ -3,6 +3,8 @@ import { useCallback } from 'react';
 import { useVinetelligenceStore } from '../store/vinetelligenceStore';
 import { authService } from '../services/authService';
 import { supabaseSync, generateUUID } from '../services/supabaseSync';
+import { firebaseService } from '../services/firebaseService';
+import { isFirebaseConfigured, auth } from '../firebase';
 import { RestaurantProfile, AppView, Cocktail, InventoryItem } from '../lib/types';
 
 export const useVinetelligenceActions = () => {
@@ -77,7 +79,14 @@ export const useVinetelligenceActions = () => {
       try {
         await supabaseSync.saveRestaurantProfile(updated);
       } catch (e) {
-        console.error("Vinetelligence: Failed to sync profile update", e);
+        console.error("Vinetelligence: Failed to sync profile update to Supabase", e);
+      }
+      if (isFirebaseConfigured && auth?.currentUser) {
+        try {
+          await firebaseService.saveRestaurantProfile(updated);
+        } catch (e) {
+          console.error("Vinetelligence: Failed to sync profile update to Firebase", e);
+        }
       }
     }
   }, [restaurantProfile, authMode, setRestaurantProfile]);
@@ -105,6 +114,11 @@ export const useVinetelligenceActions = () => {
       supabaseSync.updateInventoryItem(restaurantProfile.id, newItem).catch(e => {
         console.error("Vinetelligence: Failed to sync new cocktail to Supabase", e);
       });
+      if (isFirebaseConfigured && auth?.currentUser) {
+        firebaseService.updateInventoryItem(restaurantProfile.id, newItem).catch(e => {
+          console.error("Vinetelligence: Failed to sync new cocktail to Firebase", e);
+        });
+      }
     }
     
     window.dispatchEvent(new Event('storage'));
@@ -120,6 +134,11 @@ export const useVinetelligenceActions = () => {
       supabaseSync.deleteInventoryItem(restaurantProfile.id, cocktailId).catch(e => {
         console.error("Vinetelligence: Failed to delete cocktail from Supabase", e);
       });
+      if (isFirebaseConfigured && auth?.currentUser) {
+        firebaseService.deleteInventoryItem(restaurantProfile.id, cocktailId).catch(e => {
+          console.error("Vinetelligence: Failed to delete cocktail from Firebase", e);
+        });
+      }
     }
     
     window.dispatchEvent(new Event('storage'));

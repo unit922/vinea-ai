@@ -170,6 +170,51 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ profile, onUpdate }) 
         </div>
       </div>
 
+      {/* Academy Solo Edition Toggle */}
+      <div className="bg-white p-8 rounded-[2rem] border border-stone-200 shadow-sm space-y-6">
+        <div className="flex justify-between items-center">
+           <div className="space-y-1">
+              <h3 className="text-sm font-black uppercase tracking-widest text-stone-400">Academy Solo Edition</h3>
+              <p className="text-[10px] text-stone-400 uppercase font-bold tracking-tighter">Standalone Academic Service Offering</p>
+           </div>
+           <div className="w-12 h-12 bg-violet-600/10 text-violet-600 rounded-2xl flex items-center justify-center shadow-sm">
+             <i className="fas fa-graduation-cap text-lg"></i>
+           </div>
+        </div>
+
+        <div className="bg-violet-500/5 p-6 rounded-3xl border border-violet-500/10 flex flex-col md:flex-row gap-6 items-center justify-between">
+           <div className="space-y-1.5 flex-1">
+              <p className="text-[10px] font-black text-violet-600 uppercase tracking-widest flex items-center gap-2">
+                <i className="fas fa-toggle-on"></i> Restricted Operating View Mode
+              </p>
+              <h4 className="text-base font-black text-stone-900 leading-snug">Lock App to Training Modules Only</h4>
+              <p className="text-xs text-stone-500 leading-relaxed max-w-xl">
+                Enable this option to offer Vinetelligence as a <strong>standalone academic training tool</strong> for your staff. This locks the side navigation—hiding live inventory, customer dispatch tables, VIP reservation analytics, and financial hubs—and presents employees with an immersive, distraction-free curriculum, active slide readers, quizzes, and sommelier tests.
+              </p>
+           </div>
+           <div className="shrink-0">
+              <button 
+                onClick={() => {
+                   onUpdate('academyOnlyMode', !profile?.academyOnlyMode);
+                   // Refresh layout
+                   setTimeout(() => window.dispatchEvent(new Event('storage')), 150);
+                }}
+                className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                   profile?.academyOnlyMode 
+                     ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20 hover:bg-violet-700' 
+                     : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-800'
+                }`}
+              >
+                 {profile?.academyOnlyMode ? (
+                   <span className="flex items-center gap-2"><i className="fas fa-lock"></i> Academy Solo Active</span>
+                 ) : (
+                   <span className="flex items-center gap-2"><i className="fas fa-unlock"></i> Activate Solo Mode</span>
+                 )}
+              </button>
+           </div>
+        </div>
+      </div>
+
       {/* Establishment Identity */}
       <div className="bg-white p-8 rounded-[2rem] border border-stone-200 shadow-sm space-y-6">
         <h3 className="text-sm font-black uppercase tracking-widest text-stone-400">Establishment Profile</h3>
@@ -276,6 +321,16 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ profile, onUpdate }) 
               onBlur={(e) => onUpdate('twitter', e.target.value)}
               className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-bold"
               placeholder="@username"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-stone-500 uppercase tracking-widest mb-2">LinkedIn Node</label>
+            <input 
+              type="text"
+              defaultValue={profile?.linkedin}
+              onBlur={(e) => onUpdate('linkedin', e.target.value)}
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-bold"
+              placeholder="https://linkedin.com/in/username"
             />
           </div>
         </div>

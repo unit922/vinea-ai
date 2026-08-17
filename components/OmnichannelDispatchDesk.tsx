@@ -89,6 +89,13 @@ const PRESETS: MessageTemplate[] = [
     variables: ['guestName', 'venueName']
   },
   {
+    id: 't-gm-outreach',
+    name: 'GM / Beverage Director Outreach',
+    subject: 'Optimizing beverage margins at {{venueName}}',
+    body: 'Most high-volume spots lose 15% to 20% of their beverage revenue to hidden inventory leakage and mismatched roster schedules. We built Vinetelligence to stop that. It natively plugs into your Toast or Oracle Micros stack to recover that margin. On average, our partners see a 32.4% yield increase. I ran a quick simulation based on your menu profile. You can see the live data dashboard and how it flags leakage in under 60 seconds here: [Launch Interactive Demo] (No signup required).',
+    variables: ['venueName']
+  },
+  {
     id: 't-[#flair]',
     name: 'Nightly Caribbean Flair Special Alert',
     subject: 'Evening Specials at {{venueName}}',

@@ -3,6 +3,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  deleteDoc,
   onSnapshot, 
   query, 
   orderBy, 
@@ -16,6 +17,14 @@ import {
   InventoryItem, 
   ServiceOrder 
 } from '../lib/types';
+
+export interface VisitorInterest {
+  id?: string;
+  interest: string;
+  comments: string;
+  source: string;
+  timestamp: string;
+}
 
 enum OperationType {
   CREATE = 'create',
@@ -156,6 +165,16 @@ export const firebaseService = {
     }
   },
 
+  async deleteInventoryItem(restaurantId: string, itemId: string) {
+    if (!db) return;
+    const path = `restaurants/${restaurantId}/inventory/${itemId}`;
+    try {
+      await deleteDoc(doc(db, 'restaurants', restaurantId, 'inventory', itemId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
+  },
+
   // Orders
   subscribeToOrders(restaurantId: string, callback: (orders: ServiceOrder[]) => void) {
     if (!db) return () => {};
@@ -206,5 +225,62 @@ export const firebaseService = {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
+  },
+
+  // Save Visitor Interest & Exit Survey Answers (Firestore + Local Express sync)
+  async saveVisitorInterest(interest: string, comments: string = "", source: string = "avatar-chat") {
+    const interestId = `vi-${Date.now()}`;
+    const timestamp = new Date().toISOString();
+    const payload = {
+      id: interestId,
+      interest,
+      comments,
+      source,
+      timestamp
+    };
+
+    // 1. Send to Local Express REST API
+    try {
+      await fetch('/api/visitor-interests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interest, comments, source })
+      });
+    } catch (err) {
+      console.warn("Express API visitor interests sync failed, falling back.", err);
+    }
+
+    // 2. Write to Firestore if connected
+    if (!db) return;
+    const path = `visitor_interests/${interestId}`;
+    try {
+      await setDoc(doc(db, 'visitor_interests', interestId), payload);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  },
+
+  // Subscribe to Visitor Interests (For the Admin Panel)
+  subscribeToVisitorInterests(callback: (interests: VisitorInterest[]) => void) {
+    if (!db) {
+      // Fallback: poll or fetch once from Express API if Firestore is not present
+      fetch('/api/visitor-interests')
+        .then(res => res.json())
+        .then(data => callback(data))
+        .catch(err => console.error("Failed to load visitor interests via API fallback", err));
+      return () => {};
+    }
+    const q = query(collection(db, 'visitor_interests'), orderBy('timestamp', 'desc'));
+
+    return onSnapshot(q, (snapshot) => {
+      const interests = snapshot.docs.map(doc => doc.data() as VisitorInterest);
+      callback(interests);
+    }, (error) => {
+      console.warn("Vinetelligence: Firestore visitor_interests read permission denied or failed. Falling back to local Express API.", error);
+      fetch('/api/visitor-interests')
+        .then(res => res.json())
+        .then(data => callback(data))
+        .catch(err => console.error("Failed to load visitor interests via API fallback", err));
+    });
   }
 };

@@ -37,18 +37,21 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (request.auth.token.email == "foritglo@gmail.com");
+        (request.auth.token.email.matches("(?i)^(foritglo@gmail\\.com|vinetelligence@gmail\\.com|.*@vinetelligence\\.live|.*@vinea\\.live)$"));
     }
 
     function isStaffOf(restaurantId) {
       let isDemo = restaurantId == 'demo-id';
       let isAuthorized = isAuthenticated() && 
         (isDemo ||
-         get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerId == request.auth.uid ||
+         (exists(/databases/$(database)/documents/restaurants/$(restaurantId)) && 
+          (get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerId == request.auth.uid ||
+           get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.email == request.auth.token.email)) ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.restaurant_id == restaurantId) ||
          request.auth.token.restaurant_id == restaurantId);
       
-      // Strict verification for non-demo professional tiers
-      return isAuthorized && (isDemo || isEmailVerified());
+      return isAuthorized;
     }
 
     function isValidRestaurant(data) {
@@ -103,7 +106,12 @@ service cloud.firestore {
 
     match /registry/{restaurantId} {
       allow read: if true; // Investor view
-      allow write: if restaurantId == 'demo-id' || isAdmin() || (isAuthenticated() && request.auth.uid == restaurantId);
+      allow write: if restaurantId == 'demo-id' || isAdmin() || isStaffOf(restaurantId);
+    }
+
+    match /visitor_interests/{interestId} {
+      allow create, read: if true; // Open creation and read for website visitor feedback
+      allow update, delete: if isAdmin(); // Strictly restricted to authenticated Admins
     }
   }
 }

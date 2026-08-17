@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Zap, Activity, Info, Database, LayoutGrid, Users, CreditCard, ExternalLink, RefreshCw, ArrowRight } from 'lucide-react';
+import { Zap, Activity, Info, Database, LayoutGrid, Users, CreditCard, ExternalLink, RefreshCw, ArrowRight, Lock } from 'lucide-react';
 import { mewsService } from '../services/mewsService';
 
 const IntegrationHubView: React.FC = () => {
@@ -11,8 +11,40 @@ const IntegrationHubView: React.FC = () => {
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'mews' | 'pos' | 'quickbooks' | 'logs'>('mews');
-  const [selectedPosSystem, setSelectedPosSystem] = useState<'oracle' | 'lightspeed'>('oracle');
+  const [activeTab, setActiveTab] = useState<'mews' | 'pos' | 'quickbooks' | 'lockers' | 'logs'>('mews');
+  const [selectedPosSystem, setSelectedPosSystem] = useState<'oracle' | 'lightspeed' | 'toast'>('oracle');
+
+  // SommOne Wine Locker States
+  const [lockers, setLockers] = useState([
+    { id: 'LCK-101', member: 'William S. Gates', title: 'Krug Clos d\'Ambonnay 2002', count: 1, lastOpened: 'Yesterday, 8:14 PM', status: 'Active' },
+    { id: 'LCK-102', member: 'Jeffery B.', title: 'Quilceda Creek Cabernet 2013', count: 3, lastOpened: 'Today, 11:30 AM', status: 'Active' },
+    { id: 'LCK-103', member: 'Richard B.', title: 'Leonetti Cellar Merlot 2018', count: 2, lastOpened: '2 days ago', status: 'Active' },
+    { id: 'LCK-104', member: 'Steve B.', title: 'Beaux Frères Pinot Noir 2015', count: 1, lastOpened: 'Never', status: 'Standby' }
+  ]);
+
+  const handleWithdrawBottle = (id: string) => {
+    setLockers(prev => prev.map(lck => {
+      if (lck.id === id) {
+        if (lck.count > 0) {
+          addLog(`SommOne Wine Locker [${id}] - Dispatched 1 bottle of ${lck.title} to Table.`);
+          return { ...lck, count: lck.count - 1, lastOpened: 'Just Now' };
+        } else {
+          addLog(`SommOne Wine Locker Error: No bottles remaining in locker [${id}].`);
+        }
+      }
+      return lck;
+    }));
+  };
+
+  const handleRestockLocker = (id: string) => {
+    setLockers(prev => prev.map(lck => {
+      if (lck.id === id) {
+        addLog(`SommOne Wine Locker [${id}] - Sourced 1 bottle of ${lck.title} into Locker.`);
+        return { ...lck, count: lck.count + 1 };
+      }
+      return lck;
+    }));
+  };
 
   // Mews Manual Configuration States
   const [formEndpoint, setFormEndpoint] = useState('api.mews.com');
@@ -89,17 +121,18 @@ const IntegrationHubView: React.FC = () => {
           <p className="text-stone-500 font-medium italic text-sm">Synchronizing your beverage intelligence with the world's leading hospitality stacks.</p>
         </div>
         
-        <div className="flex bg-stone-100 p-1 rounded-2xl border border-stone-200 self-start md:self-center">
+        <div className="flex bg-stone-100 p-1 rounded-2xl border border-stone-200 self-start md:self-center overflow-x-auto no-scrollbar max-w-full">
            {[
              { id: 'mews', label: 'Mews PMS', icon: <Database className="w-3.5 h-3.5" /> },
              { id: 'pos', label: 'POS Nodes', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
              { id: 'quickbooks', label: 'Accounting', icon: <CreditCard className="w-3.5 h-3.5" /> },
+             { id: 'lockers', label: 'Wine Locker (SommOne)', icon: <Lock className="w-3.5 h-3.5" /> },
              { id: 'logs', label: 'Sync Registry', icon: <Activity className="w-3.5 h-3.5" /> }
            ].map(tab => (
              <button
                key={tab.id}
-               onClick={() => setActiveTab(tab.id as 'mews' | 'pos' | 'quickbooks' | 'logs')}
-               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+               onClick={() => setActiveTab(tab.id as 'mews' | 'pos' | 'quickbooks' | 'lockers' | 'logs')}
+               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                  activeTab === tab.id ? 'bg-white text-indigo-600 shadow-sm border border-stone-200' : 'text-stone-400 hover:text-stone-600'
                }`}
              >
@@ -125,6 +158,12 @@ const IntegrationHubView: React.FC = () => {
               >
                 Lightspeed Retail
               </button>
+              <button 
+                onClick={() => setSelectedPosSystem('toast')}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedPosSystem === 'toast' ? 'bg-amber-600 text-white shadow-lg' : 'text-stone-400 hover:text-stone-600'}`}
+              >
+                Toast POS
+              </button>
            </div>
 
            <div className="grid lg:grid-cols-3 gap-8">
@@ -140,12 +179,14 @@ const IntegrationHubView: React.FC = () => {
                    <div className="space-y-6 max-w-xl">
                       <div className="space-y-2">
                          <h2 className="text-2xl font-serif font-black italic text-stone-900 tracking-tight">
-                            {selectedPosSystem === 'oracle' ? 'Oracle Simphony Neural Node' : 'Lightspeed Cloud Handshake'}
+                            {selectedPosSystem === 'oracle' && 'Oracle Simphony Neural Node'}
+                            {selectedPosSystem === 'lightspeed' && 'Lightspeed Cloud Handshake'}
+                            {selectedPosSystem === 'toast' && 'Toast Certified App Marketplace Node'}
                          </h2>
                          <p className="text-stone-500 text-sm italic font-medium leading-relaxed">
-                            {selectedPosSystem === 'oracle' 
-                              ? 'Synchronize enterprise-grade menu databases and live guest checks directly from your property management workstations.' 
-                              : 'High-velocity cloud integration for boutiques and luxury bistros. Direct stock depletion and sales summary mapping.'}
+                            {selectedPosSystem === 'toast' && 'Certified Toast App Marketplace Integration. Directly captures live kitchen check tickets, table-side orders, and beverage depletion events in real-time.'}
+                             {selectedPosSystem === 'oracle' && 'Synchronize enterprise-grade menu databases and live guest checks directly from your property management workstations.'}
+                            {selectedPosSystem === 'lightspeed' && 'High-velocity cloud integration for boutiques and luxury bistros. Direct stock depletion and sales summary mapping.'}
                          </p>
                       </div>
 
@@ -559,7 +600,136 @@ const IntegrationHubView: React.FC = () => {
         </div>
       )}
 
-      {(activeTab === 'logs' || activeTab === 'mews' || activeTab === 'quickbooks') && (
+      {activeTab === 'lockers' && (
+        <div className="grid lg:grid-cols-3 gap-8">
+           <div className="lg:col-span-2 space-y-8">
+              <div className="bg-white rounded-[3rem] p-10 border border-stone-200 shadow-sm space-y-8 relative overflow-hidden">
+                 <div className="absolute top-0 right-0 p-8">
+                    <div className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2 bg-indigo-50 text-indigo-600 border border-indigo-100">
+                       <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
+                       SommOne Link Certified
+                    </div>
+                 </div>
+
+                 <div className="space-y-6 max-w-xl">
+                    <div className="space-y-2">
+                       <h2 className="text-2xl font-serif font-black italic text-stone-900 tracking-tight">SommOne Wine Locker Hub</h2>
+                       <p className="text-stone-500 text-sm italic font-medium leading-relaxed">
+                          Synchronize and manage customer-owned wine collections directly with your table maps. When locker owners dine, floor servers can instantly retrieve, pour, and log cellar withdrawals on our mobile interfaces.
+                       </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                       {[
+                         { label: 'Active Lockers', val: '4/12' },
+                         { label: 'Stored Bottles', val: `${lockers.reduce((acc, curr) => acc + curr.count, 0)} Bottles` },
+                         { label: 'POS Integrations', val: 'Toast certified' },
+                         { label: 'Ledger Audit', val: '99.99%' }
+                       ].map((stat, i) => (
+                         <div key={i} className="p-4 bg-stone-50 rounded-2xl border border-stone-100 text-center space-y-1">
+                            <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest">{stat.label}</p>
+                            <p className="text-sm font-black text-stone-900 font-serif italic">{stat.val}</p>
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
+
+              <div className="bg-white rounded-[2.5rem] p-10 border border-stone-200 space-y-8">
+                 <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                       <h3 className="text-xl font-serif font-black italic text-stone-900">Member Locker Vaults</h3>
+                       <p className="text-xs text-stone-500 italic font-medium">Interactive registry. Click 'Pull Bottle' to simulate a tableside withdrawal.</p>
+                    </div>
+                 </div>
+
+                 <div className="grid sm:grid-cols-2 gap-4">
+                    {lockers.map((lck) => (
+                      <div key={lck.id} className="p-6 bg-stone-50 rounded-[2rem] border border-stone-100 flex flex-col justify-between gap-6 hover:shadow-md transition-all duration-300">
+                         <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                               <span className="px-2.5 py-1 bg-stone-200 text-stone-700 rounded-lg text-[8px] font-mono font-black tracking-wider uppercase">{lck.id}</span>
+                               <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${lck.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{lck.status}</span>
+                            </div>
+                            <div className="space-y-1">
+                               <h4 className="text-xs font-black text-stone-400 uppercase tracking-wider">Member Name</h4>
+                               <p className="text-sm font-black text-stone-900 font-serif italic">{lck.member}</p>
+                            </div>
+                            <div className="space-y-1">
+                               <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-wider">Reserve Bottle</h4>
+                               <p className="text-xs font-bold text-stone-800 line-clamp-1">{lck.title}</p>
+                            </div>
+                         </div>
+
+                         <div className="pt-4 border-t border-stone-200/60 flex items-center justify-between">
+                            <div className="space-y-0.5">
+                               <h4 className="text-[8px] font-black text-stone-400 uppercase tracking-wider">Qty Remaining</h4>
+                               <p className="text-lg font-black text-indigo-600 font-serif italic">{lck.count} <span className="text-[9px] text-stone-500 uppercase font-sans tracking-widest font-bold">Btls</span></p>
+                            </div>
+
+                            <div className="flex gap-2">
+                               <button 
+                                 onClick={() => handleRestockLocker(lck.id)}
+                                 title="Restock / Add bottle"
+                                 className="w-8 h-8 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-700 flex items-center justify-center transition-all text-xs"
+                               >
+                                 <i className="fas fa-plus"></i>
+                               </button>
+                               <button 
+                                 onClick={() => handleWithdrawBottle(lck.id)}
+                                 disabled={lck.count <= 0}
+                                 className="px-4 h-8 rounded-lg bg-stone-900 hover:bg-indigo-600 disabled:bg-stone-200 disabled:text-stone-400 text-white flex items-center justify-center transition-all text-[8px] font-black uppercase tracking-widest"
+                               >
+                                 Pull Bottle
+                               </button>
+                            </div>
+                         </div>
+                      </div>
+                    ))}
+                 </div>
+              </div>
+           </div>
+
+           <div className="space-y-8">
+               <div className="bg-stone-900 rounded-[3rem] p-10 text-white space-y-8 shadow-2xl">
+                  <div className="space-y-2">
+                     <h3 className="text-xl font-serif font-black italic text-indigo-400 tracking-tight">Tableside Integration</h3>
+                     <p className="text-stone-400 text-xs italic font-medium leading-relaxed uppercase tracking-wider">SommOne & Toast POS Flow</p>
+                  </div>
+                  
+                  <div className="space-y-6">
+                     <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-3">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                           <i className="fas fa-network-wired text-xs"></i>
+                           Ecosystem Loop
+                        </div>
+                        <p className="text-[10px] text-stone-300 leading-relaxed italic">
+                           Vinetelligence leverages SommOne\'s Open API to directly stream private inventory data to our floor terminal and tableside tablets.
+                        </p>
+                     </div>
+
+                     <div className="space-y-4 pt-2">
+                        {[
+                          { step: '01', title: 'Loyalty Trigger', desc: 'When the guest check is opened in Toast, the system recognizes the member ID automatically.' },
+                          { step: '02', title: 'Locker Authorization', desc: 'A secure popup on the hand-held terminal displays the list of pre-vetted private collections.' },
+                          { step: '03', title: 'Floor Pull & Log', desc: 'Sommelier pulls the wine from physical cabinet; clicking "Pull Bottle" automatically logs depletion and applies corkage parameters.' }
+                        ].map((item, idx) => (
+                          <div key={idx} className="flex gap-4">
+                             <span className="text-indigo-400 font-serif font-black italic text-sm">{item.step}</span>
+                             <div className="space-y-0.5">
+                                <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">{item.title}</h4>
+                                <p className="text-[10px] text-stone-400 italic leading-relaxed">{item.desc}</p>
+                             </div>
+                          </div>
+                        ))}
+                     </div>
+                  </div>
+               </div>
+           </div>
+        </div>
+      )}
+
+      {(activeTab === 'logs' || activeTab === 'mews' || activeTab === 'quickbooks' || activeTab === 'lockers') && (
         <div className="bg-white rounded-[2.5rem] p-1 border border-stone-200">
            <div className="p-6 border-b border-stone-100 flex items-center justify-between">
               <h3 className="text-sm font-black uppercase tracking-widest text-stone-900">Neural Sync Registry</h3>

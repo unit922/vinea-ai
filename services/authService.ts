@@ -13,7 +13,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getSupabaseClient, supabaseSync } from './supabaseSync';
 
 // Flag to explicitly enable/disable Firebase Auth as a fallback
-const FIREBASE_ENABLED = isFirebaseConfigured && import.meta.env.VITE_ACTIVATE_FIREBASE === 'true';
+const FIREBASE_ENABLED = isFirebaseConfigured;
 
 export interface VinetelligenceSession {
   user: {
@@ -71,8 +71,17 @@ export const authService = {
         }
       };
     } catch (error) {
-      console.error("Vinetelligence: Anonymous Auth Error", error);
-      throw error;
+      console.warn("Vinetelligence: Anonymous Auth is restricted on Firebase. Falling back to Local Guest Session instead.", error);
+      return {
+        session: {
+          user: {
+            id: 'demo-guest-' + Math.random().toString(36).substr(2, 9),
+            email: null,
+            isAnonymous: true,
+            user_metadata: { role: 'Guest', full_name: 'Demo Guest', restaurant_id: 'demo-id' }
+          }
+        }
+      };
     }
   },
 
@@ -165,6 +174,24 @@ export const authService = {
         if (data.user) {
           // Update roster status to 'Registered'
           await supabaseSync.updateRosterStatus(restaurantId, normalizedEmail, 'Registered');
+
+          // CRITICAL DUAL REGISTRATION SYNC:
+          // If Firebase is initialized, also register the user in Firebase Auth and set their user doc.
+          if (auth && db) {
+            try {
+              const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, pass);
+              const user = userCredential.user;
+              await setDoc(doc(db, 'users', user.uid), {
+                full_name: fullName,
+                restaurant_id: restaurantId,
+                role: rosterEntry.role || role,
+                email: normalizedEmail
+              });
+              console.log("Vinetelligence: Synchronized Firebase Auth registration with Supabase registration.");
+            } catch (fbErr) {
+              console.warn("Vinetelligence: Firebase Auth registration synchronization skipped or failed during Supabase registration.", fbErr);
+            }
+          }
 
           // If session is present, it's a direct login (e.g. email confirmation disabled)
           if (data.session) {
@@ -272,6 +299,46 @@ export const authService = {
         if (error) throw error;
         if (data.user) {
           console.log("Vinetelligence: Supabase SignIn successful", data.user.id);
+          
+          // CRITICAL DUAL AUTHENTICATION SYNC: 
+          // If Firebase is initialized, also authenticate the user in Firebase Auth using the same credentials.
+          // This ensures Firestore security rules (e.g., checking request.auth) work perfectly.
+          if (auth) {
+            try {
+              await signInWithEmailAndPassword(auth, normalizedEmail, pass);
+              console.log("Vinetelligence: Synchronized Firebase Auth login with Supabase login.");
+            } catch (fbErr) {
+              // If user does not exist in Firebase Auth but has logged in successfully in Supabase,
+              // we can automatically register them on-the-fly in Firebase Auth to ensure full synchronization.
+              const errorObj = fbErr as { code?: string };
+              const isUserNotFound = errorObj?.code === 'auth/user-not-found' || 
+                                     errorObj?.code === 'auth/invalid-credential' || 
+                                     String(fbErr).includes('user-not-found') ||
+                                     String(fbErr).includes('invalid-credential');
+              
+              if (isUserNotFound) {
+                console.log("Vinetelligence: Syncing missing Firebase Auth node. Attempting on-the-fly registration...");
+                try {
+                  const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, pass);
+                  const user = userCredential.user;
+                  if (db) {
+                    await setDoc(doc(db, 'users', user.uid), {
+                      full_name: data.user.user_metadata?.full_name || "Vinetelligence Node Operator",
+                      restaurant_id: data.user.user_metadata?.restaurant_id || "demo-id",
+                      role: data.user.user_metadata?.role || "Owner",
+                      email: normalizedEmail
+                    });
+                  }
+                  console.log("Vinetelligence: On-the-fly Firebase user registration synchronized successfully.");
+                } catch (createErr) {
+                  console.error("Vinetelligence: On-the-fly Firebase Auth registration failed.", createErr);
+                }
+              } else {
+                console.warn("Vinetelligence: Firebase Auth synchronization skipped or failed during Supabase login.", fbErr);
+              }
+            }
+          }
+
           return {
             session: {
               user: {
@@ -426,7 +493,7 @@ export const authService = {
     try {
       const supabase = getSupabaseClient();
       if (supabase) await supabase.auth.signOut();
-      if (FIREBASE_ENABLED && auth) await firebaseSignOut(auth);
+      if (auth) await firebaseSignOut(auth);
       localStorage.removeItem('vinetelligence_local_session');
       localStorage.removeItem('vinea_local_session');
     } catch (e) {
@@ -477,12 +544,41 @@ export const authService = {
     return true;
   },
 
+  async signInWithOtp(email: string) {
+    const supabase = getSupabaseClient();
+    const normalizedEmail = email.toLowerCase().trim();
+    if (supabase) {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+      return { success: true };
+    }
+    throw new Error("One-time login is only available in cloud database mode.");
+  },
+
+  async resetPassword(email: string) {
+    const supabase = getSupabaseClient();
+    const normalizedEmail = email.toLowerCase().trim();
+    if (supabase) {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      if (error) throw error;
+      return { success: true };
+    }
+    throw new Error("Password reset is only available in cloud database mode.");
+  },
+
   async getSession(): Promise<VinetelligenceSession | null> {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Supabase session timeout')), 20000)
+          setTimeout(() => reject(new Error('Supabase session timeout')), 4000)
         );
         
         const sessionPromise = supabase.auth.getSession();

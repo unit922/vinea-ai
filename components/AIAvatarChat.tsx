@@ -4,6 +4,7 @@ import { GoogleGenAI, LiveServerMessage, Modality, Type } from "@google/genai";
 import { getApiKey } from '../services/geminiService';
 import { useVinetelligenceStore } from '../store/vinetelligenceStore';
 import { getBrandedTerm } from '../utils/branding';
+import { firebaseService } from '../services/firebaseService';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Mic, 
@@ -54,6 +55,11 @@ export const AIAvatarChat: React.FC<AIAvatarChatProps> = ({
   const playNextInQueueRef = useRef<() => void>(() => {});
   const sessionStartedRef = useRef(false);
   const [volume, setVolume] = useState(0);
+  
+  // Exit survey & drop-off analytics states
+  const [selectedInterest, setSelectedInterest] = useState<string | null>(null);
+  const [feedbackComments, setFeedbackComments] = useState('');
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
 
   const stopPlayback = useCallback(() => {
     audioQueueRef.current = [];
@@ -248,33 +254,33 @@ export const AIAvatarChat: React.FC<AIAvatarChatProps> = ({
             Encourage them to share their "Palate Passions" so the sommelier can prepare for their arrival.
             Keep your responses concise and conversational.`
             : isIntroMode 
-            ? `You are the Vinetelligence Smart Systems Guide. Your goal is to pitch the Vinetelligence platform as the definitive AI-Powered Operating System for the modern cellar and dining room. 
+            ? `You are the Vinetelligence Smart Systems Guide. Your goal is to explain and showcase the Vinetelligence platform in a simple, friendly, and non-technical way. Help first-time visitors understand how Vinetelligence can make running their restaurant, bar, or hospitality business easier.
             
             LANGUAGE PROTOCOL: Use ${profile?.language === 'es' ? 'Spanish (Español)' : profile?.language === 'nl' ? 'Dutch (Nederlands)' : profile?.language === 'pt' ? 'Portuguese (Português)' : 'English'}.
 
-            VINETELLIGENCE VALUE PROPOSITION:
-            1. Total Aesthetic Alignment: We don't just provide a menu; we synthesize your establishment's 'Neural Persona'. From 'Playful' to 'Technical', every interaction is branded.
-            2. Yield Alpha (Zero-Draft Logistics): Predictive demand forecasting that treats your supply chain as an automated asset. Know what will sell before the door opens.
-            3. Palate DNA (Hyper-Personalization): We map guest preferences to an organoleptic model, suggesting perfect pairings based on their historical sensory profile.
-            4. Service Sentinel: Real-time velocity monitoring. Identify slow tables, high-performing staff, and stockouts before they affect the P&L.
-            5. Academy of Excellence: Interactive training that keeps your staff at the absolute frontier of beverage wisdom.
+            WHAT WE DO (SIMPLE LANGUAGE):
+            1. Smart Wine & Drink Menus: Instead of boring paper lists, we help you create interactive, fun menus that can be customized to match your venue's style or theme.
+            2. Easy Stock & Supply Tracking: We help you know exactly what is in your cellar and predict what you need to order next before you run out of popular drinks.
+            3. Personalized Guest Recommendations: We suggest the perfect wines and pairings for your guests based on what they like and their favorite flavors.
+            4. Friendly Team Training: Interactive guides to help your staff feel confident describing, pouring, and recommending drinks to guests.
+            5. Smooth Service Monitoring: Helping your managers spot slow table turnarounds or stockouts easily so that service always runs smoothly.
             
             UNIFIED SETUP PROTOCOL:
-            - If the user provides their establishment name and email, call the 'register_establishment' tool IMMEDIATELY. Tell them you are "synchronizing their node with the global Vinetelligence lattice."
+            - If the user shares their venue name and email, register them immediately using the 'register_establishment' tool. Explain friendly that you are setting up their venue profile in our system.
             
-            GLOBAL TIERS:
-            1. The Explorer (Demo): Local session persistence. Proof of concept. Price: $0.
-            2. The Essential (Managed Cloud): Cloud logic, staff management, predictive insights. Price: $149/mo.
-            3. The Growth (Pro Suite): FULL SUITE. Vision audits, Palate DNA, and Neural Personas. Price: $499/mo.
-            4. The Enterprise (Enterprise Silo): The definitive solution for groups and portfolios. Centralized data silos and HQ command center. Price: Custom.
+            SIMPLE & FLEXIBLE PRICING PLANS:
+            1. Explorer (Free): Try it out directly in your browser with basic features! Price: $0.
+            2. Essential Plan: Ideal for growing bars and restaurants who want cloud access and staff tools. Price: $149/mo.
+            3. Growth Plan: Our most popular plan. Unlocks personalized wine lists and custom styles. Price: $499/mo.
+            4. Enterprise: Custom setup with tailored support for multiple venues or hotel chains. Price: Custom.
 
             ONBOARDING INTERFACE PROTOCOL:
-            - When you call 'register_establishment', the user's dashboard will reflect these changes in real-time.
-            - Guide them to Step 5 (Cloud Architecture) once they've confirmed their identity with you.
-            - If they asks "what tier should I choose?", recommend 'The Growth' for professional venues seeking the full neural suite.
-            - MULTI-VENUE GUIDANCE: If a user mentions managing more than one venue, STRONGLY recommend 'The Enterprise'. Explain that it functions as a 'Central Intelligence HQ' where all locations sync into a single silo for cross-venue analytics and global roster management.
+            - When you call 'register_establishment', the user's dashboard will update in real-time.
+            - Guide them to Step 5 (Cloud Setup) once they've given you their info.
+            - If they ask which plan is best, warmly recommend 'The Growth Plan' for the best experience.
+            - If they manage multiple venues, recommend 'The Enterprise' to keep all locations in one simple place.
   
-            Your tone is 'Hyper-Sophisticated Futurist'. You are welcoming but authoritative. You aren't selling software; you are selling the future of establishment operations.
+            Your tone is 'Friendly Hospitality Partner'. You are helpful, warm, down-to-earth, and conversational. Avoid heavy technical jargon or futuristic buzzwords. Focus on how we make hospitality a joy.
             Keep your responses concise and conversational.`
             : `You are Vinetelligence, the advanced AI Beverage Intelligence agent for ${restaurantName || 'this establishment'}. 
             You are professional, sophisticated, and can guide the user through the platform's features.
@@ -303,6 +309,17 @@ export const AIAvatarChat: React.FC<AIAvatarChatProps> = ({
             isConnectedRef.current = true;
             setIsConnecting(false);
             isConnectingRef.current = false;
+            
+            // Auto-trigger welcome greeting if the chat is opened in introductory or general website modes
+            if (isIntroMode || !isBookingMode) {
+              setTimeout(() => {
+                if (sessionRef.current && isConnectedRef.current) {
+                  sessionRef.current.sendRealtimeInput({
+                    text: "Hello! Welcome the visitor warmly and simply to Vinetelligence. Introduce yourself as their friendly virtual assistant. In a very simple, non-technical way, explain what Vinetelligence is (Vinetelligence is an easy-to-use digital assistant for restaurants and bars that helps them manage their wine and drinks effortlessly, keep track of stock, and recommend the perfect pairings for their guests). Ask them what they would like to explore today, and remind them that they can click any of the quick options below, speak naturally, or type their reply."
+                  });
+                }
+              }, 1200);
+            }
           },
           onmessage: async (message: LiveServerMessage) => {
             try {
@@ -404,6 +421,48 @@ export const AIAvatarChat: React.FC<AIAvatarChatProps> = ({
     }
   }, [restaurantName, isIntroMode, isBookingMode, playNextInQueue, stopPlayback, stopMic, onUpdateProfile, profile?.language]);
 
+  const handleSelectInterest = async (interest: string) => {
+    setSelectedInterest(interest);
+    setFeedbackSaved(false);
+
+    // Save to Firestore and local JSON API immediately
+    try {
+      await firebaseService.saveVisitorInterest(interest, feedbackComments || "No initial comments", "avatar-chat");
+    } catch (e) {
+      console.error("Vinetelligence: Failed to auto-save interest selection", e);
+    }
+
+    // Inform AI about the interest so it speaks details
+    if (sessionRef.current && isConnected) {
+      setAiTextResponse('');
+      setIsAiThinking(true);
+      try {
+        sessionRef.current.sendRealtimeInput({
+          text: `I selected that my primary interest is: "${interest}". Please speak and tell me more about how Vinetelligence optimizes this area, and ask me if there's any reason I'm leaving so you can improve.`
+        });
+      } catch (err) {
+        console.error("Failed to send interest trigger to AI", err);
+      }
+    } else {
+      setAiTextResponse(`Excellent choice! Vinetelligence provides specialized modular intelligence for ${interest}. Please feel free to leave any optional feedback or reasons for leaving in the box below!`);
+    }
+  };
+
+  const handleSubmitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInterest) return;
+
+    try {
+      await firebaseService.saveVisitorInterest(selectedInterest, feedbackComments, "avatar-chat");
+      setFeedbackSaved(true);
+      setTimeout(() => {
+        setFeedbackSaved(false);
+      }, 3000);
+    } catch (e) {
+      console.error("Vinetelligence: Failed to submit feedback", e);
+    }
+  };
+
   const handleSendText = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!textInput.trim() || !sessionRef.current || !isConnected) return;
@@ -496,7 +555,7 @@ export const AIAvatarChat: React.FC<AIAvatarChatProps> = ({
           </div>
 
           {/* Avatar Area */}
-          <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden">
+          <div className="flex-1 flex flex-col items-center justify-start p-6 relative overflow-y-auto custom-scrollbar">
             {/* Neural Pulse Rings */}
             <AnimatePresence>
                {(isSpeaking || isListening) && (
@@ -629,6 +688,73 @@ export const AIAvatarChat: React.FC<AIAvatarChatProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Quick Interest & Exit Survey Panel */}
+            {!isBookingMode && (
+              <div className="w-full mt-6 space-y-3 relative z-30 shrink-0">
+                {!selectedInterest ? (
+                  <div className="space-y-2 bg-stone-950/60 p-4 border border-emerald-500/10 rounded-2xl">
+                    <p className="text-[9px] font-mono text-emerald-400 font-bold uppercase tracking-widest text-center">What is your primary interest today?</p>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      {[
+                        "Maximizing Yields & Stopping Leakage",
+                        "Optimizing Staff Rosters",
+                        "Real-Time Service Pacing",
+                        "Just Browsing / Other"
+                      ].map((interest) => (
+                        <button
+                          key={interest}
+                          type="button"
+                          onClick={() => handleSelectInterest(interest)}
+                          className="px-2.5 py-2 bg-stone-900/80 hover:bg-emerald-500/10 hover:border-emerald-500/30 text-stone-300 hover:text-emerald-400 border border-white/5 rounded-xl text-[8px] font-mono font-bold transition-all text-center leading-tight active:scale-95 cursor-pointer"
+                        >
+                          {interest.replace(" & Stopping Leakage", "")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-stone-950/90 p-4 border border-emerald-500/20 rounded-2xl space-y-3 text-left shadow-2xl relative"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-[8px] font-mono text-emerald-500 font-black uppercase tracking-widest">Feedback Saved</span>
+                      <button 
+                        type="button"
+                        onClick={() => { setSelectedInterest(null); }}
+                        className="text-[8px] font-mono text-stone-500 hover:text-white uppercase font-bold tracking-wider cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-stone-300 font-medium">
+                      Interest: <span className="text-emerald-400 font-mono font-bold">{selectedInterest}</span>
+                    </p>
+                    
+                    {feedbackSaved ? (
+                      <p className="text-[9px] text-emerald-400 font-mono font-black animate-pulse py-1">✓ Your feedback has been recorded securely!</p>
+                    ) : (
+                      <form onSubmit={handleSubmitFeedback} className="space-y-2">
+                        <textarea
+                          value={feedbackComments}
+                          onChange={(e) => setFeedbackComments(e.target.value)}
+                          placeholder="Optional: Why are you leaving or browsing today? (e.g. comparing POS, returning later, just curious)"
+                          className="w-full bg-stone-900 border border-white/5 rounded-xl p-2.5 text-[9px] font-mono text-stone-300 placeholder:text-stone-600 focus:outline-none focus:border-emerald-500/30 h-14 resize-none"
+                        />
+                        <button
+                          type="submit"
+                          className="w-full py-2 bg-emerald-500 text-[#111] font-mono font-black uppercase text-[8px] tracking-[0.2em] rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] cursor-pointer"
+                        >
+                          Submit Exit Feedback
+                        </button>
+                      </form>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+            )}
           </div>
  
           {/* Footer Control Station */}

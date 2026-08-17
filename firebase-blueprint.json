@@ -136,6 +136,19 @@
       },
       "required": ["id", "rating", "timestamp"]
     },
+    "VisitorInterest": {
+      "title": "Visitor Interest",
+      "description": "Exits drop-off prevention survey answers and visitor interests on the website.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "interest": { "type": "string" },
+        "comments": { "type": "string" },
+        "source": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "interest", "timestamp"]
+    },
     "LoyaltyMember": {
       "title": "Loyalty Member",
       "description": "Customer loyalty program data.",
@@ -204,6 +217,10 @@
     "/registry/{restaurantId}": {
       "schema": "EstablishmentRegistry",
       "description": "Global registry for investor view."
+    },
+    "/visitor_interests/{interestId}": {
+      "schema": "VisitorInterest",
+      "description": "Captured exit feedback and interests from website visitors."
     }
   }
 }

@@ -67,7 +67,7 @@ const AppVinea: React.FC = () => {
 
   const location = useLocation();
 
-  const [initialAcademyTab, setInitialAcademyTab] = useState<'academy' | 'mixology' | 'signature' | 'roster' | 'pairing' | undefined>(undefined);
+  const [initialAcademyTab, setInitialAcademyTab] = useState<'academy' | 'mixology' | 'signature' | 'roster' | 'pairing' | 'market' | 'cognitive-lab' | undefined>(undefined);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isDemoExitModalOpen, setIsDemoExitModalOpen] = useState(false);
@@ -76,6 +76,34 @@ const AppVinea: React.FC = () => {
   const [onboardingSource, setOnboardingSource] = useState<string | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isPublicRoute, setIsPublicRoute] = useState(false);
+  const [showLoadingFallback, setShowLoadingFallback] = useState(false);
+
+  // Monitor loading state and trigger fallback options if it hangs
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (session && !restaurantProfile && !isDeveloper && !showOnboarding && !showAuth) {
+      timer = setTimeout(() => {
+        console.warn("Vinea: Booting/profile sync taking too long (exceeded 2 seconds). Auto-healing default profile.");
+        setRestaurantProfile({
+          id: 'demo-id',
+          name: 'Vinea Enterprise',
+          type: 'Restaurant',
+          focus: 'General',
+          description: 'Demo environment',
+          edition: 'demo',
+          demoMode: 'operator',
+          tier: 'Operator',
+          aiPersona: 'technical'
+        });
+        setAuthMode('demo');
+      }, 2000);
+    } else {
+      setShowLoadingFallback(false);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [session, restaurantProfile, isDeveloper, showOnboarding, showAuth, setRestaurantProfile, setAuthMode]);
   
   // Auto-open AI Avatar for new visitors
   useEffect(() => {
@@ -294,12 +322,12 @@ const AppVinea: React.FC = () => {
         } else if (targetRid === 'demo-id' || targetRid === 'demo') {
           setRestaurantProfile({
             id: 'demo-id',
-            name: 'Vinetelligence Explorer (Demo)',
+            name: 'Vinea Enterprise',
             type: 'Restaurant',
             focus: 'General',
             description: 'Demo Caribbean environment',
             edition: 'demo',
-            demoMode: 'operator',
+            demoMode: 'guest',
             tier: 'Operator',
             aiPersona: 'technical'
           });
@@ -315,7 +343,8 @@ const AppVinea: React.FC = () => {
 
       try {
         console.log("Vinea: Booting application...");
-        await supabaseSync.verifySchema().catch(() => {});
+        console.log("Vinea: Running verifySchema asynchronously in the background...");
+        supabaseSync.verifySchema().catch(() => {});
 
         const storedProfile = localStorage.getItem('vinetelligence_profile') || 
                               localStorage.getItem('intelligence_profile') || 
@@ -329,6 +358,8 @@ const AppVinea: React.FC = () => {
                            sessionStorage.getItem('oenovia_demo_active') === 'true' || 
                            sessionStorage.getItem('vinea_demo_active') === 'true';
         
+        console.log("Vinea: Initial checks - storedProfile:", !!storedProfile, "onboarded:", onboarded, "demoActive:", demoActive);
+
         if (storedProfile && (onboarded || demoActive)) {
           let p;
           try {
@@ -343,7 +374,26 @@ const AppVinea: React.FC = () => {
             
             if (isDemo && !demoActive && !onboarded) {
               console.log("Vinea: Demo profile found but inactive. Defaulting to landing.");
-              setRestaurantProfile(null);
+              const isVineaDomain = window.location.hostname.includes('vinea.live') || 
+                                    localStorage.getItem('platform_selected_app') === 'vinea';
+              if (isVineaDomain) {
+                setIsPublicRoute(true);
+                setPublicView('promo');
+                setRestaurantProfile({
+                  id: 'vinea-landing-id',
+                  name: 'Vinea AI',
+                  type: 'Resort & Cellar',
+                  focus: 'Fine Wine',
+                  description: 'Fine Wine & Hospitality Service Intelligence',
+                  edition: 'demo',
+                  demoMode: 'operator',
+                  tier: 'Operator',
+                  aiPersona: 'technical',
+                  aesthetic: 'elite'
+                });
+              } else {
+                setRestaurantProfile(null);
+              }
               setIsReady(true);
               return;
             }
@@ -351,7 +401,9 @@ const AppVinea: React.FC = () => {
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             
             if (p.edition !== 'demo' && p.id && uuidRegex.test(p.id)) {
+              console.log("Vinea: [AWAIT] getRestaurantProfile for real profile:", p.id);
               const cloudProfile = await supabaseSync.getRestaurantProfile(p.id).catch(() => null);
+              console.log("Vinea: [SUCCESS] getRestaurantProfile finished, profile found:", !!cloudProfile);
               if (cloudProfile) {
                 setRestaurantProfile(cloudProfile);
                 localStorage.setItem('vinetelligence_profile', JSON.stringify(cloudProfile));
@@ -364,7 +416,9 @@ const AppVinea: React.FC = () => {
 
             if (!isDemo) {
               setAuthMode('secure');
+              console.log("Vinea: [AWAIT] getSession for secure mode...");
               const currentSession = await authService.getSession().catch(() => null);
+              console.log("Vinea: [SUCCESS] getSession completed, session user id:", currentSession?.user?.id || 'none');
               setSession(currentSession);
               if (!currentSession) {
                 setShowAuth('login');
@@ -375,7 +429,9 @@ const AppVinea: React.FC = () => {
                 
                 let ownedCountVal = 0;
                 if (email && !isDev) {
+                  console.log("Vinea: [AWAIT] getOwnedRestaurantCount for email:", email);
                   ownedCountVal = await supabaseSync.getOwnedRestaurantCount(email).catch(() => 0);
+                  console.log("Vinea: [SUCCESS] getOwnedRestaurantCount completed:", ownedCountVal);
                   setOwnedCount(ownedCountVal);
                 } else if (isDev) {
                   ownedCountVal = 999;
@@ -396,12 +452,16 @@ const AppVinea: React.FC = () => {
             } else {
               setIsDemoMode(true);
               sessionStorage.setItem('vinetelligence_demo_active', 'true');
+              console.log("Vinea: [AWAIT] getSession for demo profile...");
               const currentSession = await authService.getSession().catch(() => null);
+              console.log("Vinea: [SUCCESS] getSession completed, session user id:", currentSession?.user?.id || 'none');
               const hasRealSession = currentSession && currentSession.user.user_metadata?.restaurant_id && currentSession.user.user_metadata.restaurant_id !== 'demo-id';
               
               if (hasRealSession) {
                 const rid = currentSession.user.user_metadata.restaurant_id;
+                console.log("Vinea: [AWAIT] getRestaurantProfile for demo real session restaurant:", rid);
                 const cloudProfile = await supabaseSync.getRestaurantProfile(rid).catch(() => null);
+                console.log("Vinea: [SUCCESS] getRestaurantProfile finished:", !!cloudProfile);
                 if (cloudProfile) {
                   setSession(currentSession);
                   setRestaurantProfile(cloudProfile);
@@ -422,11 +482,24 @@ const AppVinea: React.FC = () => {
                 } else {
                   setAuthMode('demo');
                   setSession(currentSession);
+                  setRestaurantProfile({
+                    id: 'demo-id',
+                    name: 'Vinea Enterprise',
+                    type: 'Restaurant',
+                    focus: 'General',
+                    description: 'Demo Caribbean environment',
+                    edition: 'demo',
+                    demoMode: 'operator',
+                    tier: 'Operator',
+                    aiPersona: 'technical'
+                  });
                 }
               } else {
                 setAuthMode('demo');
                 if (!currentSession) {
+                  console.log("Vinea: [AWAIT] signInAnonymously...");
                   const res = await authService.signInAnonymously().catch(() => ({ session: null }));
+                  console.log("Vinea: [SUCCESS] signInAnonymously finished:", !!res.session);
                   setSession(res.session);
                 } else {
                   setSession(currentSession);
@@ -437,10 +510,14 @@ const AppVinea: React.FC = () => {
              setShowOnboarding(false);
           }
         } else {
+          console.log("Vinea: [AWAIT] getSession for landing state (no stored profile)...");
           const currentSession = await authService.getSession().catch(() => null);
+          console.log("Vinea: [SUCCESS] getSession finished, session user id:", currentSession?.user?.id || 'none');
           if (currentSession && currentSession.user.user_metadata?.restaurant_id && currentSession.user.user_metadata.restaurant_id !== 'demo-id') {
             const rid = currentSession.user.user_metadata.restaurant_id;
+            console.log("Vinea: [AWAIT] getRestaurantProfile for active session restaurant:", rid);
             const cloudProfile = await supabaseSync.getRestaurantProfile(rid).catch(() => null);
+            console.log("Vinea: [SUCCESS] getRestaurantProfile finished:", !!cloudProfile);
             if (cloudProfile) {
               setSession(currentSession);
               setRestaurantProfile(cloudProfile);
@@ -455,16 +532,65 @@ const AppVinea: React.FC = () => {
                 setActiveView(AppView.GLOBAL_LEDGER);
               }
             } else {
+              console.warn("Vinea: Active session refers to deleted or inaccessible restaurant ID. Resetting session to prevent hang.");
+              setSession(null);
+              setRestaurantProfile(null);
+              authService.signOut().catch(() => {});
               setShowOnboarding(false);
             }
           } else {
-            setShowOnboarding(false);
+            if (currentSession) {
+              // Active session exists but has no valid restaurant_id or refers to 'demo-id'
+              if (currentSession.user.user_metadata?.restaurant_id === 'demo-id') {
+                setSession(currentSession);
+                setAuthMode('demo');
+                setRestaurantProfile({
+                  id: 'demo-id',
+                  name: 'Vinea Enterprise',
+                  type: 'Restaurant',
+                  focus: 'General',
+                  description: 'Demo Caribbean environment',
+                  edition: 'demo',
+                  demoMode: 'operator',
+                  tier: 'Operator',
+                  aiPersona: 'technical'
+                });
+              } else {
+                console.warn("Vinea: Active session found without restaurant ID. Resetting session.");
+                setSession(null);
+                setRestaurantProfile(null);
+                authService.signOut().catch(() => {});
+                setShowOnboarding(false);
+              }
+            } else {
+              const isVineaDomain = window.location.hostname.includes('vinea.live') || 
+                                    localStorage.getItem('platform_selected_app') === 'vinea';
+              if (isVineaDomain) {
+                setIsPublicRoute(true);
+                setPublicView('promo');
+                setRestaurantProfile({
+                  id: 'vinea-landing-id',
+                  name: 'Vinea AI',
+                  type: 'Resort & Cellar',
+                  focus: 'Fine Wine',
+                  description: 'Fine Wine & Hospitality Service Intelligence',
+                  edition: 'demo',
+                  demoMode: 'operator',
+                  tier: 'Operator',
+                  aiPersona: 'technical',
+                  aesthetic: 'elite'
+                });
+              } else {
+                setShowOnboarding(false);
+              }
+            }
           }
         }
       } catch (err) {
         console.error("Vinea: Boot failed", err);
         setShowOnboarding(false);
       } finally {
+        console.log("Vinea: [FINALLY] Setting isReady to true.");
         setIsReady(true);
       }
     };
@@ -493,9 +619,47 @@ const AppVinea: React.FC = () => {
               localStorage.setItem('vinetelligence_onboarded', 'true');
               setAuthMode('secure');
               window.dispatchEvent(new Event('storage'));
+            } else if (!isDev) {
+              setAuthMode('demo');
+              setRestaurantProfile({
+                id: 'demo-id',
+                name: 'Vinea Enterprise',
+                type: 'Restaurant',
+                focus: 'General',
+                description: 'Demo Caribbean environment',
+                edition: 'demo',
+                demoMode: 'operator',
+                tier: 'Operator',
+                aiPersona: 'technical'
+              });
             }
           }).catch(err => {
             console.error("Vinea: error restoring profile in onAuthChange", err);
+            setAuthMode('demo');
+            setRestaurantProfile({
+              id: 'demo-id',
+              name: 'Vinea Enterprise',
+              type: 'Restaurant',
+              focus: 'General',
+              description: 'Demo Caribbean environment',
+              edition: 'demo',
+              demoMode: 'operator',
+              tier: 'Operator',
+              aiPersona: 'technical'
+            });
+          });
+        } else {
+          setAuthMode('demo');
+          setRestaurantProfile({
+            id: 'demo-id',
+            name: 'Vinea Enterprise',
+            type: 'Restaurant',
+            focus: 'General',
+            description: 'Demo Caribbean environment',
+            edition: 'demo',
+            demoMode: 'operator',
+            tier: 'Operator',
+            aiPersona: 'technical'
           });
         }
       }
@@ -550,6 +714,28 @@ const AppVinea: React.FC = () => {
       }
     }
 
+    if (restaurantProfile?.edition === 'demo' && restaurantProfile?.demoMode === 'guest') {
+      const restoredProfile = { ...restaurantProfile, demoMode: 'operator' as const };
+      setRestaurantProfile(restoredProfile);
+      localStorage.setItem('vinetelligence_profile', JSON.stringify(restoredProfile));
+      localStorage.setItem('vinea_profile', JSON.stringify(restoredProfile));
+      localStorage.setItem('vinetelligence_onboarded', 'true');
+      localStorage.setItem('vinea_onboarded', 'true');
+      
+      setIsPublicRoute(false);
+      setPublicView(null);
+      setPublicTable(null);
+      setPublicRid(null);
+      setIsPublicEntry(false);
+      
+      localStorage.setItem('platform_selected_app', 'vinea');
+      const url = new URL(window.location.href);
+      url.search = '';
+      url.pathname = '/';
+      window.location.href = url.toString();
+      return;
+    }
+
     if (returnUrl) {
       window.location.href = returnUrl;
       return;
@@ -566,10 +752,11 @@ const AppVinea: React.FC = () => {
     setIsPublicEntry(false);
     
     // Clean query parameters and path
+    localStorage.setItem('platform_selected_app', 'vinea');
     const url = new URL(window.location.href);
     url.search = '';
     url.pathname = '/';
-    window.history.pushState({}, '', url.toString());
+    window.location.href = url.toString();
   };
 
   const handleOnboardingComplete = (profile: RestaurantProfile) => {
@@ -675,14 +862,47 @@ const AppVinea: React.FC = () => {
     return (
       <div className="fixed inset-0 bg-stone-950 flex flex-col items-center justify-center p-12 text-center font-serif">
          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center opacity-10"></div>
-         <div className="relative z-10 space-y-8 animate-pulse">
-            <h1 className="text-6xl font-black text-white tracking-tighter italic">Vinea AI</h1>
-            <div className="flex items-center gap-3 justify-center">
-               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
-               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+         <div className="relative z-10 space-y-8 max-w-md mx-auto">
+            <div className="space-y-8">
+               <h1 className="text-6xl font-black text-white tracking-tighter italic">Vinea AI</h1>
+               
+               {!showLoadingFallback ? (
+                 <div className="animate-pulse space-y-8">
+                    <div className="flex items-center gap-3 justify-center">
+                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
+                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                    </div>
+                    <p className="text-stone-400 text-[10px] font-black uppercase tracking-[0.5em]">Synchronizing Corporate Node Settings...</p>
+                 </div>
+               ) : (
+                 <div className="space-y-4 animate-in fade-in duration-500">
+                    <div className="text-amber-500/80 text-xs font-mono uppercase tracking-widest">⚠️ Connection Delay Detected</div>
+                    <p className="text-stone-400 text-xs font-sans leading-relaxed">
+                       Corporate node integration is taking longer than expected. If your establishment profile was deleted or if your network connection is unstable, try resetting your local workspace.
+                    </p>
+                 </div>
+               )}
             </div>
-            <p className="text-stone-400 text-[10px] font-black uppercase tracking-[0.5em]">Synchronizing Corporate Node Settings...</p>
+            
+            <div className="pt-8 animate-in fade-in duration-1000 delay-500">
+               <button 
+                  onClick={() => {
+                    console.log("Vinea: Manual reset triggered from fallback screen.");
+                    localStorage.removeItem('vinetelligence_profile');
+                    localStorage.removeItem('vinetelligence_onboarded');
+                    localStorage.removeItem('vinetelligence_local_session');
+                    localStorage.removeItem('vinea_local_session');
+                    setSession(null);
+                    setRestaurantProfile(null);
+                    authService.signOut().catch(() => {});
+                    window.location.reload();
+                  }}
+                  className="px-6 py-3 bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white/60 hover:text-white rounded-xl text-xs font-mono uppercase tracking-widest transition-all cursor-pointer pointer-events-auto"
+               >
+                  Reset Session & Sign Out
+               </button>
+            </div>
          </div>
       </div>
     );
@@ -771,7 +991,18 @@ const AppVinea: React.FC = () => {
               profile={restaurantProfile!} 
               onBack={session ? () => setIsPublicRoute(false) : undefined}
               onOpenAvatarChat={() => setAIChatOpen(true)}
+              onLogin={() => {
+                setIsPublicRoute(false);
+                setPublicView(null);
+                setShowAuth('login');
+              }}
               onNavigate={(view) => {
+                if (restaurantProfile?.id === 'vinea-landing-id') {
+                  if (view === 'book' || view === 'menu') {
+                    handleInstantDemo();
+                    return;
+                  }
+                }
                 setPublicView(view);
                 const parts = window.location.pathname.split('/').filter(p => p);
                 if (parts.length > 0) {

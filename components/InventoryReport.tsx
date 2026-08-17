@@ -124,7 +124,7 @@ const InventoryReport: React.FC<InventoryReportProps> = ({ items, onClose }) => 
             <div className="flex items-center gap-3 mb-2 flex-wrap">
               <span className="text-[10px] font-black uppercase text-amber-500 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">Logistics Audit</span>
               <div className="hidden sm:block h-4 w-px bg-white/10" />
-              <p className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-widest italic truncate max-w-[200px]">{profile.name || 'Vinetelligence Sandbox'}</p>
+              <p className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-widest italic truncate max-w-[200px]">{profile.name || 'Vinetelligence Demo'}</p>
             </div>
             <h3 className="text-2xl md:text-3xl font-serif font-black italic tracking-tight">Inventory Utilization Report</h3>
             <div className="flex flex-wrap items-center gap-4 mt-2">

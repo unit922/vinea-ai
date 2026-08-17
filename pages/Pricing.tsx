@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import ComparisonMatrix from '../components/ComparisonMatrix';
 
@@ -8,6 +8,29 @@ interface PricingProps {
 }
 
 const Pricing: React.FC<PricingProps> = ({ onEnterDemo, onStartOnboarding }) => {
+  // Free Margin Leakage Audit State (Playbook Lead Magnet)
+  const [monthlyRev, setMonthlyRev] = useState(120000);
+  const [posSystem, setPosSystem] = useState("Toast");
+  const [costPercent, setCostPercent] = useState(30);
+
+  // Formulas for the Free Margin Leakage Audit
+  // COGS = Monthly Beverage Rev * Cost %
+  // Normal manual inventory leakage rate = 12.5% of COGS
+  const calculatedCOGS = monthlyRev * (costPercent / 100);
+  const monthlyLeakage = Math.round(calculatedCOGS * 0.125);
+  const annualLeakage = monthlyLeakage * 12;
+
+  const handleDemoLaunchWithAudit = () => {
+    localStorage.setItem('vinetelligence_audit_rev', monthlyRev.toString());
+    localStorage.setItem('vinetelligence_audit_pos', posSystem);
+    localStorage.setItem('vinetelligence_audit_cost', costPercent.toString());
+    localStorage.setItem('vinetelligence_audit_leakage', monthlyLeakage.toString());
+    localStorage.setItem('vinetelligence_audit_active', 'true');
+    if (onEnterDemo) {
+      onEnterDemo();
+    }
+  };
+
   return (
     <div className="pt-24 min-h-screen bg-white">
       <section className="py-12 md:py-24 px-6 text-center space-y-8">
@@ -22,10 +45,6 @@ const Pricing: React.FC<PricingProps> = ({ onEnterDemo, onStartOnboarding }) => 
         <p className="text-lg md:text-xl text-stone-600 leading-relaxed max-w-xl mx-auto font-medium">
           Choose the growth plan that aligns with your establishment's aspirations. We provide specialized solutions for single locations and global restaurant groups.
         </p>
-        <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 italic flex items-center gap-2 justify-center">
-          <i className="fas fa-desktop text-xs"></i>
-          Optimization Note: Laptop or Tablet recommended for full experience.
-        </p>
       </section>
 
       <section className="pb-32 px-6">
@@ -35,7 +54,7 @@ const Pricing: React.FC<PricingProps> = ({ onEnterDemo, onStartOnboarding }) => 
               name: "The Explorer",
               price: "Free",
               desc: "Full Vinetelligence suite using local session persistence. Strictly anonymous, no account required.",
-              features: ["No Sign-Up Required", "Local Secure Storage", "Bar Station Control", "Operational Knowledge Base", "Sandbox Mode"]
+              features: ["No Sign-Up Required", "Local Secure Storage", "Bar Station Control", "Operational Knowledge Base", "Interactive Demo"]
             },
             {
               name: "The Essential",
@@ -87,10 +106,275 @@ const Pricing: React.FC<PricingProps> = ({ onEnterDemo, onStartOnboarding }) => 
                 }}
                 className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${i === 2 ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-900/50' : 'bg-stone-900 text-white hover:bg-stone-800'}`}
               >
-                {plan.name === 'The Enterprise' ? 'Contact Sales' : plan.name === 'The Explorer' ? 'Launch Sandbox' : 'Get Started'}
+                {plan.name === 'The Enterprise' ? 'Contact Sales' : plan.name === 'The Explorer' ? 'Launch Demo' : 'Get Started'}
               </button>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* AI & FB Consultancy Services Section */}
+      <section id="consulting" className="py-24 px-6 bg-stone-50 border-t border-stone-200">
+        <div className="max-w-7xl mx-auto space-y-16">
+          <div className="text-center space-y-4">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600">Consultancy Services</h2>
+            <h3 className="text-3xl md:text-5xl font-serif font-black italic text-stone-900 leading-tight">
+              AI & FB (Meta) Consultancy Annex
+            </h3>
+            <p className="text-stone-500 max-w-2xl mx-auto text-sm italic leading-relaxed">
+              We complement our core development activities with bespoke advisory services. Elevate your brand presence, capture off-premises high-value traffic on Facebook/Meta, and convert them seamlessly using custom-calibrated AI sommeliers.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Package 1 */}
+            <div className="bg-white p-10 md:p-12 rounded-[3rem] border border-stone-200/60 shadow-xl flex flex-col justify-between space-y-10 hover:border-indigo-500/40 transition-all">
+              <div className="space-y-6">
+                <div className="space-y-1">
+                  <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-[8px] font-black uppercase tracking-widest text-indigo-600">One-Time Kickstart</span>
+                  <h4 className="text-2xl font-serif font-black italic text-stone-900 pt-2">Core Integration & FB Ad Setup</h4>
+                  <p className="text-stone-500 text-xs italic font-medium">For single establishments looking to pilot high-yield AI reservation funnels.</p>
+                </div>
+                <div className="text-4xl font-serif font-black text-stone-900">$2,500 <span className="text-xs text-stone-400 font-sans font-normal">flat fee</span></div>
+                
+                <div className="pt-6 border-t border-stone-100 space-y-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Included Scope</p>
+                  <ul className="space-y-3">
+                    {[
+                      "Bespoke Facebook & Instagram Ad Campaign Setup",
+                      "Meta Pixel & Conversions API Routing",
+                      "Localized Gemini LLM Menu Calibration",
+                      "OpenTable / Resy Custom Lead Hook",
+                      "48-Hour Live Deployment & Hand-off"
+                    ].map((item, index) => (
+                      <li key={index} className="flex items-center gap-3 text-xs font-bold text-stone-700">
+                        <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <button 
+                onClick={() => onStartOnboarding?.() || onEnterDemo?.()}
+                className="w-full py-4 bg-stone-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all"
+              >
+                Inquire About Package
+              </button>
+            </div>
+
+            {/* Package 2 */}
+            <div className="bg-[#0c0e0e] text-white p-10 md:p-12 rounded-[3rem] border border-indigo-500/30 shadow-2xl flex flex-col justify-between space-y-10 hover:border-indigo-500 transition-all relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
+              <div className="space-y-6 relative z-10">
+                <div className="space-y-1">
+                  <span className="px-3 py-1 bg-indigo-500/20 border border-indigo-500/30 rounded-full text-[8px] font-black uppercase tracking-widest text-indigo-400">Monthly Retainer</span>
+                  <h4 className="text-2xl font-serif font-black italic text-white pt-2">Enterprise Growth & Optimization</h4>
+                  <p className="text-stone-400 text-xs italic font-medium">For luxury hospitality groups requiring continuous model tuning and dynamic ad scaling.</p>
+                </div>
+                <div className="text-4xl font-serif font-black text-white">$1,500 <span className="text-xs text-stone-500 font-sans font-normal">/ month</span></div>
+                
+                <div className="pt-6 border-t border-white/10 space-y-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Included Scope</p>
+                  <ul className="space-y-3">
+                    {[
+                      "Ongoing Meta Ads Management & Creative Sourcing",
+                      "A/B Split Testing & Conversion Rate Optimization",
+                      "Weekly Gemini Model Fine-Tuning & Custom Prompting",
+                      "Dedicated Developer Hours for POS & CRM Sync",
+                      "Monthly ROI & Attrition Performance Auditing"
+                    ].map((item, index) => (
+                      <li key={index} className="flex items-center gap-3 text-xs font-bold text-stone-200">
+                        <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <button 
+                onClick={() => onStartOnboarding?.() || onEnterDemo?.()}
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-900/50"
+              >
+                Retain Strategy Team
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Free Margin Leakage Audit Section (B2B Playbook Lead Magnet) */}
+      <section id="roi" className="py-20 md:py-32 px-6 bg-[#FDF8F0] border-t border-b border-stone-100">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 md:gap-24 items-start">
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600">Free Operational Audit</h2>
+              <h3 className="text-4xl md:text-5xl font-serif font-black leading-tight">Identify your <br /> <span className="text-red-500 italic">Hidden Margin Leakage.</span></h3>
+              <p className="text-sm text-stone-600 leading-relaxed max-w-lg">
+                Most restaurant operators lose thousands of dollars each month to poor menu planning, manual paper inventory, over-pouring, and dead stock. Put in your operational coordinates below to calculate your estimated leakage.
+              </p>
+            </div>
+            <div className="space-y-8 md:pt-4">
+              {/* Question 1: Monthly Revenue */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-500">Monthly Beverage Revenue</label>
+                  <span className="text-lg md:text-xl font-serif font-black text-stone-900 italic">${monthlyRev.toLocaleString()}</span>
+                </div>
+                <input 
+                  type="range" min="10000" max="500000" step="5000" value={monthlyRev}
+                  onChange={(e) => setMonthlyRev(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+              </div>
+
+              {/* Question 2: Primary POS System */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-500">Primary POS System</label>
+                  <span className="text-xs font-mono font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">{posSystem} Node</span>
+                </div>
+                <select
+                  value={posSystem}
+                  onChange={(e) => setPosSystem(e.target.value)}
+                  className="w-full px-5 py-4 bg-white border border-stone-200 rounded-2xl text-sm font-semibold text-stone-800 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                >
+                  <option value="Toast">Toast POS</option>
+                  <option value="Oracle Micros">Oracle Micros Simphony</option>
+                  <option value="Lightspeed">Lightspeed Restaurant</option>
+                  <option value="Clover">Clover POS</option>
+                  <option value="Square">Square POS</option>
+                  <option value="Excel/Paper">Excel Spreadsheet / Manual Counts</option>
+                </select>
+                {/* Integration Helper Badge */}
+                {posSystem === "Toast" && (
+                  <p className="text-[10px] text-indigo-600 font-bold flex items-center gap-1.5 italic">
+                    <i className="fas fa-check-circle"></i> Certified Toast App Marketplace Node available for instant plug-and-play synchronization.
+                  </p>
+                )}
+                {posSystem === "Oracle Micros" && (
+                  <p className="text-[10px] text-indigo-600 font-bold flex items-center gap-1.5 italic">
+                    <i className="fas fa-check-circle"></i> Certified Oracle Cloud Marketplace integration ensures military-grade Simphony terminal links.
+                  </p>
+                )}
+                {posSystem === "Lightspeed" && (
+                  <p className="text-[10px] text-indigo-600 font-bold flex items-center gap-1.5 italic">
+                    <i className="fas fa-check-circle"></i> Certified Lightspeed cloud partner provides seamless real-time stock depletion logs.
+                  </p>
+                )}
+                {(posSystem !== "Toast" && posSystem !== "Oracle Micros" && posSystem !== "Lightspeed") && (
+                  <p className="text-[10px] text-stone-500 font-medium flex items-center gap-1.5 italic">
+                    <i className="fas fa-info-circle"></i> Connect via our secure Universal Rest API gateway or manual CSV import.
+                  </p>
+                )}
+              </div>
+
+              {/* Question 3: Current COGS % */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-500">Current Beverage COGS (Cost %)</label>
+                  <span className="text-lg md:text-xl font-serif font-black text-stone-900 italic">{costPercent}%</span>
+                </div>
+                <input 
+                  type="range" min="15" max="45" step="1" value={costPercent}
+                  onChange={(e) => setCostPercent(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+                <p className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">Industry standard ranges between 20% to 35%.</p>
+              </div>
+            </div>
+          </div>
+ 
+          {/* Audit Results Presentation */}
+          <div className="bg-white p-8 md:p-12 rounded-[3rem] md:rounded-[4rem] border border-stone-100 shadow-2xl relative overflow-hidden w-full">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+             <div className="space-y-8 relative">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 md:w-12 md:h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white text-lg md:text-xl shadow-lg shadow-red-100">
+                      <i className="fas fa-triangle-exclamation"></i>
+                   </div>
+                   <p className="text-[10px] font-black uppercase tracking-widest text-red-500 italic">Estimated Annual Leakage</p>
+                </div>
+                <div className="space-y-2">
+                   <p className="text-5xl md:text-7xl font-serif font-black text-red-500 tracking-tighter">${annualLeakage.toLocaleString()}</p>
+                   <p className="text-[10px] md:text-[11px] font-bold text-stone-500 uppercase tracking-widest italic leading-relaxed">
+                     Based on your ${monthlyRev.toLocaleString()} revenue and {costPercent}% COGS, you are losing approximately <span className="text-red-500 font-black">${monthlyLeakage.toLocaleString()}/mo</span>.
+                   </p>
+                </div>
+
+                {/* Leakage Breakdown */}
+                <div className="py-6 border-t border-b border-stone-100 space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Leakage Breakdown Diagnostics</p>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs font-bold text-stone-800">
+                        <span>Spillage & Over-pouring (35%)</span>
+                        <span className="text-red-500">${Math.round(monthlyLeakage * 0.35).toLocaleString()}/mo</span>
+                      </div>
+                      <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-400 rounded-full" style={{ width: '35%' }}></div>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs font-bold text-stone-800">
+                        <span>Manual Inventory Discrepancy (40%)</span>
+                        <span className="text-red-500">${Math.round(monthlyLeakage * 0.40).toLocaleString()}/mo</span>
+                      </div>
+                      <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: '40%' }}></div>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs font-bold text-stone-800">
+                        <span>Slow-moving Dead Stock (25%)</span>
+                        <span className="text-red-500">${Math.round(monthlyLeakage * 0.25).toLocaleString()}/mo</span>
+                      </div>
+                      <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-300 rounded-full" style={{ width: '25%' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <button 
+                    onClick={handleDemoLaunchWithAudit}
+                    className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-[#141414] transition-all shadow-xl shadow-indigo-100 active:scale-95 flex items-center justify-center gap-3 animate-pulse"
+                  >
+                    <i className="fas fa-play"></i>
+                    <span>Inject Data into Interactive Demo</span>
+                  </button>
+                  <p className="text-[9px] text-center text-stone-400 font-bold uppercase tracking-wider">Instant Demo Access. Pre-loaded with Dummy Profiles. No Signup Required.</p>
+                </div>
+
+                {/* Certified Marketplace Badging and Shadow Audit Details */}
+                <div className="mt-8 pt-8 border-t border-stone-100 grid md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Certified Integrations</p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-[9px] font-bold text-stone-700 flex items-center gap-1.5 shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        Toast App Marketplace
+                      </span>
+                      <span className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-[9px] font-bold text-stone-700 flex items-center gap-1.5 shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-stone-950 animate-pulse"></span>
+                        Oracle Simphony Cloud
+                      </span>
+                      <span className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-[9px] font-bold text-stone-700 flex items-center gap-1.5 shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>
+                        Lightspeed Certified
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Hyper-Targeted "Shadow" Audits</p>
+                    <p className="text-[10px] text-stone-500 italic font-medium leading-relaxed">
+                      We model public wine lists for high-volume establishments to calculate margin leaks with zero initial setup. Contact our integration specialists to claim your pre-loaded shadow profile and instantly unlock your interactive demo.
+                    </p>
+                  </div>
+                </div>
+             </div>
+          </div>
         </div>
       </section>
 

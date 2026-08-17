@@ -88,6 +88,11 @@ export const useVinetelligenceStore = create<VinetelligenceState>((set, get) => 
   canAccess: (view: AppView) => {
     const state = get();
     
+    // Academy Only Mode Restriction
+    if (state.restaurantProfile?.academyOnlyMode) {
+      return view === AppView.TRAINING || view === AppView.SETTINGS || view === AppView.ESTABLISHMENT_ADMIN;
+    }
+
     // Staff bypass
     const email = state.session?.user?.email || '';
     const isOwnerOrDev = ['Owner', 'Developer'].includes(state.currentUserRole || '');
@@ -104,8 +109,13 @@ export const useVinetelligenceStore = create<VinetelligenceState>((set, get) => 
     
     // Feature based access
     const config = state.getTierConfig();
-    const hasAccess = config?.features?.includes(view) || false;
+    let hasAccess = config?.features?.includes(view) || false;
     
+    // Prevent unauthenticated demo/regular users from accessing internal master admins
+    if (view === AppView.NETWORK_ADMIN || view === AppView.GLOBAL_LEDGER) {
+      hasAccess = false;
+    }
+
     // Explicitly allow TRAINING, BAR_STATION, SUSTAINABILITY, SUPPLY_CHAIN, REVENUE_OPTIMIZER, SENTIMENT, EXPERIENCE_SENTINEL, and COMPETITORS for Operators
     if ((view === AppView.TRAINING || view === AppView.BAR_STATION || view === AppView.SUSTAINABILITY || view === AppView.SUPPLY_CHAIN || view === AppView.REVENUE_OPTIMIZER || view === AppView.SENTIMENT || view === AppView.EXPERIENCE_SENTINEL || view === AppView.COMPETITORS) && (state.restaurantProfile?.tier === SubscriptionTier.OPERATOR || !state.restaurantProfile?.tier)) {
       return true;

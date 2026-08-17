@@ -324,7 +324,7 @@ const ConnectivitySettings: React.FC<ConnectivitySettingsProps> = ({ profile, on
                  <i className="fas fa-flask text-2xl"></i>
                </div>
                <div>
-                 <p className="text-stone-900 font-bold">Local Sandbox Isolation</p>
+                 <p className="text-stone-900 font-bold">Local Demo Isolation</p>
                  <p className="text-xs text-stone-400 max-w-sm mt-1 mx-auto leading-relaxed">
                    The Explorer tier is restricted to local session persistence only. To enable cloud synchronization, please upgrade to a higher tier.
                  </p>

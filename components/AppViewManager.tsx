@@ -40,8 +40,8 @@ type SettingsTab = 'general' | 'ai' | 'connectivity' | 'security' | 'setup';
 
 interface ViewManagerProps {
   searchQuery: string;
-  initialAcademyTab?: 'academy' | 'mixology' | 'signature' | 'roster' | 'pairing';
-  setInitialAcademyTab: (tab: 'academy' | 'mixology' | 'signature' | 'roster' | 'pairing' | undefined) => void;
+  initialAcademyTab?: 'academy' | 'mixology' | 'signature' | 'roster' | 'pairing' | 'market' | 'cognitive-lab';
+  setInitialAcademyTab: (tab: 'academy' | 'mixology' | 'signature' | 'roster' | 'pairing' | 'market' | 'cognitive-lab' | undefined) => void;
   setIsAIChatOpen: (open: boolean) => void;
   setIsPublicRoute: (isPublic: boolean) => void;
   setPublicView: (view: 'book' | 'menu' | 'promo' | null) => void;
@@ -179,8 +179,9 @@ const ViewManager: React.FC<ViewManagerProps> = ({
       const userEmail = sessions?.user?.email || '';
       const isStaff = userEmail.endsWith('@vinetelligence.live') || userEmail.endsWith('@vinea.live') || currentUserRole === 'Developer';
       const isEnterprise = (currentUserRole === 'Owner' || currentUserRole === 'Investor') && ownedCount > 1;
+      const isRC = restaurantProfile && (restaurantProfile.name?.includes("Ruth's Chris") || ('isRuthChris' in restaurantProfile && (restaurantProfile as unknown as { isRuthChris?: boolean }).isRuthChris));
       
-      if (!isStaff && !isEnterprise) {
+      if (!isStaff && !isEnterprise && !isRC) {
         return <ManagerDashboard 
           searchQuery={searchQuery} 
           inventory={inventory} 

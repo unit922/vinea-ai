@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { EstablishmentRegistry, EstablishmentStatus, Invoice } from '../lib/types';
 import { paymentService } from '../services/paymentService';
 import { supabaseSync } from '../services/supabaseSync';
+import { firebaseService, VisitorInterest } from '../services/firebaseService';
 
 const MOCK_REGISTRY: EstablishmentRegistry[] = [
   { id: 'est-001', name: 'The Gilded Shaker', tier: 'Visionary', userLimit: 10, status: 'Active', lastPulse: '2m ago', usageMetric: 88, billingStatus: 'Current', mrr: 199 },
@@ -45,6 +46,8 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
   const [isSyncing, setIsSyncing] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
+  const [visitorInterests, setVisitorInterests] = useState<VisitorInterest[]>([]);
+  const [isLoadingInterests, setIsLoadingInterests] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
     show: boolean;
     title: string;
@@ -134,7 +137,10 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
     if (activeTab === 'leads') {
       setIsLoadingLeads(true);
       fetch('/api/leads')
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+          return res.json();
+        })
         .then(data => {
           if (Array.isArray(data)) {
             setLeads(data);
@@ -142,6 +148,18 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
         })
         .catch(err => console.error("Failed to load leads", err))
         .finally(() => setIsLoadingLeads(false));
+
+      setIsLoadingInterests(true);
+      const unsubscribe = firebaseService.subscribeToVisitorInterests((data) => {
+        setVisitorInterests(data);
+        setIsLoadingInterests(false);
+      });
+
+      return () => {
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      };
     }
   }, [activeTab]);
 
@@ -695,8 +713,70 @@ const MasterAdmin: React.FC<MasterAdminProps> = ({
                    </div>
                 </div>
               )}
-           </div>
-         )}
+
+               {/* Visitor Interests Section */}
+               <div className="space-y-4 pt-8 border-t border-stone-200">
+                  <div className="flex justify-between items-end">
+                     <div className="space-y-1">
+                        <h4 className="text-lg font-serif font-bold text-stone-900 italic">Visitor Interests & Exit Survey Responses</h4>
+                        <p className="text-stone-500 text-xs italic font-medium">Captures real-time visitor interest selections and qualitative feedback comments from the AI Specialist chat avatar.</p>
+                     </div>
+                  </div>
+
+                  {isLoadingInterests ? (
+                     <div className="py-10 flex flex-col items-center justify-center space-y-2">
+                        <i className="fas fa-sync-alt animate-spin text-xl text-indigo-500"></i>
+                        <p className="text-stone-400 font-mono text-[10px]">LOADING SURVEY ANSWERS...</p>
+                     </div>
+                  ) : (
+                     <div className="bg-white border border-stone-200 rounded-[2rem] overflow-hidden flex flex-col">
+                        <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1">
+                           <table className="w-full text-left border-collapse min-w-[800px]">
+                              <thead className="bg-stone-50 sticky top-0 z-10 border-b border-stone-200">
+                                 <tr className="text-[9px] font-black uppercase text-stone-400 tracking-widest">
+                                    <th className="px-8 py-4">Selected Interest</th>
+                                    <th className="px-8 py-4">Exit Comment / Reasons</th>
+                                    <th className="px-8 py-4">Source / Context</th>
+                                    <th className="px-8 py-4">Recorded Timestamp</th>
+                                 </tr>
+                              </thead>
+                              <tbody className="divide-y divide-stone-100 bg-white">
+                                 {visitorInterests.map((item) => (
+                                    <tr key={item.id || Math.random().toString()} className="hover:bg-stone-50/70 transition-all">
+                                       <td className="px-8 py-5">
+                                          <div className="flex items-center gap-3">
+                                             <div className="w-7 h-7 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 font-mono font-black text-[10px] shadow-sm">
+                                                <i className="fas fa-lightbulb text-[9px]"></i>
+                                             </div>
+                                             <span className="text-xs font-bold text-stone-900">{item.interest}</span>
+                                          </div>
+                                       </td>
+                                       <td className="px-8 py-5 text-xs text-stone-700 italic max-w-md truncate" title={item.comments}>
+                                          {item.comments || <span className="text-stone-300 italic">No additional comments provided</span>}
+                                       </td>
+                                       <td className="px-8 py-5">
+                                          <span className="px-2 py-0.5 bg-stone-100 border border-stone-200 text-stone-600 font-mono text-[9px] font-black uppercase tracking-wider rounded-md">
+                                             {item.source || "avatar-chat"}
+                                          </span>
+                                       </td>
+                                       <td className="px-8 py-5 text-[10px] font-mono text-stone-500">
+                                          {item.timestamp ? new Date(item.timestamp).toLocaleString() : 'N/A'}
+                                       </td>
+                                    </tr>
+                                 ))}
+                                 {visitorInterests.length === 0 && (
+                                    <tr>
+                                       <td colSpan={4} className="py-12 text-center text-stone-300 italic text-sm">No visitor feedback or interests collected yet in this sequence.</td>
+                                    </tr>
+                                 )}
+                              </tbody>
+                           </table>
+                        </div>
+                     </div>
+                  )}
+               </div>
+            </div>
+          )}
 
         {activeTab === 'security' && (
           <div className="flex-1 p-12 overflow-y-auto custom-scrollbar space-y-12">

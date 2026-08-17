@@ -9,7 +9,7 @@ interface AuthViewProps {
 }
 
 const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = 'login' }) => {
-  const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'signup' | 'otp' | 'reset'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -74,8 +74,34 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
     setLoading(true);
     setError(null);
     try {
+      const emailLower = email.toLowerCase().trim();
+      const parts = emailLower.split('@');
+      if (parts.length === 2) {
+        const domain = parts[1];
+        if (domain.endsWith('.live') && domain !== 'vinea.live') {
+          throw new Error("Access Denied: Only users with the exact @vinea.live domain are permitted developer access. Other .live extensions are strictly prohibited.");
+        }
+      }
+      if (mode === 'otp') {
+        if (!email) {
+          throw new Error("Please enter your email address.");
+        }
+        await authService.signInWithOtp(email);
+        setError("Check your inbox: A secure login link has been dispatched to establish your identity instantly without a password.");
+        return;
+      }
+
+      if (mode === 'reset') {
+        if (!email) {
+          throw new Error("Please enter your email; a recovery path will be dispatched.");
+        }
+        await authService.resetPassword(email);
+        setError("Password recovery link has been dispatched to your email. Check your inbox to set your new password.");
+        return;
+      }
+
       if (mode === 'signup') {
-        const isVinetelligenceDev = email.toLowerCase().endsWith('@vinetelligence.live');
+        const isVineaDev = email.toLowerCase().endsWith('@vinea.live');
         
         // If they are registering a new establishment from onboarding, they should be Owner
         // We can check if the establishmentName or ownerEmail matches what's in localStorage
@@ -102,11 +128,11 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
         }
 
         let assignedRole = 'Server';
-        if (isVinetelligenceDev) assignedRole = 'Developer';
+        if (isVineaDev) assignedRole = 'Developer';
         else if (isInitialOwner) assignedRole = 'Owner';
 
         // Fallback 1: Try to find establishment by user's email in roster
-        if (!restaurant && !isVinetelligenceDev) {
+        if (!restaurant && !isVineaDev) {
           console.log("Vinetelligence: Establishment not found by name, trying email lookup in roster...");
           const rosterEntry = await supabaseSync.findRosterEntry(email);
           if (rosterEntry && rosterEntry.restaurants) {
@@ -127,7 +153,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
           restaurant = { id: p.id, name: p.name };
         }
 
-        if (!restaurant && !isVinetelligenceDev) {
+        if (!restaurant && !isVineaDev) {
           console.error("Vinetelligence: Establishment verification failed in AuthView", trimmedName);
           const errorMsg = p?.id === 'demo-id' 
             ? `Establishment "${trimmedName}" registration was not completed. Please return to onboarding.`
@@ -164,6 +190,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
           // If we have a newly registered establishment in localStorage from onboarding,
           // ensure the user is linked to it if they are logging in with an existing account.
           const storedProfile = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
+          let linkedToNew = false;
+          
           if (storedProfile) {
             try {
               const p = JSON.parse(storedProfile);
@@ -178,15 +206,48 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
                        ...res.session.user.user_metadata,
                        restaurant_id: p.id
                      };
+                     linkedToNew = true;
                    } catch (linkErr) {
                      console.warn("Vinetelligence: Auto-linking to new establishment failed", linkErr);
                    }
+                } else {
+                  linkedToNew = true;
                 }
               }
             } catch (pErr) {
               console.error("Vinetelligence: Profile parse error during linking", pErr);
             }
           }
+          
+          // Fallback/Automated check: If the user was already setup in an establishment by an admin
+          // (i.e., they have a roster entry but have no restaurant_id set or need it linked),
+          // search the roster and auto-link them.
+          if (!linkedToNew) {
+            try {
+              const rosterEntry = await supabaseSync.findRosterEntry(email);
+              if (rosterEntry && rosterEntry.restaurant_id) {
+                const currentRid = res.session.user.user_metadata?.restaurant_id;
+                if (currentRid !== rosterEntry.restaurant_id) {
+                  console.log("Vinetelligence: Found authorized roster entry for user upon login. Auto-linking to establishment", rosterEntry.restaurant_id);
+                  try {
+                    await authService.linkToEstablishment(rosterEntry.restaurant_id, email);
+                    res.session.user.user_metadata = {
+                      ...res.session.user.user_metadata,
+                      restaurant_id: rosterEntry.restaurant_id,
+                      role: rosterEntry.role || 'Server'
+                    };
+                  } catch (linkErr) {
+                    console.warn("Vinetelligence: Auto-linking to roster establishment failed", linkErr);
+                  }
+                } else if (rosterEntry.status !== 'Registered') {
+                  await supabaseSync.updateRosterStatus(rosterEntry.restaurant_id, email, 'Registered');
+                }
+              }
+            } catch (rosterErr) {
+              console.error("Vinetelligence: Roster check during signIn failed", rosterErr);
+            }
+          }
+          
           await onSuccess(res.session);
         }
       }
@@ -194,7 +255,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onAbort, initialMode = '
       let message = err instanceof Error ? err.message : "Authentication synchronization failed.";
       
       if (message === 'USER_ALREADY_REGISTERED') {
-        message = "This email is already registered. Please login to establish a link to your new establishment.";
+        message = "This email is already registered in the system (possibly pre-authorized on the roster by an Administrator). Since you already exist, please log in. If you do not have a password yet, please select 'Login via One-Time Link' below to set up your password or enter instantly.";
         setMode('login');
       } else if (message.includes('Failed to fetch') || message.includes('ERR_NAME_NOT_RESOLVED') || message.includes('Connectivity Error')) {
         const config = getSupabaseConfig();
@@ -386,7 +447,11 @@ Please check your console (F12) for detailed Network logs.`;
             <div className="w-16 h-16 bg-indigo-500 text-stone-900 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl rotate-12">
                <i className="fas fa-shield-halved text-2xl"></i>
             </div>
-            <h2 className="text-3xl font-serif font-bold text-white tracking-tight">{mode === 'login' ? 'Identity Verification' : 'Enlist in Facility'}</h2>
+            <h2 className="text-3xl font-serif font-bold text-white tracking-tight">
+              {mode === 'login' ? 'Identity Verification' : 
+               mode === 'otp' ? 'One-Time Access Link' :
+               mode === 'reset' ? 'Password Recovery' : 'Enlist in Facility'}
+            </h2>
             {mode === 'signup' && establishmentName && (
               <p className="text-indigo-500/80 text-[11px] font-serif italic">Finalizing administrative credentials for {establishmentName}</p>
             )}
@@ -398,7 +463,7 @@ Please check your console (F12) for detailed Network logs.`;
                    const envUrl = (import.meta.env?.VITE_SUPABASE_URL as string) || 
                                   (typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL) : undefined);
                    const url = envUrl || profile.supabaseUrl;
-                   if (!url) return <span className="text-indigo-500 text-[8px] font-black uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">Local Sandbox Mode</span>;
+                   if (!url) return <span className="text-indigo-500 text-[8px] font-black uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">Local Demo Mode</span>;
                    return null;
                  } catch { return null; }
               })()}
@@ -473,7 +538,7 @@ Please check your console (F12) for detailed Network logs.`;
                   <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Assigned Establishment</label>
                   <input 
                     type="text" 
-                    required={!email.toLowerCase().endsWith('@vinetelligence.live')}
+                    required={!email.toLowerCase().endsWith('@vinea.live')}
                     value={establishmentName}
                     onChange={e => setEstablishmentName(e.target.value)}
                     placeholder="Exact Name of Establishment"
@@ -519,7 +584,7 @@ Please check your console (F12) for detailed Network logs.`;
             <div className="space-y-2">
               <div className="flex justify-between items-center px-1">
                 <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Command Email</label>
-                {email.toLowerCase().endsWith('@vinetelligence.live') && (
+                {email.toLowerCase().endsWith('@vinea.live') && (
                   <span className="text-[8px] font-black uppercase bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded border border-indigo-500/20 animate-pulse">Developer Node</span>
                 )}
               </div>
@@ -528,22 +593,24 @@ Please check your console (F12) for detailed Network logs.`;
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="ops@vinetelligence.live"
+                placeholder="ops@vinea.live"
                 className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-stone-700"
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Secure Password</label>
-              <input 
-                type="password" 
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-stone-700"
-              />
-            </div>
+            {(mode === 'login' || mode === 'signup') && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Secure Password</label>
+                <input 
+                  type="password" 
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-stone-700"
+                />
+              </div>
+            )}
 
             <button 
               type="submit" 
@@ -552,17 +619,62 @@ Please check your console (F12) for detailed Network logs.`;
             >
               {loading ? <i className="fas fa-spinner fa-spin"></i> : (
                 mode === 'login' ? 'Establish Link' : (
-                  email.toLowerCase().endsWith('@vinetelligence.live') ? 'Initialize Dev Node' : 'Register Operator'
+                  mode === 'otp' ? 'Send Login Link' : (
+                    mode === 'reset' ? 'Send Recovery Link' : (
+                      email.toLowerCase().endsWith('@vinea.live') ? 'Initialize Dev Node' : 'Register Operator'
+                    )
+                  )
                 )
               )}
             </button>
             <div className="text-center space-y-4">
-              <button 
-                onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); }}
-                className="text-[10px] font-black text-stone-500 uppercase tracking-widest hover:text-indigo-500 transition-colors"
-              >
-                {mode === 'login' ? "Enlisting in a new team? Sign Up" : "Registered operator? Return to Login"}
-              </button>
+              <div className="flex flex-col gap-3">
+                {mode === 'login' && (
+                  <>
+                    <button 
+                      type="button"
+                      onClick={() => { setMode('otp'); setError(null); }}
+                      className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors"
+                    >
+                      Login via One-Time Link (No Password)
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => { setMode('reset'); setError(null); }}
+                      className="text-[10px] font-black text-stone-500 uppercase tracking-widest hover:text-indigo-500 transition-colors"
+                    >
+                      Forgot Password / Set Password
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => { setMode('signup'); setError(null); }}
+                      className="text-[10px] font-black text-stone-500 uppercase tracking-widest hover:text-indigo-500 transition-colors"
+                    >
+                      Enlisting in a new team? Sign Up
+                    </button>
+                  </>
+                )}
+                
+                {(mode === 'otp' || mode === 'reset') && (
+                  <button 
+                    type="button"
+                    onClick={() => { setMode('login'); setError(null); }}
+                    className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors"
+                  >
+                    Return to Password Login
+                  </button>
+                )}
+
+                {mode === 'signup' && (
+                  <button 
+                    type="button"
+                    onClick={() => { setMode('login'); setError(null); }}
+                    className="text-[10px] font-black text-stone-500 uppercase tracking-widest hover:text-indigo-500 transition-colors"
+                  >
+                    Registered operator? Return to Login
+                  </button>
+                )}
+              </div>
               
               <div className="pt-6 border-t border-white/5 space-y-4">
                 <button onClick={onAbort} className="text-[9px] font-black text-stone-700 uppercase tracking-widest hover:text-stone-500 transition-colors">
@@ -582,7 +694,7 @@ Please check your console (F12) for detailed Network logs.`;
                           if (!url) return "Not Configured";
                           const u = new URL(url);
                           return `${u.hostname.split('.')[0]}.***.supabase.co`;
-                        } catch { return "Local Sandbox Active"; }
+                        } catch { return "Local Demo Active"; }
                       })()}
                     </p>
                     <button 

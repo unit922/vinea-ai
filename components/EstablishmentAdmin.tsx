@@ -109,6 +109,11 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
   const [pendingPlan, setPendingPlan] = useState<PlanTier | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
 
+  // Administrative password-override bypass states
+  const [selectedStaffForPassword, setSelectedStaffForPassword] = useState<StaffShift | null>(null);
+  const [newStaffPassword, setNewStaffPassword] = useState('');
+  const [isSettingPassword, setIsSettingPassword] = useState(false);
+
   console.log("Establishment Edition", establishment.edition);
 
   useEffect(() => {
@@ -256,6 +261,46 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
     };
     setStaffList([...staffList, newUser]);
     setInviteEmail('');
+  };
+
+  const handleSetStaffPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStaffForPassword || !newStaffPassword) return;
+    
+    setIsSettingPassword(true);
+    try {
+      const resp = await fetch('/api/ops/set-staff-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: selectedStaffForPassword.email,
+          password: newStaffPassword,
+          restaurantId: establishment.id,
+          role: selectedStaffForPassword.role
+        })
+      });
+      
+      const rData = await resp.json();
+      if (!resp.ok) {
+        throw new Error(rData.error || 'Failed to establish password.');
+      }
+      
+      setNotification({
+        message: `Success: Credentials synchronized! ${selectedStaffForPassword.email} password is now set to "${newStaffPassword}". They can now log in under this establishment immediately.`,
+        type: 'success'
+      });
+      
+      setSelectedStaffForPassword(null);
+      setNewStaffPassword('');
+      fetchCloudRoster(); // Reload status from database
+      
+    } catch (err: unknown) {
+      const error = err as Error;
+      setNotification({ message: error.message || 'Failed to update credentials in Cloud Silo.', type: 'error' });
+    } finally {
+      setIsSettingPassword(false);
+      setTimeout(() => setNotification(null), 10000);
+    }
   };
 
   const handleCommitPayment = async (plan: PlanTier, method: PaymentMethod) => {
@@ -785,6 +830,35 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
             </div>
 
             <div className="bg-white rounded-[3rem] p-10 border border-stone-200 shadow-xl space-y-10">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="space-y-2">
+                  <h3 className="text-3xl font-serif font-black italic text-stone-900 leading-none">Academy-Only Deployment</h3>
+                  <p className="text-stone-400 text-[10px] font-black uppercase tracking-[0.4em]">Restrict software bundle exclusively to somatic training modules</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    const nextVal = !establishment.academyOnlyMode;
+                    onUpdateProfile?.('academyOnlyMode', nextVal);
+                    setNotification({
+                      message: nextVal 
+                        ? "Academy-Only Mode Enabled: UI restricted to Somatic Training Module."
+                        : "Full Stack Mode Restored: All operational modules are online.",
+                      type: 'success'
+                    });
+                    setTimeout(() => setNotification(null), 5000);
+                  }}
+                  className={`px-8 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest transition-all ${establishment.academyOnlyMode ? 'bg-indigo-600 text-white shadow-[0_0_30px_rgba(79,70,229,0.3)]' : 'bg-stone-100 text-stone-400 hover:bg-stone-200'}`}
+                >
+                  <i className={`fas ${establishment.academyOnlyMode ? 'fa-book-open' : 'fa-cubes'} mr-2`}></i>
+                  {establishment.academyOnlyMode ? 'Academy-Only: Active' : 'Enable Academy-Only'}
+                </button>
+              </div>
+              <p className="text-[10px] text-stone-500 font-bold leading-relaxed italic border-l-4 border-indigo-500/20 pl-6">
+                "Ideal for culinary academies, educational institutions, or beverage partner staff training. Enabling this restricts the dashboard layout exclusively to the Scholar Node and coaching layers."
+              </p>
+            </div>
+
+            <div className="bg-white rounded-[3rem] p-10 border border-stone-200 shadow-xl space-y-10">
               <div className="space-y-2">
                 <h3 className="text-3xl font-serif font-black italic text-stone-900 leading-none">Experience Profile</h3>
                 <p className="text-stone-400 text-[10px] font-black uppercase tracking-[0.4em]">Global Aesthetic & Brand Voice Selection</p>
@@ -912,6 +986,7 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                       <th className="px-6 py-4">Node Identity</th>
                       <th className="px-6 py-4">Silo Role</th>
                       <th className="px-6 py-4">Sync State</th>
+                      <th className="px-6 py-4">Credential Command</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-50">
@@ -933,6 +1008,15 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
                            <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-full border ${s.accessStatus === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
                             {s.accessStatus}
                            </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStaffForPassword(s)}
+                            className="bg-stone-900 border border-stone-200 hover:bg-indigo-600 hover:border-indigo-600 text-white rounded-lg px-3 py-1.5 text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                          >
+                            <i className="fas fa-key text-[9px] text-indigo-400 group-hover:text-white transition-colors"></i> Set Password
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1305,6 +1389,59 @@ const EstablishmentAdmin: React.FC<EstablishmentAdminProps> = ({
           </div>
         )}
       </div>
+
+      {selectedStaffForPassword && (
+        <div className="fixed inset-0 z-[700] bg-stone-950/95 backdrop-blur-2xl flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 flex flex-col space-y-8 shadow-2xl border border-stone-200">
+            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-[1.5rem] flex items-center justify-center mx-auto shadow-inner">
+              <i className="fas fa-key text-2xl"></i>
+            </div>
+            
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-serif font-black italic text-stone-900">Establish Operational Credentials</h3>
+              <p className="text-stone-500 text-[9px] uppercase font-black tracking-wider leading-relaxed">
+                Configuring credentials for: <span className="text-indigo-600 font-mono lowercase">{selectedStaffForPassword.email}</span>
+              </p>
+              <p className="text-stone-400 text-[11px] leading-relaxed italic max-w-xs mx-auto">
+                This action establishes their authentication identity and marks them as confirmed, completely bypassing any external SMTP timeouts.
+              </p>
+            </div>
+
+            <form onSubmit={handleSetStaffPassword} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase text-stone-500 ml-1 font-mono">Secure Password</label>
+                <input 
+                  type="text" 
+                  required 
+                  minLength={6}
+                  value={newStaffPassword} 
+                  onChange={e => setNewStaffPassword(e.target.value)}
+                  placeholder="Enter security password (6+ chars)" 
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3.5 text-xs text-stone-900 font-bold focus:outline-none focus:border-indigo-500 transition-all font-mono"
+                />
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2">
+                <button 
+                  type="submit" 
+                  disabled={isSettingPassword}
+                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {isSettingPassword ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-shield-halved"></i>}
+                  Authorize Operations Key
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => { setSelectedStaffForPassword(null); setNewStaffPassword(''); }} 
+                  className="py-2 text-[10px] font-black uppercase text-stone-400 hover:text-stone-900 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {activeDoc && (
         <DocumentModal 

@@ -12,7 +12,13 @@ import {
   Play, 
   RotateCcw,
   Film,
-  Type as TypeIcon
+  Type as TypeIcon,
+  Mail,
+  Code,
+  Globe,
+  Database,
+  Eye,
+  Terminal
 } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { InventoryItem, RestaurantProfile } from '../lib/types';
@@ -55,8 +61,15 @@ const MarketingSuite: React.FC<MarketingSuiteProps> = ({ profile, inventory, onB
       id: 'tiers',
       title: 'Architecture Tiers',
       icon: <Check className="w-5 h-5 text-emerald-500" />,
-      content: "Select your protocol. From the local 'Explorer' sandbox to the enterprise-grade 'Architect' silo, Vinetelligence scales with your vision. Higher tiers unlock multimodal vision audits, predictive pricing, and investor intelligence nodes. #VinetelligenceOS #Tiers #HospitalityTech",
+      content: "Select your protocol. From the local 'Explorer' demo to the enterprise-grade 'Architect' silo, Vinetelligence scales with your vision. Higher tiers unlock multimodal vision audits, predictive pricing, and investor intelligence nodes. #VinetelligenceOS #Tiers #HospitalityTech",
       description: "Highlighting the Explorer, Operator, Visionary, and Architect editions."
+    },
+    {
+      id: 'gm_outreach',
+      title: 'GM Email Outreach',
+      icon: <Mail className="w-5 h-5 text-blue-500" />,
+      content: `Most high-volume spots lose 15% to 20% of their beverage revenue to hidden inventory leakage and mismatched roster schedules. We built Vinetelligence to stop that. It natively plugs into your [Toast / Oracle Micros] stack to recover that margin. On average, our partners see a 32.4% yield increase. I ran a quick simulation based on your menu profile. You can see the live data dashboard and how it flags leakage in under 60 seconds here: [Link: Launch Interactive Demo] (No signup required).`,
+      description: "High-impact email template targeting General Managers and Beverage Directors."
     }
   ];
 
@@ -66,6 +79,40 @@ const MarketingSuite: React.FC<MarketingSuiteProps> = ({ profile, inventory, onB
   const [generationStatus, setGenerationStatus] = useState<string>('');
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
   const [activeFrameIndex, setActiveFrameIndex] = useState(0);
+
+  // Syndication & Widget Embed Studio state
+  const [embedTheme, setEmbedTheme] = useState<'dark' | 'light'>('dark');
+  const [embedHeight, setEmbedHeight] = useState('720');
+  const [embedAppTarget, setEmbedAppTarget] = useState<'vinetelligence' | 'vinea'>('vinetelligence');
+  const [showLiveEmbedPreview, setShowLiveEmbedPreview] = useState(false);
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://vinetelligence.live';
+  const liveEmbedUrl = `${baseUrl}?embed=${embedAppTarget}&theme=${embedTheme}`;
+
+  const iframeSnippet = `<!-- Aetheria AI Hospitality & Vinetelligence Sommelier Widget -->
+<iframe
+  src="${liveEmbedUrl}"
+  width="100%"
+  height="${embedHeight}"
+  style="border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);"
+  title="Aetheria AI Hospitality & Sommelier Suite on Vinetelligence.live"
+  allow="camera; microphone; geolocation"
+></iframe>`;
+
+  const syndicationJson = JSON.stringify({
+    partnerBrand: "Aetheria AI Hospitality & Residences",
+    syndicationTarget: "Vinetelligence.live",
+    campaignTitle: "Aetheria AI Hospitality x Vinetelligence Master Sommelier Platform",
+    featuredCellarBottles: 6420,
+    headline: "Transforming Luxury Hotel Stays with Generative AI Concierge & Smart Cellar Vaults",
+    liveAppUrl: baseUrl,
+    keyFeatures: [
+      "24/7 Gemini 3.6 Multimodal AI Concierge",
+      "Vinetelligence AI Wine Label Vision & Dish Pairing Engine",
+      "ASSA ABLOY Smart Room Key & In-Suite Cellar Dispatch",
+      "Multi-tenant Firestore Database Architecture for Hotels & Wineries"
+    ]
+  }, null, 2);
 
   useEffect(() => {
     const checkApiKey = async () => {
@@ -305,7 +352,7 @@ const MarketingSuite: React.FC<MarketingSuiteProps> = ({ profile, inventory, onB
         {/* Content Preview */}
         <div className="lg:col-span-2 space-y-8">
           {/* Institutional Promos (Always available) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 md:grid-cols-2 gap-6">
             {institutionalAssets.map(asset => (
               <div key={asset.id} className="bg-stone-900/50 border border-white/5 rounded-[2.5rem] p-6 space-y-4 hover:border-white/10 transition-all group">
                 <div className="flex justify-between items-center">
@@ -576,6 +623,163 @@ const MarketingSuite: React.FC<MarketingSuiteProps> = ({ profile, inventory, onB
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Aetheria AI Hospitality & Vinetelligence Partner Syndication & Widget Studio */}
+      <div className="mt-12 bg-stone-900/60 border border-purple-500/20 rounded-[2.5rem] p-8 space-y-8 shadow-2xl relative overflow-hidden backdrop-blur-sm">
+        <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+          <Code className="w-48 h-48 text-purple-400" />
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10 border-b border-white/5 pb-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <span className="p-2 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400">
+                <Globe className="w-5 h-5" />
+              </span>
+              <h3 className="text-xl font-serif font-black italic text-white tracking-tight">
+                Aetheria AI Hospitality & Partner Winery Syndication Studio
+              </h3>
+            </div>
+            <p className="text-xs text-stone-400 italic">
+              Paste the interactive Sommelier widget code or syndication feed onto any page on <span className="text-purple-400 font-mono font-bold">vinetelligence.live</span> or partner estate websites.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowLiveEmbedPreview(!showLiveEmbedPreview)}
+              className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-200 text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all flex items-center gap-2"
+            >
+              <Eye className="w-4 h-4 text-purple-400" />
+              {showLiveEmbedPreview ? 'Hide Live Preview' : 'Test Live Widget'}
+            </button>
+          </div>
+        </div>
+
+        {/* Live Widget Preview Modal/Box */}
+        {showLiveEmbedPreview && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-3 bg-stone-950 p-6 rounded-2xl border border-purple-500/30 shadow-2xl"
+          >
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-mono text-purple-400 text-[11px] flex items-center gap-2">
+                <Terminal className="w-4 h-4" /> Live Interactive Preview Frame
+              </span>
+              <span className="text-[10px] uppercase font-black tracking-wider text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                Active Protocol: {embedAppTarget.toUpperCase()}
+              </span>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-purple-500/30 shadow-2xl bg-black">
+              <iframe
+                src={liveEmbedUrl}
+                width="100%"
+                height={embedHeight}
+                style={{ border: 'none' }}
+                title="Aetheria AI Hospitality & Sommelier Suite Preview"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Snippets Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
+          {/* HTML Iframe Widget Snippet */}
+          <div className="bg-stone-950/80 rounded-2xl p-6 border border-white/10 space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Code className="w-4 h-4 text-purple-400" />
+                  <h4 className="text-xs font-black uppercase text-white tracking-widest">
+                    1. Interactive Sommelier Widget HTML
+                  </h4>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(iframeSnippet, 'widget_snippet')}
+                  className="px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5"
+                >
+                  {copiedField === 'widget_snippet' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedField === 'widget_snippet' ? 'Copied HTML' : 'Copy HTML Snippet'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 pt-1">
+                <div>
+                  <label className="text-[9px] font-black uppercase text-stone-500 tracking-wider">Target Protocol</label>
+                  <select 
+                    value={embedAppTarget} 
+                    onChange={e => setEmbedAppTarget(e.target.value as 'vinetelligence' | 'vinea')}
+                    className="w-full mt-1 bg-stone-900 border border-white/10 rounded-lg p-2 text-[11px] text-white font-mono"
+                  >
+                    <option value="vinetelligence">Vinetelligence</option>
+                    <option value="vinea">Vinea Enterprise</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase text-stone-500 tracking-wider">Theme</label>
+                  <select 
+                    value={embedTheme} 
+                    onChange={e => setEmbedTheme(e.target.value as 'dark' | 'light')}
+                    className="w-full mt-1 bg-stone-900 border border-white/10 rounded-lg p-2 text-[11px] text-white font-mono"
+                  >
+                    <option value="dark">Dark Luxury</option>
+                    <option value="light">Light Minimal</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase text-stone-500 tracking-wider">Frame Height (px)</label>
+                  <input 
+                    type="text" 
+                    value={embedHeight} 
+                    onChange={e => setEmbedHeight(e.target.value)}
+                    className="w-full mt-1 bg-stone-900 border border-white/10 rounded-lg p-2 text-[11px] text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-stone-900/90 rounded-xl p-4 border border-white/5 font-mono text-[11px] text-purple-300 leading-relaxed overflow-x-auto whitespace-pre custom-scrollbar">
+                {iframeSnippet}
+              </div>
+            </div>
+
+            <p className="text-[10px] text-stone-500 italic">
+              Paste into any HTML container, CMS widget block, or Shopify/WordPress partner template.
+            </p>
+          </div>
+
+          {/* Syndication JSON Feed */}
+          <div className="bg-stone-950/80 rounded-2xl p-6 border border-white/10 space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-emerald-400" />
+                  <h4 className="text-xs font-black uppercase text-white tracking-widest">
+                    2. Vinetelligence.live Syndication JSON Feed
+                  </h4>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(syndicationJson, 'json_feed')}
+                  className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5"
+                >
+                  {copiedField === 'json_feed' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedField === 'json_feed' ? 'Copied JSON' : 'Copy JSON Feed'}
+                </button>
+              </div>
+
+              <div className="bg-stone-900/90 rounded-xl p-4 border border-white/5 font-mono text-[11px] text-emerald-300 leading-relaxed overflow-x-auto whitespace-pre custom-scrollbar max-h-56">
+                {syndicationJson}
+              </div>
+            </div>
+
+            <p className="text-[10px] text-stone-500 italic">
+              Automated multi-tenant JSON feed used for REST/GraphQL API syndication across luxury hotels and partner cellars.
+            </p>
+          </div>
         </div>
       </div>
     </div>

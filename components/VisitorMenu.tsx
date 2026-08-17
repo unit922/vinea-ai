@@ -1,10 +1,12 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { InventoryItem, ServiceOrder, OrderItem, Table, RestaurantProfile, AIPairingSuggestion } from '../lib/types';
+import { InventoryItem, ServiceOrder, OrderItem, Table, RestaurantProfile, AIPairingSuggestion, GuestFeedback } from '../lib/types';
 import { geminiService } from '../services/geminiService';
 import { generateUUID } from '../services/supabaseSync';
 import { GoogleGenAI, Modality } from "@google/genai";
 import { getApiKey } from '../services/geminiService';
+import { db, isFirebaseConfigured } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 import { SectorInterestPoll } from './SectorInterestPoll';
 
@@ -18,6 +20,27 @@ interface VisitorMenuProps {
 }
 
 const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrder, activeOrders, onExit, restaurantProfile }) => {
+  const isRuthChris = useMemo(() => {
+    const profile = restaurantProfile || JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
+    return profile && (profile.name?.includes("Ruth's Chris") || ('isRuthChris' in profile && (profile as unknown as { isRuthChris?: boolean }).isRuthChris));
+  }, [restaurantProfile]);
+
+  const isVinea = useMemo(() => {
+    const profile = restaurantProfile || JSON.parse(localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile') || '{}');
+    return profile && (profile.name?.toLowerCase().includes("vinea") || profile.id === 'demo-id' || localStorage.getItem('platform_selected_app') === 'vinea');
+  }, [restaurantProfile]);
+
+  const getCategoryLabel = (cat: string) => {
+    if (!isRuthChris) return cat;
+    switch (cat) {
+      case 'Dinner': return 'Steaks & Entrées';
+      case 'Snack': return 'Signature Sides';
+      case 'Wine': return 'Reserve Wines';
+      case 'Cocktail': return 'Handcrafted Cocktails';
+      default: return cat;
+    }
+  };
+
   const [view, setView] = useState<'welcome' | 'menu' | 'sommelier' | 'tab' | 'exit'>('welcome');
   const [menuSearch, setMenuSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -33,6 +56,56 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [pairingSuggestions, setPairingSuggestions] = useState<AIPairingSuggestion[]>([]);
   const [isLoadingPairings, setIsLoadingPairings] = useState(false);
+  
+  // Neuromarketing States
+  const [neuromarketingEnabled, setNeuromarketingEnabled] = useState(true);
+  const [hideCurrencyTrigger, setHideCurrencyTrigger] = useState(true);
+  const [nestedSubtlePrice, setNestedSubtlePrice] = useState(true);
+  const [sensoryDescriptions, setSensoryDescriptions] = useState(true);
+  const [premiumAnchoring, setPremiumAnchoring] = useState(true);
+  const [showLabsPanel, setShowLabsPanel] = useState(false);
+
+  const enrichDescriptionWithSensoryDetails = (item: InventoryItem) => {
+    if (!item.description) {
+      return 'Artisanal selection curated for technical flavor profiles.';
+    }
+
+    const desc = item.description;
+
+    if (!neuromarketingEnabled || !sensoryDescriptions) {
+      return desc;
+    }
+
+    const nameLower = item.name.toLowerCase();
+    const cat = item.category;
+
+    if (cat === 'Wine') {
+      if (nameLower.includes('cabernet') || nameLower.includes('oak') || nameLower.includes('red') || nameLower.includes('bordeaux')) {
+        return `An incredibly structured and hand-harvested selection. Displays a velvety bouquet of sun-ripened dark currants, culinary warm spices, and a long, structured finish that lingers elegantly on the palate.`;
+      }
+      if (nameLower.includes('chardonnay') || nameLower.includes('white') || nameLower.includes('sauvignon') || nameLower.includes('veuve')) {
+        return `Exquisitely bright and refreshing, showcasing crisp orchard apple blossoms, hand-shaven citrus zest, and a soft, mineral-kissed creamy finish.`;
+      }
+      return `${desc} Expressive, finely detailed, and showing stunning aromatic complexity with a silky texture and persistent finish.`;
+    }
+
+    if (cat === 'Dinner' || nameLower.includes('steak') || nameLower.includes('ribeye') || nameLower.includes('filet')) {
+      return `Masterfully oak-fired and seared at 1800°F to unlock caramelized, buttery exterior textures while sealing in premium, tender juices. Finished under a sizzling crown of herb butter.`;
+    }
+
+    if (cat === 'Snack' || nameLower.includes('sides') || nameLower.includes('crab') || nameLower.includes('potato')) {
+      if (nameLower.includes('crab') || nameLower.includes('cake')) {
+        return `Featuring colossal lump blue crab meat, delicately bound with zero filler, pan-caramelized to a shimmering gold and kissed with a bright lemon-butter emulsion.`;
+      }
+      return `Crafted using sweet farm cream, hand-churned sea-salt butter, and organic chives, slow-baked until aromatic with a golden crust.`;
+    }
+
+    if (cat === 'Cocktail' || cat === 'Spirit' || nameLower.includes('shaker') || nameLower.includes('old fashioned')) {
+      return `A majestic, slow-stirred legacy mix, double-strained over custom hand-cut crystal ice. Accented with cold-pressed orange oils and rare aromatic botanicals.`;
+    }
+
+    return `${desc} Finished with micro-herbs, exquisite textures, and a harmonious balance of sweet-savory notes.`;
+  };
   
   // Feedback States
   const [feedbackRating, setFeedbackRating] = useState(0);
@@ -272,31 +345,41 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
 
   if (view === 'welcome') {
     return (
-      <div className="fixed inset-0 z-[700] h-full w-full bg-indigo-950 flex flex-col items-center p-4 md:p-12 text-center relative overflow-y-auto custom-scrollbar font-serif">
-         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center opacity-20 scale-110 fixed"></div>
+      <div className={`fixed inset-0 z-[700] h-full w-full ${isVinea ? 'bg-stone-950' : 'bg-indigo-950'} flex flex-col items-center p-4 md:p-12 text-center relative overflow-y-auto custom-scrollbar font-serif`}>
+         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center opacity-20 scale-110 fixed"></div>
          <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-[1px] fixed"></div>
          
          <div className="relative z-10 space-y-6 md:space-y-12 animate-in fade-in zoom-in duration-1000 w-full max-w-lg my-auto py-8 md:py-12">
             <div className="space-y-4">
-               <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.4em] md:tracking-[0.7em] text-indigo-500 block">ESTABLISHED 2025</span>
-               <h1 className="text-4xl sm:text-6xl md:text-9xl font-black text-stone-100 tracking-tighter italic leading-none drop-shadow-2xl">{restaurantProfile?.name || 'Vinetelligence'}</h1>
-               <div className="h-[1px] w-24 md:w-40 bg-indigo-500/40 mx-auto mt-4 md:mt-6"></div>
+               <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.4em] md:tracking-[0.7em] text-amber-500 block">
+                 {isRuthChris ? "ESTABLISHED 1965 • NEW ORLEANS" : "ESTABLISHED 2025"}
+               </span>
+               <h1 className="text-4xl sm:text-5xl md:text-8xl font-black text-stone-100 tracking-tighter italic leading-none drop-shadow-2xl">
+                 {restaurantProfile?.name || (isVinea ? 'Vinea Enterprise' : 'Vinetelligence')}
+               </h1>
+               <div className={`h-[1px] w-24 md:w-40 ${isRuthChris ? 'bg-amber-500/60' : (isVinea ? 'bg-amber-500/40' : 'bg-indigo-500/40')} mx-auto mt-4 md:mt-6`}></div>
             </div>
             
             <div className="space-y-2 md:space-y-4">
                <h2 className="text-lg md:text-3xl text-stone-200 italic font-medium">Welcome, Table {table.number}</h2>
-               <p className="text-stone-400 text-[10px] md:text-sm max-w-[250px] md:max-w-xs mx-auto leading-relaxed">Please enjoy our curated collection of technical vintages and artisanal small plates.</p>
+               <p className="text-stone-300 text-[10px] md:text-sm max-w-[280px] md:max-w-md mx-auto leading-relaxed">
+                 {isRuthChris 
+                   ? "Savor our custom 1800°F broiled USDA Prime steaks, legendary sides, and premium wines, served sizzling hot on 500°F butter-topped plates."
+                   : "Please enjoy our curated collection of technical vintages and artisanal small plates."}
+               </p>
             </div>
 
             <div className="flex flex-col gap-3 md:gap-4">
               <button 
                 onClick={() => setView('menu')}
-                className="px-8 md:px-16 py-4 md:py-7 bg-stone-100 text-indigo-950 rounded-full font-bold uppercase text-[9px] md:text-[11px] tracking-[0.2em] md:tracking-[0.5em] shadow-2xl hover:bg-indigo-50 transition-all active:scale-95"
+                className={`px-8 md:px-16 py-4 md:py-7 ${isRuthChris ? 'bg-amber-500 text-[#141414] hover:bg-amber-400' : (isVinea ? 'bg-amber-500 text-stone-950 hover:bg-amber-400' : 'bg-stone-100 text-indigo-950 hover:bg-indigo-50')} rounded-full font-bold uppercase text-[9px] md:text-[11px] tracking-[0.2em] md:tracking-[0.5em] shadow-2xl transition-all active:scale-95`}
               >
                 Enter Experience
               </button>
               {restaurantProfile?.edition === 'demo' && (
-                <p className="text-[8px] md:text-[10px] text-indigo-500/60 font-black uppercase tracking-widest">Demo Mode: Guest Experience</p>
+                <p className={`text-[8px] md:text-[10px] ${isRuthChris ? 'text-amber-500/80' : (isVinea ? 'text-amber-500/80' : 'text-indigo-500/60')} font-black uppercase tracking-widest`}>
+                  {isRuthChris ? "Demo Mode: Ruth's Chris Steak House Benchmark" : (isVinea ? "Demo Mode: Vinea Enterprise Guest Portal" : "Demo Mode: Guest Experience")}
+                </p>
               )}
             </div>
 
@@ -328,6 +411,17 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
         const existingFeedback = JSON.parse(localStorage.getItem('vinetelligence_feedback') || localStorage.getItem('vinea_feedback') || '[]');
         localStorage.setItem('vinetelligence_feedback', JSON.stringify([...existingFeedback, feedback]));
         localStorage.setItem('vinea_feedback', JSON.stringify([...existingFeedback, feedback]));
+        
+        // Write to Firestore if connected
+        if (isFirebaseConfigured && db) {
+          const restaurantId = restaurantProfile?.id || 'demo-id';
+          try {
+            await setDoc(doc(db, 'restaurants', restaurantId, 'feedback', feedback.id), feedback);
+            console.log("Vinetelligence: Successfully synchronized guest feedback to Firestore.");
+          } catch (fbErr) {
+            console.error("Vinetelligence: Failed to sync feedback to Firestore", fbErr);
+          }
+        }
         
         setFeedbackSubmitted(true);
         await new Promise(r => setTimeout(r, 1500));
@@ -450,15 +544,17 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
         {view === 'menu' && (
           <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-700">
             {/* Hero Lifestyle Image */}
-            <div className="w-full h-32 md:h-48 rounded-2xl md:rounded-[2rem] overflow-hidden relative group shadow-2xl border border-indigo-900/10">
-              <img 
+            <div className={`w-full h-32 md:h-48 rounded-2xl md:rounded-[2rem] overflow-hidden relative group shadow-2xl border ${isVinea ? 'border-amber-900/10' : 'border-indigo-900/10'}`}>
+               <img 
                 src="https://picsum.photos/seed/vinetelligence-hero/1200/600" 
-                alt="Vinetelligence Experience" 
+                alt={isVinea ? "Vinea Experience" : "Vinetelligence Experience"} 
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2000ms]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/80 via-indigo-950/20 to-transparent flex flex-col justify-end p-4 md:p-8">
-                <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] text-indigo-500 mb-1 md:mb-2">The Vinetelligence Experience</p>
+               />
+              <div className={`absolute inset-0 bg-gradient-to-t ${isVinea ? 'from-stone-950/80 via-stone-950/20' : 'from-indigo-950/80 via-indigo-950/20'} to-transparent flex flex-col justify-end p-4 md:p-8`}>
+                <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] ${isVinea ? 'text-amber-500' : 'text-indigo-500'} mb-1 md:mb-2`}>
+                  {isVinea ? "The Vinea Enterprise Experience" : "The Vinetelligence Experience"}
+                </p>
                 <h2 className="text-xl md:text-3xl font-serif font-bold text-white italic tracking-tighter">Curated Intelligence.</h2>
               </div>
             </div>
@@ -472,12 +568,124 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                    <i className="fas fa-arrow-left mr-1 md:mr-2"></i> Dashboard
                  </button>
                )}
-               <h3 className="text-indigo-950/40 font-bold uppercase tracking-[0.3em] md:tracking-[0.5em] text-[8px] md:text-[9px]">Technical Selection</h3>
-               <h1 className="text-2xl md:text-4xl font-black text-indigo-950 tracking-tighter italic">The Vinetelligence List</h1>
+               <h3 className={`${isVinea ? 'text-amber-950/40' : 'text-indigo-950/40'} font-bold uppercase tracking-[0.3em] md:tracking-[0.5em] text-[8px] md:text-[9px]`}>Technical Selection</h3>
+               <h1 className="text-2xl md:text-4xl font-black text-stone-900 tracking-tighter italic">
+                 {isVinea ? "The Vinea Enterprise List" : "The Vinetelligence List"}
+               </h1>
                <div className="flex justify-center gap-2 mt-1">
-                 <span className="text-[6px] md:text-[7px] font-black uppercase tracking-widest text-indigo-600/60 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">v2.1 Refined</span>
+                 <span className={`text-[6px] md:text-[7px] font-black uppercase tracking-widest ${isVinea ? 'text-amber-600 bg-amber-50 border border-amber-100' : 'text-indigo-600/60 bg-indigo-50 border border-indigo-100'} px-2 py-0.5 rounded-full`}>v2.1 Refined</span>
+                 <button 
+                   onClick={() => setShowLabsPanel(!showLabsPanel)}
+                   className="text-[6px] md:text-[7px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                 >
+                   <i className="fas fa-brain text-[7px] text-amber-500"></i>
+                   <span>Cognitive Labs {neuromarketingEnabled ? 'Active' : 'Disabled'}</span>
+                 </button>
                </div>
             </header>
+
+            {/* Cognitive Menu Engineering Labs Panel */}
+            {showLabsPanel && (
+              <div className="bg-stone-900 text-white rounded-[2rem] p-6 md:p-8 space-y-6 shadow-2xl border border-white/5 animate-in slide-in-from-top-4 duration-500 relative z-[200]">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                      <i className="fas fa-brain text-sm"></i>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-stone-100">Cognitive Menu Engineering Labs</h4>
+                      <p className="text-[8px] uppercase tracking-widest font-black text-amber-500">Neuromarketing Optimizations</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowLabsPanel(false)}
+                    className="text-stone-400 hover:text-white transition-colors"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-stone-300 leading-relaxed font-sans font-light">
+                  Traditional menu interfaces list commodity prices prominently, activating the brain’s <span className="text-amber-400 font-bold font-mono">insular pain center</span> associated with losing capital. {isVinea ? "Vinea Labs" : "Vinetelligence Labs"} bypasses this friction by executing verified consumer search, formatting, and behavioral economics formulas. Drag toggles to see instant visual changes on the list.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/5 font-sans">
+                  {/* Toggle 1: Neuro Optimizations Master */}
+                  <div className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/5 rounded-2xl">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white">Full Optimizations</p>
+                      <p className="text-[8px] text-stone-400 tracking-wider font-sans">Execute cognitive design</p>
+                    </div>
+                    <button 
+                      onClick={() => setNeuromarketingEnabled(!neuromarketingEnabled)}
+                      className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 ${neuromarketingEnabled ? 'bg-amber-500' : 'bg-stone-700'}`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${neuromarketingEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Toggle 2: Remove Currency Trigger */}
+                  <div className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/5 rounded-2xl">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white">De-bias Currency Trigger</p>
+                      <p className="text-[8px] text-stone-400 tracking-wider font-sans">Remove ($) trigger symbol</p>
+                    </div>
+                    <button 
+                      disabled={!neuromarketingEnabled}
+                      onClick={() => setHideCurrencyTrigger(!hideCurrencyTrigger)}
+                      className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 ${!neuromarketingEnabled ? 'opacity-35 cursor-not-allowed' : ''} ${hideCurrencyTrigger && neuromarketingEnabled ? 'bg-amber-500' : 'bg-stone-700'}`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${hideCurrencyTrigger && neuromarketingEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Toggle 3: Nested Subtle Price */}
+                  <div className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/5 rounded-2xl">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white">Nested Subtle Price</p>
+                      <p className="text-[8px] text-stone-400 tracking-wider font-sans font-sans">Place price inline without lines</p>
+                    </div>
+                    <button 
+                      disabled={!neuromarketingEnabled}
+                      onClick={() => setNestedSubtlePrice(!nestedSubtlePrice)}
+                      className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 ${!neuromarketingEnabled ? 'opacity-35 cursor-not-allowed' : ''} ${nestedSubtlePrice && neuromarketingEnabled ? 'bg-amber-500' : 'bg-stone-700'}`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${nestedSubtlePrice && neuromarketingEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Toggle 4: Sensory Descriptions */}
+                  <div className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/5 rounded-2xl">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white">Sensory Vocabulary</p>
+                      <p className="text-[8px] text-stone-400 tracking-wider font-sans">Evocative visual or taste copy</p>
+                    </div>
+                    <button 
+                      disabled={!neuromarketingEnabled}
+                      onClick={() => setSensoryDescriptions(!sensoryDescriptions)}
+                      className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 ${!neuromarketingEnabled ? 'opacity-35 cursor-not-allowed' : ''} ${sensoryDescriptions && neuromarketingEnabled ? 'bg-amber-500' : 'bg-stone-700'}`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${sensoryDescriptions && neuromarketingEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Toggle 5: Premium Price Anchoring */}
+                  <div className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/5 rounded-2xl">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white">Premium Price Anchoring</p>
+                      <p className="text-[8px] text-stone-400 tracking-wider font-sans">Sort highest-price signature first</p>
+                    </div>
+                    <button 
+                      disabled={!neuromarketingEnabled}
+                      onClick={() => setPremiumAnchoring(!premiumAnchoring)}
+                      className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 ${!neuromarketingEnabled ? 'opacity-35 cursor-not-allowed' : ''} ${premiumAnchoring && neuromarketingEnabled ? 'bg-amber-500' : 'bg-stone-700'}`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${premiumAnchoring && neuromarketingEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Search and Filter */}
             <div className="sticky top-0 z-50 bg-stone-50/90 backdrop-blur-md py-2 md:py-3 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-stone-200/50 space-y-2 md:space-y-3">
@@ -498,11 +706,11 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                     onClick={() => setSelectedCategory(cat)}
                     className={`px-3 md:px-4 py-1.5 rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
                       selectedCategory === cat 
-                        ? 'bg-indigo-950 text-white border-indigo-950 shadow-lg shadow-indigo-950/20' 
+                        ? (isRuthChris ? 'bg-amber-500 text-[#141414] border-amber-500 shadow-lg shadow-amber-500/20' : 'bg-indigo-950 text-white border-indigo-950 shadow-lg shadow-indigo-950/20') 
                         : 'bg-white text-stone-400 border-stone-200 hover:border-stone-300'
                     }`}
                   >
-                    {cat}
+                    {cat === 'All' ? 'All' : getCategoryLabel(cat)}
                   </button>
                 ))}
               </div>
@@ -583,13 +791,17 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
             )}
 
             {(selectedCategory === 'All' ? categories : [selectedCategory]).map((cat, idx) => {
-              const items = inventory.filter(i => 
+              const rawItems = inventory.filter(i => 
                 i.category === cat && 
                 i.stock > 0 &&
                 (menuSearch === '' || 
                  i.name.toLowerCase().includes(menuSearch.toLowerCase()) || 
                  i.description.toLowerCase().includes(menuSearch.toLowerCase()))
               );
+              
+              const items = (neuromarketingEnabled && premiumAnchoring)
+                ? [...rawItems].sort((a, b) => b.price - a.price)
+                : rawItems;
               
               if (items.length === 0) return null;
               return (
@@ -625,8 +837,10 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
 
                   <div className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <h4 className="text-lg font-bold italic text-indigo-900 whitespace-nowrap">{cat}</h4>
-                    <div className="h-[1px] w-full bg-indigo-900/10"></div>
+                    <h4 className={`text-lg font-bold italic ${isRuthChris ? 'text-amber-600' : 'text-indigo-900'} whitespace-nowrap`}>
+                      {getCategoryLabel(cat)}
+                    </h4>
+                    <div className={`h-[1px] w-full ${isRuthChris ? 'bg-amber-600/10' : 'bg-indigo-900/10'}`}></div>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
                     {items.map(item => (
@@ -642,11 +856,22 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                         <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
                            <div className="space-y-0.5 md:space-y-1">
                             <div className="flex justify-between items-start gap-2">
-                              <span className="text-[11px] md:text-[13px] font-bold text-stone-800 leading-tight truncate">{item.name}</span>
-                              <span className="text-[11px] md:text-[13px] font-black text-indigo-950">${item.price}</span>
+                              <span className="text-[11px] md:text-[13px] font-bold text-stone-800 leading-tight">
+                                 {item.name}
+                                 {neuromarketingEnabled && nestedSubtlePrice && (
+                                   <span className="font-sans font-light text-stone-400 text-[10px] ml-2 tracking-tight whitespace-nowrap">
+                                     · {hideCurrencyTrigger ? '' : '$'}{parseInt(String(item.price), 10) || item.price}
+                                   </span>
+                                 )}
+                               </span>
+                              {(!neuromarketingEnabled || !nestedSubtlePrice) && (
+                                <span className={`text-[11px] md:text-[13px] font-black shrink-0 ${isRuthChris ? 'text-amber-500' : 'text-indigo-950'}`}>
+                                  {hideCurrencyTrigger && neuromarketingEnabled ? '' : '$'}{item.price}
+                                </span>
+                              )}
                             </div>
-                            <p className="text-[9px] md:text-[10px] text-stone-400 italic line-clamp-1 leading-tight font-medium">
-                               {item.description || 'Artisanal selection curated for technical flavor profiles.'}
+                            <p className="text-[9px] md:text-[10px] text-stone-400 italic line-clamp-2 leading-tight font-medium">
+                               {enrichDescriptionWithSensoryDetails(item)}
                             </p>
                           </div>
                           <div className="mt-1 md:mt-2 flex items-center justify-between">
@@ -951,7 +1176,7 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
                       </span>
                    </div>
                    <div className="flex items-center gap-2.5">
-                      <span className={`text-[10px] font-bold italic ${paymentStep ? 'text-white' : 'text-indigo-500'}`}>${cartTotal.toFixed(2)}</span>
+                      <span className={`text-[10px] font-bold italic ${paymentStep ? 'text-white' : 'text-indigo-500'}`}>{hideCurrencyTrigger && neuromarketingEnabled ? '' : '$'}{cartTotal.toFixed(2)}</span>
                       <div className="h-3 w-[1px] bg-white/20"></div>
                       <div className="flex items-center gap-2">
                         <i className={`fas ${paymentStep ? 'fa-credit-card' : 'fa-bolt'} text-[8px] ${!paymentStep ? 'animate-pulse' : ''}`}></i>
@@ -979,29 +1204,28 @@ const VisitorMenu: React.FC<VisitorMenuProps> = ({ table, inventory, onPlaceOrde
              </button>
            )}
         </div>
-      )}
-
-      {/* Guest Bottom Navigation Bar - Streamlined */}
+       )}
+       {/* Guest Bottom Navigation Bar - Streamlined */}
       <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white/95 backdrop-blur-xl border-t border-stone-200 z-[100] px-6 flex justify-around items-center shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-          <button onClick={() => setView('menu')} className={`flex flex-col items-center gap-1 transition-all relative ${view === 'menu' ? 'text-indigo-900' : 'text-stone-300 hover:text-stone-600'}`}>
+          <button onClick={() => setView('menu')} className={`flex flex-col items-center gap-1 transition-all relative ${view === 'menu' ? (isVinea ? 'text-amber-600' : 'text-indigo-900') : 'text-stone-300 hover:text-stone-600'}`}>
             <i className={`fas fa-wine-glass text-lg ${view === 'menu' ? 'scale-110' : ''}`}></i>
             <span className="text-[7px] font-black uppercase tracking-widest">Menu</span>
             {cartItems.length > 0 && view !== 'menu' && (
-              <span className="absolute -top-1 -right-2 w-3.5 h-3.5 bg-indigo-950 text-white text-[7px] font-black rounded-full flex items-center justify-center border border-white shadow-sm">
+              <span className={`absolute -top-1 -right-2 w-3.5 h-3.5 ${isVinea ? 'bg-amber-950' : 'bg-indigo-950'} text-white text-[7px] font-black rounded-full flex items-center justify-center border border-white shadow-sm`}>
                 {cartItems.length}
               </span>
             )}
           </button>
-         <button onClick={() => setView('sommelier')} className={`flex flex-col items-center gap-1 transition-all ${view === 'sommelier' ? 'text-indigo-900' : 'text-stone-300 hover:text-stone-600'}`}>
+         <button onClick={() => setView('sommelier')} className={`flex flex-col items-center gap-1 transition-all ${view === 'sommelier' ? (isVinea ? 'text-amber-600' : 'text-indigo-900') : 'text-stone-300 hover:text-stone-600'}`}>
             <i className={`fas fa-brain text-lg ${view === 'sommelier' ? 'scale-110' : ''}`}></i>
             <span className="text-[7px] font-black uppercase tracking-widest">Expert</span>
          </button>
-         <button onClick={() => setView('tab')} className={`flex flex-col items-center gap-1 transition-all relative ${view === 'tab' ? 'text-indigo-900' : 'text-stone-300 hover:text-stone-600'}`}>
+         <button onClick={() => setView('tab')} className={`flex flex-col items-center gap-1 transition-all relative ${view === 'tab' ? (isVinea ? 'text-amber-600' : 'text-indigo-900') : 'text-stone-300 hover:text-stone-600'}`}>
             <i className={`fas fa-receipt text-lg ${view === 'tab' ? 'scale-110' : ''}`}></i>
             <span className="text-[7px] font-black uppercase tracking-widest">My Tab</span>
-            {activeOrders.length > 0 && <span className="absolute -top-1 -right-2 w-3.5 h-3.5 bg-indigo-500 text-indigo-950 text-[7px] font-black rounded-full flex items-center justify-center border border-white shadow-sm">{activeOrders.length}</span>}
+            {activeOrders.length > 0 && <span className={`absolute -top-1 -right-2 w-3.5 h-3.5 ${isVinea ? 'bg-amber-500 text-amber-950' : 'bg-indigo-500 text-indigo-950'} text-[7px] font-black rounded-full flex items-center justify-center border border-white shadow-sm`}>{activeOrders.length}</span>}
          </button>
-         <button onClick={() => setView('exit')} className="flex flex-col items-center gap-1 text-stone-300 hover:text-indigo-900 transition-all p-2">
+         <button onClick={() => setView('exit')} className={`flex flex-col items-center gap-1 text-stone-300 ${isVinea ? 'hover:text-amber-600' : 'hover:text-indigo-900'} transition-all p-2`}>
             <i className="fas fa-door-open text-lg"></i>
             <span className="text-[7px] font-black uppercase tracking-widest">Exit</span>
          </button>

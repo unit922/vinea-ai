@@ -2,7 +2,10 @@
 import { useEffect } from 'react';
 import { useVinetelligenceStore } from '../store/vinetelligenceStore';
 import { supabaseSync, isValidUUID } from '../services/supabaseSync';
-import { INITIAL_INVENTORY, MOCK_JOURNEYS, INITIAL_SHIFTS, INITIAL_TABLES, INITIAL_TRANSACTIONS } from '../constants';
+import { firebaseService } from '../services/firebaseService';
+import { isFirebaseConfigured, auth } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { INITIAL_INVENTORY, MOCK_JOURNEYS, INITIAL_SHIFTS, INITIAL_TABLES, INITIAL_TRANSACTIONS, RUTH_CHRIS_INVENTORY, RUTH_CHRIS_TRANSACTIONS, CANLIS_INVENTORY, CANLIS_TRANSACTIONS, FRENCH_LAUNDRY_INVENTORY, FRENCH_LAUNDRY_TRANSACTIONS } from '../constants';
 import { RestaurantProfile, ServiceOrder, InventoryItem, SupabaseStaffProfile } from '../lib/types';
 
 export const useVinetelligenceInitialization = () => {
@@ -43,7 +46,18 @@ export const useVinetelligenceInitialization = () => {
       const profileStr = localStorage.getItem('vinetelligence_profile') || localStorage.getItem('vinea_profile');
       const profile: RestaurantProfile | null = profileStr ? JSON.parse(profileStr) : null;
       const isDemo = !profile || ((!profile.edition || profile.edition === 'demo') && !isValidUUID(profile.id));
-      const parsedInventory = storedInventory ? JSON.parse(storedInventory) : (isDemo ? INITIAL_INVENTORY : []);
+      const isRuthChris = profile && (profile.name?.includes("Ruth's Chris") || ('isRuthChris' in profile && (profile as unknown as { isRuthChris?: boolean }).isRuthChris));
+      const isCanlis = profile && (profile.name?.includes("Canlis") || ('isCanlis' in profile && (profile as unknown as { isCanlis?: boolean }).isCanlis));
+      const isFrenchLaundry = profile && (profile.name?.includes("French Laundry") || ('isFrenchLaundry' in profile && (profile as unknown as { isFrenchLaundry?: boolean }).isFrenchLaundry));
+      
+      const parsedInventory = storedInventory ? JSON.parse(storedInventory) : (
+        isDemo ? (
+          isRuthChris ? RUTH_CHRIS_INVENTORY : 
+          isCanlis ? CANLIS_INVENTORY : 
+          isFrenchLaundry ? FRENCH_LAUNDRY_INVENTORY : 
+          INITIAL_INVENTORY
+        ) : []
+      );
       setInventory(parsedInventory);
 
       const storedJourneys = localStorage.getItem('vinetelligence_journeys') || localStorage.getItem('vinea_journeys');
@@ -55,7 +69,14 @@ export const useVinetelligenceInitialization = () => {
       setTables(parsedTables);
 
       const storedTransactions = localStorage.getItem('vinetelligence_transactions') || localStorage.getItem('vinea_transactions');
-      const parsedTransactions = storedTransactions ? JSON.parse(storedTransactions) : (isDemo ? INITIAL_TRANSACTIONS : []);
+      const parsedTransactions = storedTransactions ? JSON.parse(storedTransactions) : (
+        isDemo ? (
+          isRuthChris ? RUTH_CHRIS_TRANSACTIONS : 
+          isCanlis ? CANLIS_TRANSACTIONS : 
+          isFrenchLaundry ? FRENCH_LAUNDRY_TRANSACTIONS : 
+          INITIAL_TRANSACTIONS
+        ) : []
+      );
       setTransactions(parsedTransactions);
 
       const storedStaff = localStorage.getItem('vinetelligence_staff_list') || localStorage.getItem('vinea_staff_list');
@@ -119,7 +140,15 @@ export const useVinetelligenceInitialization = () => {
         const baseUsage = 20 + (activeOrders * 15) + (lowStock * 5);
         const finalUsage = Math.min(100, Math.max(0, baseUsage + (Math.random() * 10 - 5)));
         
-        await supabaseSync.pushPulse(profileId, Math.floor(finalUsage));
+        if (isFirebaseConfigured && auth?.currentUser) {
+          const restaurantName = localStorage.getItem('vinetelligence_restaurant_name') || 'Establishment';
+          await firebaseService.pushPulse(profileId, { 
+            name: restaurantName,
+            usageMetric: Math.floor(finalUsage)
+          });
+        } else {
+          await supabaseSync.pushPulse(profileId, Math.floor(finalUsage));
+        }
       } catch (e) {
         console.error("Vinetelligence: Pulse failed", e);
       }
@@ -132,6 +161,10 @@ export const useVinetelligenceInitialization = () => {
 
   useEffect(() => {
     if (!profileId || authMode === 'demo') return;
+    if (isFirebaseConfigured) {
+      console.log("Vinetelligence: Skipping initial Supabase pulls as Firebase is configured.");
+      return;
+    }
     // For sync we need either a session OR to be in a public route
     const isPublicRoute = window.location.pathname.split('/').filter(p => p).length > 0;
     if (!session && !isPublicRoute) return;
@@ -231,70 +264,130 @@ export const useVinetelligenceInitialization = () => {
     syncOrders();
     syncTables();
 
-    const unsubscribeJourneys = supabaseSync.subscribeToJourneys(profileId, (data) => {
-      if (data) {
-        setJourneys(data);
-        localStorage.setItem('vinetelligence_journeys', JSON.stringify(data));
-        localStorage.setItem('vinea_journeys', JSON.stringify(data));
-      }
-    });
+    // Define let-scoped unsubscribe handlers so they can be managed dynamically
+    let unsubscribeJourneys = () => {};
+    let unsubscribeInventory = () => {};
+    let unsubscribeOrders = () => {};
+    let unsubscribeFirebaseState = () => {};
 
-    const unsubscribeAssignments = supabaseSync.subscribeToAssignments(profileId, (data) => {
-      if (data) {
-        setAssignments(data);
-        localStorage.setItem('vinetelligence_assignments', JSON.stringify(data));
-        localStorage.setItem('vinea_assignments', JSON.stringify(data));
-      }
-    });
+    if (isFirebaseConfigured && auth) {
+      console.log("Vinetelligence: Initializing Firebase-auth synchronized subscriptions...");
+      unsubscribeFirebaseState = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          console.log("Vinetelligence: Firebase Auth is ready. Subscribing to Firestore...", user.uid);
+          
+          // Clean up any existing active subscriptions to prevent duplicates
+          unsubscribeJourneys();
+          unsubscribeInventory();
+          unsubscribeOrders();
 
-    const unsubscribeInventory = supabaseSync.subscribeToInventory(profileId, (data) => {
-      if (data) {
-        setInventory(data);
-        localStorage.setItem('vinetelligence_inventory', JSON.stringify(data));
-        localStorage.setItem('vinea_inventory', JSON.stringify(data));
-      }
-    });
+          unsubscribeJourneys = firebaseService.subscribeToJourneys(profileId, (data) => {
+            if (data) {
+              setJourneys(data);
+              localStorage.setItem('vinetelligence_journeys', JSON.stringify(data));
+              localStorage.setItem('vinea_journeys', JSON.stringify(data));
+            }
+          });
 
-    const unsubscribeOrders = supabaseSync.subscribeToOrders(profileId, (data) => {
-      if (data) {
-        setOrders(data);
-        localStorage.setItem('vinetelligence_orders', JSON.stringify(data));
-        localStorage.setItem('vinea_orders', JSON.stringify(data));
-      }
-    });
-    
-    const unsubscribeRoster = supabaseSync.subscribeToRoster(profileId, (rosterData) => {
-      if (rosterData) setStaffRoster(rosterData);
-    });
+          unsubscribeInventory = firebaseService.subscribeToInventory(profileId, (data) => {
+            if (data) {
+              setInventory(data);
+              localStorage.setItem('vinetelligence_inventory', JSON.stringify(data));
+              localStorage.setItem('vinea_inventory', JSON.stringify(data));
+            }
+          });
 
-    const unsubscribeStaff = supabaseSync.subscribeToStaffProfiles(profileId, (profiles: SupabaseStaffProfile[]) => {
-      if (profiles) {
-        const mappedStaff = profiles.map((p) => ({
-          id: p.id,
-          name: p.full_name || 'Unknown Staff',
-          email: p.email,
-          role: p.role,
-          performanceScore: p.performance_score || 100,
-          availabilityStatus: p.availability_status,
-          accessStatus: 'Active',
-          startTime: '09:00',
-          endTime: '17:00'
-        }));
-        setStaff(mappedStaff);
-        localStorage.setItem('vinetelligence_staff_list', JSON.stringify(mappedStaff));
-        localStorage.setItem('vinea_staff_list', JSON.stringify(mappedStaff));
-      }
-    });
+          unsubscribeOrders = firebaseService.subscribeToOrders(profileId, (data) => {
+            if (data) {
+              setOrders(data);
+              localStorage.setItem('vinetelligence_orders', JSON.stringify(data));
+              localStorage.setItem('vinea_orders', JSON.stringify(data));
+            }
+          });
+        } else {
+          console.log("Vinetelligence: Firebase Auth user is null. Pausing Firestore subscriptions.");
+          unsubscribeJourneys();
+          unsubscribeInventory();
+          unsubscribeOrders();
+          unsubscribeJourneys = () => {};
+          unsubscribeInventory = () => {};
+          unsubscribeOrders = () => {};
+        }
+      });
+    } else {
+      unsubscribeJourneys = supabaseSync.subscribeToJourneys(profileId, (data) => {
+        if (data) {
+          setJourneys(data);
+          localStorage.setItem('vinetelligence_journeys', JSON.stringify(data));
+          localStorage.setItem('vinea_journeys', JSON.stringify(data));
+        }
+      });
 
-    const unsubscribeTables = supabaseSync.subscribeToTables(profileId, (data) => {
-      if (data) {
-        setTables(data);
-        localStorage.setItem('vinetelligence_tables', JSON.stringify(data));
-        localStorage.setItem('vinea_tables', JSON.stringify(data));
-      }
-    });
+      unsubscribeInventory = supabaseSync.subscribeToInventory(profileId, (data) => {
+        if (data) {
+          setInventory(data);
+          localStorage.setItem('vinetelligence_inventory', JSON.stringify(data));
+          localStorage.setItem('vinea_inventory', JSON.stringify(data));
+        }
+      });
+
+      unsubscribeOrders = supabaseSync.subscribeToOrders(profileId, (data) => {
+        if (data) {
+          setOrders(data);
+          localStorage.setItem('vinetelligence_orders', JSON.stringify(data));
+          localStorage.setItem('vinea_orders', JSON.stringify(data));
+        }
+      });
+    }
+
+    let unsubscribeAssignments = () => {};
+    let unsubscribeRoster = () => {};
+    let unsubscribeStaff = () => {};
+    let unsubscribeTables = () => {};
+
+    if (!isFirebaseConfigured) {
+      unsubscribeAssignments = supabaseSync.subscribeToAssignments(profileId, (data) => {
+        if (data) {
+          setAssignments(data);
+          localStorage.setItem('vinetelligence_assignments', JSON.stringify(data));
+          localStorage.setItem('vinea_assignments', JSON.stringify(data));
+        }
+      });
+
+      unsubscribeRoster = supabaseSync.subscribeToRoster(profileId, (rosterData) => {
+        if (rosterData) setStaffRoster(rosterData);
+      });
+
+      unsubscribeStaff = supabaseSync.subscribeToStaffProfiles(profileId, (profiles: SupabaseStaffProfile[]) => {
+        if (profiles) {
+          const mappedStaff = profiles.map((p) => ({
+            id: p.id,
+            name: p.full_name || 'Unknown Staff',
+            email: p.email,
+            role: p.role,
+            performanceScore: p.performance_score || 100,
+            availabilityStatus: p.availability_status,
+            accessStatus: 'Active',
+            startTime: '09:00',
+            endTime: '17:00'
+          }));
+          setStaff(mappedStaff);
+          localStorage.setItem('vinetelligence_staff_list', JSON.stringify(mappedStaff));
+          localStorage.setItem('vinea_staff_list', JSON.stringify(mappedStaff));
+        }
+      });
+
+      unsubscribeTables = supabaseSync.subscribeToTables(profileId, (data) => {
+        if (data) {
+          setTables(data);
+          localStorage.setItem('vinetelligence_tables', JSON.stringify(data));
+          localStorage.setItem('vinea_tables', JSON.stringify(data));
+        }
+      });
+    }
 
     return () => {
+      unsubscribeFirebaseState();
       unsubscribeJourneys();
       unsubscribeAssignments();
       unsubscribeInventory();

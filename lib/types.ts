@@ -221,6 +221,7 @@ export interface OrderItem {
   status: ItemStatus;
   priceAtOrder: number;
   seat?: number | null;
+  course?: 'Drinks' | 'Appetizer' | 'Main' | 'Dessert';
 }
 
 export interface ServiceOrder {
@@ -312,6 +313,13 @@ export interface TrainingSession {
   category: string;
   videoUrl?: string;
   videoId?: string;
+  lessons?: string[];
+  quizQuestions?: {
+    question: string;
+    options: string[];
+    correctIndex: number;
+    explanation: string;
+  }[];
 }
 
 export interface OptimizationLog {
@@ -522,6 +530,7 @@ export interface RestaurantProfile {
   logoUrl?: string;
   instagram?: string;
   twitter?: string;
+  linkedin?: string;
   geminiApiKey?: string;
   aiMemory?: string;
   tier?: SubscriptionTier;
@@ -535,6 +544,7 @@ export interface RestaurantProfile {
   language?: 'en' | 'es' | 'nl' | 'pt';
   posConfig?: POSIntegrationConfig;
   recordingMode?: boolean;
+  academyOnlyMode?: boolean;
 }
 
 export interface FlashDrill {

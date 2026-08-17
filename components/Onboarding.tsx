@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { geminiService } from '../services/geminiService';
 import { supabaseSync, getSupabaseConfig, isLocalEnvironment } from '../services/supabaseSync';
 import { RestaurantProfile } from '../lib/types';
-import { getBrandedTerm } from '../utils/branding';
+import { getBrandedTerm, getPublicBrand } from '../utils/branding';
 import TermsOfService from './modals/TermsOfService';
 import VinetelligenceLogo from './VinetelligenceLogo';
 
@@ -74,14 +74,17 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   
+  const currentBrand = getPublicBrand();
+  const isVinea = currentBrand.theme === 'vinea';
+
   const [branding] = useState({
     name: ((import.meta.env?.VITE_ESTABLISHMENT_NAME as string) || 
-          (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_NAME : undefined) || 'Vinetelligence').trim(),
+          (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_NAME : undefined) || currentBrand.name).trim(),
     tagline: ((import.meta.env?.VITE_ESTABLISHMENT_TAGLINE as string) || 
-             (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_TAGLINE : undefined) || 'Beverage Intelligence Platform').trim(),
+             (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_TAGLINE : undefined) || currentBrand.tagline).trim(),
     heroImage: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=2000&q=90',
     description: (import.meta.env?.VITE_ESTABLISHMENT_DESC as string) || 
-                 (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_DESC : undefined) || "The world's most advanced AI ecosystem for high-end hospitality—mapping palates, predicting supply, and coaching mastery."
+                 (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ESTABLISHMENT_DESC : undefined) || currentBrand.description
   });
 
   const [profile, setProfile] = useState(() => {
@@ -99,7 +102,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
       type: 'Restaurant',
       customType: '',
       focus: 'Wine & Spirits',
-      description: 'Experimental local sandbox environment.',
+      description: 'Experimental local demo environment.',
       edition: 'demo',
       supabaseUrl: '',
       supabaseAnonKey: '',
@@ -119,7 +122,6 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
   const [isInitializing, setIsInitializing] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
-  const [isProductionMode, setIsProductionMode] = useState(false);
   const [isLocalSiloBypass, setIsLocalSiloBypass] = useState(false);
   const [showManualConfig, setShowManualConfig] = useState(false);
 
@@ -178,7 +180,6 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
     const envConfig = getSupabaseConfig();
     console.log("Vinetelligence: Initial environment config check", { hasConfig: !!envConfig, source: envConfig?.source });
     if (envConfig && envConfig.source === 'env') {
-      setIsProductionMode(true);
       if (isLocalEnvironment()) {
         setIsLocalSiloBypass(true);
       }
@@ -195,14 +196,50 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
     }
   }, [isDemoMode]);
 
-  const handleLaunchDemo = (mode: 'operator' | 'guest' = 'operator') => {
-    const demoProfile = {
+  const handleAutomaticSetup = (preset: 'ruth_chris' | 'canlis' | 'french_laundry' | 'standard' | 'academy_only') => {
+    let name = branding.name + ' Elite Demo';
+    let isRuthChris = false;
+    let isCanlis = false;
+    let isFrenchLaundry = false;
+    let academyOnlyMode = false;
+    let desc = 'Experimental local demo environment.';
+
+    if (preset === 'ruth_chris') {
+      name = "Ruth's Chris Steak House Benchmark";
+      isRuthChris = true;
+      desc = "USDA Prime steakhouse benchmark. Infrared high-velocity operations model.";
+    } else if (preset === 'canlis') {
+      name = "Canlis Seattle Benchmark";
+      isCanlis = true;
+      desc = "Iconic contemporary Pacific Northwest fine dining model. Relies heavily on high-end pairings and heritage collections.";
+    } else if (preset === 'french_laundry') {
+      name = "The French Laundry Benchmark";
+      isFrenchLaundry = true;
+      desc = "The legendary Napa Valley 3-Michelin-Star pairing model, loaded with ultra-cult wines.";
+    } else if (preset === 'academy_only') {
+      name = "Somatic Culinary Institute";
+      academyOnlyMode = true;
+      desc = "Exclusively somatic academy deployment. Restricts interface to the Intelligence Academy and educational node.";
+    }
+
+    const autoProfile = {
       ...profile,
-      name: branding.name + ' Local Sandbox',
+      id: 'demo-id',
+      name: name,
+      type: preset === 'academy_only' ? 'Culinary School' : 'Restaurant',
+      focus: 'Wine & Spirits',
       edition: 'demo',
-      demoMode: mode
+      demoMode: 'operator',
+      aesthetic: 'elite',
+      brandVoice: 'luxury',
+      tier: 'Enterprise',
+      description: desc,
+      isRuthChris,
+      isCanlis,
+      isFrenchLaundry,
+      academyOnlyMode
     };
-    onComplete(demoProfile);
+    onComplete(autoProfile);
   };
 
   const handleNext = useCallback(() => {
@@ -478,49 +515,104 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                   <p className="text-base md:text-2xl text-stone-300 max-w-2xl mx-auto font-medium italic leading-relaxed opacity-80 px-4">
                     "{branding.description}"
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center pt-8 items-center px-4">
-                     {isProductionMode ? (
-                       <>
-                         <button 
-                          onClick={() => onSelectAuth('login')}
-                          className="w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 bg-indigo-500 text-stone-950 rounded-full font-black text-[10px] md:text-xs uppercase tracking-[0.3em] md:tracking-[0.4em] hover:bg-white transition-all shadow-[0_0_40px_rgba(79,70,229,0.3)] active:scale-95"
-                         >
-                           Staff Portal
-                         </button>
-                         <div className="flex flex-col gap-3 w-full sm:w-auto">
-                           <button 
-                             onClick={() => handleLaunchDemo('operator')}
-                             className="w-full px-8 md:px-10 py-3 md:py-4 border border-white/20 text-white rounded-full font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-white/10 transition-all active:scale-95"
-                           >
-                             Demo as Operator
-                           </button>
+                  <div className="flex flex-col gap-6 items-center justify-center pt-8 px-4 w-full max-w-5xl mx-auto">
+                     <p className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400">Select a High-Fidelity Live Benchmark Setup</p>
+                     
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                       {/* Canlis Seattle Card */}
+                       <button 
+                         onClick={() => handleAutomaticSetup('canlis')}
+                         className="flex flex-col text-left p-6 bg-stone-900/80 hover:bg-stone-850 border border-amber-500/30 hover:border-amber-400 rounded-3xl transition-all duration-300 group shadow-lg shadow-amber-500/5 hover:shadow-amber-500/10 active:scale-[0.98] relative overflow-hidden"
+                       >
+                         <div className="absolute top-0 right-0 p-3 text-amber-500 opacity-20 group-hover:opacity-100 transition-opacity">
+                           <i className="fas fa-wine-glass-alt text-lg"></i>
                          </div>
-                       </>
-                     ) : (
-                       <>
-                         <div className="flex flex-col gap-3 w-full sm:w-auto">
-                           <button 
-                             onClick={() => {
-                               setProfile({...profile, aesthetic: 'elite', brandVoice: 'luxury', name: branding.name + ' Elite Sandbox', edition: 'demo', demoMode: 'operator'});
-                               onComplete({...profile, aesthetic: 'elite', brandVoice: 'luxury', name: branding.name + ' Elite Sandbox', edition: 'demo', demoMode: 'operator'});
-                             }}
-                             className="w-full px-8 md:px-10 py-3 md:py-4 bg-indigo-500 text-stone-900 rounded-full font-black text-[8px] md:text-[10px] uppercase tracking-[0.3em] md:tracking-[0.4em] hover:bg-white transition-all shadow-[0_0_40px_rgba(79,70,229,0.3)] active:scale-95"
-                           >
-                             Demo Elite Mode
-                           </button>
-                           <button 
-                             onClick={() => {
-                               setProfile({...profile, aesthetic: 'light', brandVoice: 'casual', name: branding.name + ' Light Sandbox', edition: 'demo', demoMode: 'operator'});
-                               onComplete({...profile, aesthetic: 'light', brandVoice: 'casual', name: branding.name + ' Light Sandbox', edition: 'demo', demoMode: 'operator'});
-                             }}
-                             className="w-full px-8 md:px-10 py-3 md:py-4 border border-indigo-500/30 text-indigo-500 rounded-full font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-indigo-500 hover:text-stone-950 transition-all active:scale-95"
-                           >
-                             Demo Light Mode
-                           </button>
+                         <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-1">Northwest Fine Dining</span>
+                         <h3 className="text-lg font-serif font-black italic text-white group-hover:text-amber-400 transition-colors">Canlis Seattle Benchmark</h3>
+                         <p className="text-xs text-stone-400 mt-2 font-medium italic leading-relaxed">
+                           Simulate Seattle's iconic hilltop legend. Pre-loaded with local delicacies, huckleberry duck, Quilceda Creek, and Leonetti Cellars.
+                         </p>
+                       </button>
+
+                       {/* The French Laundry Card */}
+                       <button 
+                         onClick={() => handleAutomaticSetup('french_laundry')}
+                         className="flex flex-col text-left p-6 bg-stone-900/80 hover:bg-stone-850 border border-purple-500/30 hover:border-purple-400 rounded-3xl transition-all duration-300 group shadow-lg shadow-purple-500/5 hover:shadow-purple-500/10 active:scale-[0.98] relative overflow-hidden"
+                       >
+                         <div className="absolute top-0 right-0 p-3 text-purple-500 opacity-20 group-hover:opacity-100 transition-opacity">
+                           <i className="fas fa-award text-lg"></i>
                          </div>
-                         <button onClick={() => setStep(1)} className="w-full sm:w-auto px-10 md:px-14 py-4 md:py-6 border border-white/20 text-white rounded-full font-black text-[10px] md:text-xs uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-white/10 transition-all active:scale-95">Register Establishment</button>
-                       </>
-                     )}
+                         <span className="text-[9px] font-black uppercase tracking-widest text-purple-500 mb-1">3-Michelin-Star Napa Valley</span>
+                         <h3 className="text-lg font-serif font-black italic text-white group-hover:text-purple-400 transition-colors">The French Laundry Benchmark</h3>
+                         <p className="text-xs text-stone-400 mt-2 font-medium italic leading-relaxed">
+                           Thomas Keller's Napa Valley masterpiece. Loaded with Oysters and Pearls, Regiis Ova Caviar, Screaming Eagle, and Harlan Estate.
+                         </p>
+                       </button>
+
+                       {/* Somatic Culinary Academy Card */}
+                       <button 
+                         onClick={() => handleAutomaticSetup('academy_only')}
+                         className="flex flex-col text-left p-6 bg-stone-900/80 hover:bg-stone-850 border border-indigo-500/30 hover:border-indigo-400 rounded-3xl transition-all duration-300 group shadow-lg shadow-indigo-500/5 hover:shadow-indigo-500/10 active:scale-[0.98] relative overflow-hidden"
+                       >
+                         <div className="absolute top-0 right-0 p-3 text-indigo-500 opacity-20 group-hover:opacity-100 transition-opacity">
+                           <i className="fas fa-graduation-cap text-lg"></i>
+                         </div>
+                         <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500 mb-1">Academic Training Node</span>
+                         <h3 className="text-lg font-serif font-black italic text-white group-hover:text-indigo-400 transition-colors">Somatic Academy-Only</h3>
+                         <p className="text-xs text-stone-400 mt-2 font-medium italic leading-relaxed">
+                           Deploy the software exclusively as a Sommelier Training Portal. Perfect for culinary schools, staff onboarding, or wine programs.
+                         </p>
+                       </button>
+
+                       {/* Ruth's Chris Card */}
+                       <button 
+                         onClick={() => handleAutomaticSetup('ruth_chris')}
+                         className="flex flex-col text-left p-6 bg-stone-900/80 hover:bg-stone-850 border border-yellow-500/30 hover:border-yellow-400 rounded-3xl transition-all duration-300 group shadow-lg shadow-yellow-500/5 hover:shadow-yellow-500/10 active:scale-[0.98] relative overflow-hidden"
+                       >
+                         <div className="absolute top-0 right-0 p-3 text-yellow-500 opacity-20 group-hover:opacity-100 transition-opacity">
+                           <i className="fas fa-fire-flame-curved text-lg"></i>
+                         </div>
+                         <span className="text-[9px] font-black uppercase tracking-widest text-yellow-500 mb-1">USDA Prime Steakhouse</span>
+                         <h3 className="text-lg font-serif font-black italic text-white group-hover:text-yellow-400 transition-colors">Ruth's Chris Benchmark</h3>
+                         <p className="text-xs text-stone-400 mt-2 font-medium italic leading-relaxed">
+                           High-velocity sizzling-plate steakhouse operations. Includes dry-aged steaks, sizzling sides, and premium international wines.
+                         </p>
+                       </button>
+
+                       {/* Standard Demo Card */}
+                       <button 
+                         onClick={() => handleAutomaticSetup('standard')}
+                         className="flex flex-col text-left p-6 bg-stone-900/80 hover:bg-stone-850 border border-stone-750 hover:border-stone-500 rounded-3xl transition-all duration-300 group shadow-lg active:scale-[0.98] relative overflow-hidden md:col-span-2 lg:col-span-1"
+                       >
+                         <div className="absolute top-0 right-0 p-3 text-stone-500 opacity-20 group-hover:opacity-100 transition-opacity">
+                           <i className="fas fa-magic text-lg"></i>
+                         </div>
+                         <span className="text-[9px] font-black uppercase tracking-widest text-stone-500 mb-1">Generic Sandbox</span>
+                         <h3 className="text-lg font-serif font-black italic text-white group-hover:text-stone-300 transition-colors">Standard Lounge Demo</h3>
+                         <p className="text-xs text-stone-400 mt-2 font-medium italic leading-relaxed">
+                           Clean slate sandbox. Configured with a balanced, general-purpose inventory of local craft spirits, beers, and staple wines.
+                         </p>
+                       </button>
+                     </div>
+
+                     {/* Custom Registration or Staff Sign-In */}
+                     <div className="flex flex-wrap gap-4 justify-center items-center pt-4 border-t border-white/10 w-full">
+                       <button 
+                         onClick={() => setStep(1)} 
+                         className="px-8 py-3.5 border border-white/20 text-white rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95 flex items-center gap-2"
+                       >
+                         <i className="fas fa-clipboard-list text-stone-400"></i>
+                         Manual Custom Registration
+                       </button>
+
+                       <button 
+                         onClick={() => onSelectAuth('login')} 
+                         className="px-8 py-3.5 border border-white/10 text-stone-300 rounded-full font-black text-[10px] uppercase tracking-widest hover:text-white hover:border-white transition-all flex items-center gap-2"
+                       >
+                         <i className="fas fa-sign-in-alt text-stone-400"></i>
+                         Staff Portal Sign-In
+                       </button>
+                     </div>
                   </div>
                </div>
 
@@ -542,7 +634,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                            <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em]">Intelligence Academy</p>
                         </div>
                         <p className="text-stone-400 text-xl leading-relaxed font-medium italic">
-                           "Eliminate technical friction. Vinetelligence provides your team with a high-fidelity knowledge base covering global vintages, spirit chemistry, and cultural etiquette—delivered in real-time via hands-free AI coaching."
+                           "Eliminate technical friction. {isVinea ? 'Vinea' : 'Vinetelligence'} provides your team with a high-fidelity knowledge base covering global vintages, spirit chemistry, and cultural etiquette—delivered in real-time via hands-free AI coaching."
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                            <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-4 hover:border-indigo-500/30 transition-all">
@@ -583,7 +675,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                            <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em]">Palate Sync Protocol</p>
                         </div>
                         <p className="text-stone-400 text-xl leading-relaxed font-medium italic">
-                           "The guest experience begins before they arrive. Vinetelligence's Guest Intelligence Node captures palate DNA and dietary constraints, allowing your team to prepare bespoke pairings that resonate with every individual."
+                           "The guest experience begins before they arrive. {isVinea ? "Vinea's" : "Vinetelligence's"} Guest Intelligence Node captures palate DNA and dietary constraints, allowing your team to prepare bespoke pairings that resonate with every individual."
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                            <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 space-y-4 hover:border-indigo-500/30 transition-all">
@@ -642,7 +734,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                            <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.4em]">Predictive Logistics</p>
                         </div>
                         <p className="text-stone-400 text-xl leading-relaxed font-medium italic">
-                           "Stop reacting to shortages. Vinetelligence's predictive engine uses local demand patterns and multimodal vision audits to automate your supply chain and increase net margins by up to 14.2%."
+                           "Stop reacting to shortages. {isVinea ? "Vinea's" : "Vinetelligence's"} predictive engine uses local demand patterns and multimodal vision audits to automate your supply chain and increase net margins by up to 14.2%."
                         </p>
                         <div className="grid grid-cols-1 gap-6 pt-4">
                            <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 flex items-center gap-6 group hover:border-blue-500/30 transition-all">
@@ -677,7 +769,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                               <i className="fas fa-shield-halved text-3xl"></i>
                            </div>
                            <div className="space-y-1">
-                              <h3 className="text-2xl font-serif font-black italic text-white leading-none">Vinetelligence Fortress</h3>
+                              <h3 className="text-2xl font-serif font-black italic text-white leading-none">{isVinea ? 'Vinea Fortress' : 'Vinetelligence Fortress'}</h3>
                               <p className="text-blue-500 text-[10px] font-black uppercase tracking-widest leading-none mt-2">Zero-Trust Data Protection</p>
                            </div>
                         </div>
@@ -704,7 +796,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                         <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.4em]">Integrated Security Architecture</p>
                      </div>
                      <p className="text-stone-400 text-xl leading-relaxed font-medium italic">
-                        "Hospitality is built on discretion. Vinetelligence is engineered to exceed banking-grade security standards, ensuring your menu engineering, guest palates, and financial nodes remain strictly within your establishment's control."
+                        "Hospitality is built on discretion. {isVinea ? 'Vinea AI' : 'Vinetelligence'} is engineered to exceed banking-grade security standards, ensuring your menu engineering, guest palates, and financial nodes remain strictly within your establishment's control."
                      </p>
                      <div className="pt-8 flex gap-8">
                         <div className="flex-1 p-8 bg-white/5 rounded-3xl border border-white/5 space-y-2 text-center">
@@ -792,7 +884,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
             <footer className="py-40 px-8 border-t border-white/5 text-center bg-stone-950">
                <div className="max-w-md mx-auto space-y-16">
                   <div className="space-y-6">
-                    <h1 className="font-serif text-8xl font-black text-indigo-500 italic tracking-tighter uppercase leading-none">Vinetelligence</h1>
+                    <h1 className={`font-serif text-8xl font-black ${isVinea ? 'text-amber-500' : 'text-indigo-500'} italic tracking-tighter uppercase leading-none`}>{isVinea ? 'Vinea' : 'Vinetelligence'}</h1>
                     <p className="text-stone-400 text-xl font-medium leading-relaxed italic">"Realizing the integrated intelligence layer for the modern beverage program."</p>
                   </div>
                   <div className="space-y-6 pt-10">
@@ -982,6 +1074,60 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
               <p className="text-stone-500 text-lg italic">"Map your establishment's unique operational identity."</p>
             </div>
 
+            {/* Quick Presets Selection */}
+            {isDemoMode && (
+              <div className="bg-white/5 border border-white/10 p-6 rounded-3xl space-y-4">
+                <div className="flex items-center gap-2">
+                  <i className="fas fa-magic text-indigo-400"></i>
+                  <p className="text-[10px] font-black uppercase text-stone-300 tracking-[0.2em]">Select Real-World Benchmark Preset</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfile({
+                        ...profile,
+                        name: "Ruth's Chris Steak House",
+                        type: "Fine Dining",
+                        focus: "Steaks & Fine Wines",
+                        description: "Ruth's Chris single-location performance simulation modeled after public 10-K filings. Highly accurate steakhouse economics.",
+                        ownerEmail: "gm@ruthshospitality.com",
+                      });
+                    }}
+                    className={`p-5 rounded-2xl border text-left transition-all ${
+                      profile.name === "Ruth's Chris Steak House"
+                        ? 'border-indigo-500 bg-indigo-500/10'
+                        : 'border-white/5 bg-white/0 hover:bg-white/5'
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-white uppercase tracking-wider">Ruth's Chris Benchmarks</p>
+                    <p className="text-[9px] text-stone-400 mt-2 leading-relaxed italic">120 Seats, $95 Avg Spend, 60% Prime Cost structure.</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfile({
+                        ...profile,
+                        name: "The Gilded Shaker",
+                        type: "Restaurant",
+                        focus: "Wine & Spirits",
+                        description: "An elegant local demo environment with premium cocktails and taproom simulation.",
+                        ownerEmail: "owner@gildedshaker.com",
+                      });
+                    }}
+                    className={`p-5 rounded-2xl border text-left transition-all ${
+                      profile.name === "The Gilded Shaker" || (!profile.name && profile.id === 'demo-id')
+                        ? 'border-indigo-500 bg-indigo-500/10'
+                        : 'border-white/5 bg-white/0 hover:bg-white/5'
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-stone-300 uppercase tracking-wider">The Gilded Shaker (Default)</p>
+                    <p className="text-[9px] text-stone-500 mt-2 leading-relaxed italic">General craft cocktail and demo lounge template.</p>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-10">
               <div className="group">
                 <label className="block text-[11px] font-black text-stone-500 uppercase tracking-[0.4em] mb-4 ml-1">Facility Registry Name</label>
@@ -1064,8 +1210,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                  <div className="flex-1">
                    <p className="text-sm text-blue-100 font-medium italic leading-relaxed">
                      {dbStatus.isEnvManaged 
-                       ? "Managed Cloud detected. Vinetelligence is ready to register your establishment in the global registry."
-                       : "As a cloud-enabled node, you can connect Vinetelligence to your private Supabase instance for data sovereignty and cloud backups."}
+                       ? `Managed Cloud detected. ${isVinea ? "Vinea" : "Vinetelligence"} is ready to register your establishment in the global registry.`
+                       : `As a cloud-enabled node, you can connect ${isVinea ? "Vinea" : "Vinetelligence"} to your private Supabase instance for data sovereignty and cloud backups.`}
                    </p>
                    {dbStatus.isEnvManaged && !showManualConfig && !dbStatus.success && (
                      <button 
@@ -1259,7 +1405,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                    <p className="text-indigo-500 text-[10px] font-black uppercase tracking-widest mt-1">High-Luxury Aesthetic</p>
                  </div>
                  <p className="text-xs text-stone-500 leading-relaxed italic">
-                   "The traditional Vinetelligence experience. Uses technical jargon like 'Neural Link', 'Intelligence Node', and 'Scholar Lattice' for a high-performance, polished feel."
+                   "The traditional {isVinea ? "Vinea" : "Vinetelligence"} experience. Uses technical jargon like 'Neural Link', 'Intelligence Node', and 'Scholar Lattice' for a high-performance, polished feel."
                  </p>
                </button>
 
@@ -1375,10 +1521,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                   <h3 className="text-5xl md:text-6xl font-serif font-black text-white italic leading-none tracking-tighter">System Ready.</h3>
                   <p className="text-stone-400 text-lg font-medium italic text-center">
                     {isDemoMode 
-                      ? "Explorer tier node initialized. Database set to local-first sandbox mode. No account required."
+                      ? "Explorer tier node initialized. Database set to local-first demo mode. No account required."
                       : (isEnterpriseTier 
                           ? "Architect node identified. Private Silo activated for this facility."
-                          : "Establishment identified. Vinetelligence Managed Cloud node activated for your tier.")}
+                          : `Establishment identified. ${isVinea ? 'Vinea' : 'Vinetelligence'} Managed Cloud node activated for your tier.`)}
                   </p>
                 </div>
                 <div className="space-y-6 flex flex-col items-center">
@@ -1391,7 +1537,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSelectAuth, curre
                         {hasAcceptedTerms && <i className="fas fa-check text-stone-950 text-xs"></i>}
                       </div>
                       <span className="text-[10px] font-mono font-black uppercase tracking-widest text-stone-500 group-hover:text-stone-300 transition-colors">
-                        I acknowledge the <button onClick={(e) => { e.stopPropagation(); setShowTerms(true); }} className="text-emerald-500 hover:underline">Vinetelligence Neural Protocols</button>
+                        I acknowledge the <button onClick={(e) => { e.stopPropagation(); setShowTerms(true); }} className="text-emerald-500 hover:underline">{isVinea ? 'Vinea Neural Protocols' : 'Vinetelligence Neural Protocols'}</button>
                       </span>
                     </label>
                   </div>

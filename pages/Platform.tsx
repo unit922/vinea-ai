@@ -40,6 +40,7 @@ const Platform: React.FC<PlatformProps> = ({
   const [auditSent, setAuditSent] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [primaryBottleneck, setPrimaryBottleneck] = useState("");
+  const [isAuditOpen, setIsAuditOpen] = useState(false);
 
   const handleDownloadBlankAuditPDF = () => {
     try {
@@ -203,10 +204,6 @@ const Platform: React.FC<PlatformProps> = ({
           Vinetelligence isn't just an app—it's an AI-powered operating system
           designed specifically for the complexities of high-end establishments.
         </p>
-        <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 italic flex items-center gap-2 justify-center">
-          <i className="fas fa-desktop text-xs"></i>
-          Optimization Note: Laptop or Tablet recommended for full experience.
-        </p>
       </section>
 
       {/* Core Modules Grid */}
@@ -245,18 +242,13 @@ const Platform: React.FC<PlatformProps> = ({
                 ))}
               </ul>
             </div>
-            <div className="bg-stone-900 rounded-[3rem] p-12 shadow-3xl border border-stone-800">
-              <div className="aspect-video bg-stone-800 rounded-2xl border border-white/5 overflow-hidden flex items-center justify-center relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-transparent"></div>
-                <div className="text-center space-y-4 relative z-10">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
-                    Processing Node
-                  </p>
-                  <p className="text-4xl font-mono font-bold text-white">
-                    READY
-                  </p>
-                </div>
-              </div>
+            <div className="bg-stone-900 rounded-[3rem] p-1.5 shadow-3xl border border-stone-800 aspect-video overflow-hidden">
+              <iframe 
+                src="https://www.youtube.com/embed/TkSYN10JR-I?autoplay=1&mute=1&loop=1&playlist=TkSYN10JR-I&start=122&end=145&modestbranding=1&controls=0&rel=0&iv_load_policy=3"
+                className="w-full h-full border-none rounded-[2.8rem] grayscale hover:grayscale-0 transition-all duration-500 pointer-events-none"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                title="Neural Camera Integration Scanner"
+              />
             </div>
           </div>
 
@@ -292,25 +284,13 @@ const Platform: React.FC<PlatformProps> = ({
                 ))}
               </ul>
             </div>
-            <div className="bg-white rounded-[3rem] p-12 shadow-2xl border border-stone-100">
-              <div className="space-y-6">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100"
-                  >
-                    <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-                      <i className="fas fa-play"></i>
-                    </div>
-                    <div className="flex-1 h-3 bg-stone-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-indigo-500"
-                        style={{ width: `${30 * i}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="bg-stone-900 rounded-[3rem] p-1.5 shadow-3xl border border-stone-800 aspect-video overflow-hidden">
+              <iframe 
+                src="https://www.youtube.com/embed/TkSYN10JR-I?autoplay=1&mute=1&loop=1&playlist=TkSYN10JR-I&start=299&end=325&modestbranding=1&controls=0&rel=0&iv_load_policy=3"
+                className="w-full h-full border-none rounded-[2.8rem] grayscale hover:grayscale-0 transition-all duration-500 pointer-events-none"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                title="Somatic Academy Classroom Suite"
+              />
             </div>
           </div>
 
@@ -347,30 +327,13 @@ const Platform: React.FC<PlatformProps> = ({
                 ))}
               </ul>
             </div>
-            <div className="relative">
-              <div className="bg-stone-900 rounded-[3rem] p-8 shadow-3xl border border-white/10">
-                <div className="flex justify-between items-center mb-8">
-                  <p className="text-[10px] font-black uppercase text-white/50 tracking-widest">
-                    Global Overview
-                  </p>
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
-                </div>
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5"
-                    >
-                      <div className="text-stone-400 text-[10px] font-bold">
-                        Node_{i}
-                      </div>
-                      <div className="text-white font-mono text-[10px]">
-                        98.2% ONLINE
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div className="bg-stone-900 rounded-[3rem] p-1.5 shadow-3xl border border-white/10 aspect-video overflow-hidden">
+              <iframe 
+                src="https://www.youtube.com/embed/TkSYN10JR-I?autoplay=1&mute=1&loop=1&playlist=TkSYN10JR-I&start=0&end=15&modestbranding=1&controls=0&rel=0&iv_load_policy=3"
+                className="w-full h-full border-none rounded-[2.8rem] grayscale hover:grayscale-0 transition-all duration-500 pointer-events-none"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                title="Executive Network Command center"
+              />
             </div>
           </div>
 
@@ -508,7 +471,27 @@ const Platform: React.FC<PlatformProps> = ({
             </div>
           </div>
 
-          {!leadSubmitted ? (
+          {!isAuditOpen && !leadSubmitted ? (
+            <div className="bg-white rounded-[3rem] p-10 md:p-14 shadow-xl border border-stone-200/60 text-center space-y-8 max-w-2xl mx-auto">
+              <div className="w-16 h-16 bg-indigo-50 border border-indigo-100 rounded-3xl flex items-center justify-center text-indigo-600 text-2xl mx-auto shadow-md">
+                <i className="fas fa-clipboard-question animate-bounce"></i>
+              </div>
+              <div className="space-y-3">
+                <h4 className="text-xl font-serif font-black italic text-stone-900">Interactive Self-Assessment Simulator</h4>
+                <p className="text-stone-500 text-sm leading-relaxed max-w-md mx-auto italic">
+                  Take 3 minutes to evaluate slow counting, gut-feel ordering, pouring waste, and guest connection bottlenecks. Receive an instant AI Readiness score.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAuditOpen(true)}
+                className="w-full sm:w-auto px-10 py-5 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-stone-900 transition-all shadow-xl hover:shadow-indigo-100 active:scale-95 cursor-pointer inline-flex items-center justify-center gap-2"
+              >
+                <span>Initiate Interactive Audit Quiz</span>
+                <i className="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          ) : !leadSubmitted ? (
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -561,6 +544,18 @@ const Platform: React.FC<PlatformProps> = ({
               }}
               className="bg-white rounded-[3rem] p-8 md:p-12 shadow-xl border border-stone-200/60 space-y-12 text-left"
             >
+              {/* Collapse Button at the top of form to close */}
+              <div className="flex justify-end -mb-6">
+                <button
+                  type="button"
+                  onClick={() => setIsAuditOpen(false)}
+                  className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <i className="fas fa-chevron-up"></i>
+                  <span>Collapse Questionnaire</span>
+                </button>
+              </div>
+
               {/* Contact Block */}
               <div className="space-y-6">
                 <h4 className="text-xs font-black uppercase text-stone-400 tracking-widest border-b border-stone-100 pb-2">

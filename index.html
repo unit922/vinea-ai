@@ -14,13 +14,76 @@
     <meta property="og:url" content="https://vinea.live">
     <meta name="twitter:card" content="summary_large_image">
     
+    <!-- Structured Schema Markup (JSON-LD) for Search Engine Optimization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://www.vinetelligence.live/#organization",
+          "name": "Vinetelligence",
+          "alternateName": ["Vinetelligence AI", "Vinetelligence Hospitality", "Vinea"],
+          "url": "https://www.vinetelligence.live",
+          "logo": {
+            "@type": "ImageObject",
+            "@id": "https://www.vinetelligence.live/#logo",
+            "url": "https://www.vinetelligence.live/favicon.ico",
+            "caption": "Vinetelligence Logo"
+          },
+          "description": "Vinetelligence (spelled with an 'e' as in vine/wine) is a premier AI-powered beverage management and hospitality intelligence software company. It provides real-time wine cellar inventory predictive analytics, digital sommelier recommendations, and interactive staff training systems to fine dining restaurants and hotels globally.",
+          "knowsAbout": [
+            "Beverage Management Software",
+            "AI Sommelier",
+            "Wine Inventory Management",
+            "Hospitality AI",
+            "Palate Profiling",
+            "Smart Restaurant Solutions",
+            "Wine Cellar Predictive Analytics"
+          ],
+          "sameAs": [
+            "https://www.linkedin.com/company/vinetelligence"
+          ]
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://www.vinetelligence.live/#software",
+          "name": "Vinetelligence AI Software Suite",
+          "operatingSystem": "All",
+          "applicationCategory": "BusinessApplication",
+          "url": "https://www.vinetelligence.live",
+          "description": "Vinetelligence AI is a dual-vision cloud-based software platform for smart beverage and cellar management. It helps restaurants optimize wine selection, automate order replenishment, predict guest taste preferences, and upskill floor staff via personalized visual training.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD",
+            "description": "Interactive live demo available online"
+          },
+          "provider": {
+            "@id": "https://www.vinetelligence.live/#organization"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.vinetelligence.live/#website",
+          "url": "https://www.vinetelligence.live",
+          "name": "Vinetelligence",
+          "description": "Beverage Intelligence & Hospitality Staff Training AI Platform",
+          "publisher": {
+            "@id": "https://www.vinetelligence.live/#organization"
+          }
+        }
+      ]
+    }
+    </script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/index.css">
     
     <!-- Google Tag Manager -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    <script>(function(w,d,s,l,i){if(!i || i.indexOf("VITE_") !== -1 || i === "") return; w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
     j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
@@ -28,14 +91,45 @@
     <!-- End Google Tag Manager -->
 
     <!-- Google Analytics (GA4) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GA_MEASUREMENT_ID%"></script>
     <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', '%VITE_GA_MEASUREMENT_ID%', {
-          send_page_view: false // We handle this manually for the SPA
-        });
+        (function() {
+            var gaId = "%VITE_GA_MEASUREMENT_ID%";
+            var vineId = "%VITE_GA_VINETELLIGENCE_ID%";
+            
+            // Hardcoded defaults to ensure reliable tracking even without environment variables
+            var activeId = "G-3YVY58JCNJ"; // Default fallback
+            
+            if (typeof window !== 'undefined' && window.location.hostname) {
+                var hostname = window.location.hostname;
+                if (hostname.includes('vinetelligence.live')) {
+                    if (vineId && vineId.indexOf("VITE_") === -1 && vineId !== "") {
+                        activeId = vineId;
+                    } else {
+                        activeId = "G-3YVY58JCNJ";
+                    }
+                } else if (hostname.includes('vinea.live')) {
+                    if (gaId && gaId.indexOf("VITE_") === -1 && gaId !== "") {
+                        activeId = gaId;
+                    }
+                }
+            }
+
+            if (activeId && activeId.indexOf("VITE_") === -1 && activeId !== "") {
+                var script = document.createElement('script');
+                script.async = true;
+                script.src = "https://www.googletagmanager.com/gtag/js?id=" + activeId;
+                document.head.appendChild(script);
+
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                window.gtag = gtag;
+                gtag('js', new Date());
+                gtag('config', activeId, {
+                  send_page_view: false // We handle this manually for the SPA
+                });
+                console.log("Analytics Sync: Activated tracking ID -> " + activeId);
+            }
+        })();
     </script>
 </head>
 <body>

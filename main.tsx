@@ -36,6 +36,10 @@ const AppSelectorRoot: React.FC = () => {
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       if (hostname.includes('vinea.live')) {
+        const stored = localStorage.getItem('platform_selected_app');
+        if (stored === 'marketing' || stored === 'vinetelligence') {
+          return stored;
+        }
         return 'vinea';
       }
       if (hostname.includes('vinetelligence.live')) {
@@ -43,13 +47,16 @@ const AppSelectorRoot: React.FC = () => {
         if (stored === 'vinetelligence') {
           return 'vinetelligence';
         }
+        if (stored === 'vinea') {
+          return 'vinea';
+        }
         return 'marketing';
       }
     }
 
-    // 2. URL parameter overrides has next priority (for developer sandbox previews)
+    // 2. URL parameter overrides has next priority (for developer sandbox previews & widget iframe embeds)
     const params = new URLSearchParams(window.location.search);
-    const appParam = params.get('app');
+    const appParam = params.get('app') || params.get('embed');
     if (appParam === 'vinea' || appParam === 'vinetelligence' || appParam === 'marketing') {
       localStorage.setItem('platform_selected_app', appParam);
       return appParam;
@@ -64,12 +71,19 @@ const AppSelectorRoot: React.FC = () => {
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       if (hostname.includes('vinea')) {
+        const stored = localStorage.getItem('platform_selected_app');
+        if (stored === 'marketing' || stored === 'vinetelligence') {
+          return stored;
+        }
         return 'vinea';
       }
       if (hostname.includes('vinetelligence')) {
         const stored = localStorage.getItem('platform_selected_app');
         if (stored === 'vinetelligence') {
           return 'vinetelligence';
+        }
+        if (stored === 'vinea') {
+          return 'vinea';
         }
         return 'marketing';
       }
